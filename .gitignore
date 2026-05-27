@@ -1,0 +1,52 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# Build folders
+bin/
+obj/
+
+# Rider
+.idea/
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.*
+
+# ASP.NET
+appsettings.Production.json
+
+# Node modules
+node_modules/
+
+# Package lock files
+package-lock.json
+yarn.lock
+
+# Temporary files
+*.tmp
+*.temp
+
+# NuGet packages
+packages/
+
+# Publish output
+publish/
+
+# IIS Express
+iisexpress/
+
+# ReSharper
+_ReSharper*/
+*.DotSettings.user
