@@ -1,0 +1,6 @@
+@InframartAPI_HostAddress = http://localhost:5219
+
+GET {{InframartAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
