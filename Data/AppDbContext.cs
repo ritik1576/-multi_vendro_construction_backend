@@ -11,7 +11,9 @@ namespace InframartAPI_New.Data
         }
 
         public DbSet<User> Users { get; set; }
+
         public DbSet<Vendor> Vendors { get; set; }
+
         public DbSet<OtpVerification> OtpVerifications { get; set; }
     }
 }

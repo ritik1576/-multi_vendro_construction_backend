@@ -1,77 +1,52 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.OpenApi.Models;
-
-using InframartAPI_New.Data;
-using InframartAPI_New.Middlewares;
-using InframartAPI_New.Repositories;
-using InframartAPI_New.Repositories.Interfaces;
-using InframartAPI_New.Services;
-using InframartAPI_New.Services.Interfaces;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
-
-#region SERVICES
 
 // Controllers
 builder.Services.AddControllers();
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
+builder.Services.AddSwaggerGen();
+
+// JWT Authentication
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+.AddJwtBearer(options =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo
+    options.TokenValidationParameters = new TokenValidationParameters
     {
-        Title = "Inframart API",
-        Version = "v1"
-    });
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+
+        ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
+        ValidAudience = builder.Configuration["JwtSettings:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:Key"]!)
+        )
+    };
 });
 
-#endregion
-
-#region DATABASE (MYSQL)
-
-// MySQL DB Context
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySql(
-        connectionString,
-        ServerVersion.AutoDetect(connectionString)
-    ));
-
-#endregion
-
-#region DEPENDENCY INJECTION
-
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IVendorService, VendorService>();
-
-builder.Services.AddScoped<IAuthRepository, AuthRepository>();
-builder.Services.AddScoped<IVendorRepository, VendorRepository>();
-
-#endregion
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-#region MIDDLEWARE PIPELINE
-
-// Swagger (only in dev)
+// Swagger
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Inframart API v1");
-    });
+    app.UseSwaggerUI();
 }
 
-// Custom JWT Middleware
-app.UseMiddleware<JwtMiddleware>();
+app.UseHttpsRedirection();
 
+// JWT Middleware
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-#endregion
 
 app.Run();
