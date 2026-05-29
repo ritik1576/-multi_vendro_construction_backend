@@ -1,10 +1,12 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using InframartAPI_New.Data;
 using InframartAPI_New.Models;
+using InframartAPI_New.DTOs;
 
 namespace InframartAPI_New.Controllers
 {
@@ -12,70 +14,70 @@ namespace InframartAPI_New.Controllers
     [ApiController]
     public class AuthController : ControllerBase
     {
+        private readonly AppDbContext _context;
         private readonly IConfiguration _configuration;
 
-        // TEMP DB (demo purpose only)
-        private static List<User> users = new List<User>();
-
-        public AuthController(IConfiguration configuration)
+        public AuthController(AppDbContext context, IConfiguration configuration)
         {
+            _context = context;
             _configuration = configuration;
         }
 
-        //  REGISTER
+        // REGISTER
         [HttpPost("register")]
-        public IActionResult Register([FromBody] RegisterRequest request)
+        public async Task<IActionResult> Register(RegisterRequest request)
         {
-            if (users.Any(x => x.Email == request.Email))
-                return BadRequest("Email already exists");
+            var existingUser = await _context.Users
+                .FirstOrDefaultAsync(x => x.Email == request.Email);
+
+            if (existingUser != null)
+                return BadRequest(new { message = "Email already exists" });
 
             var user = new User
             {
-                Id = users.Count + 1,
                 Name = request.Name,
                 Email = request.Email,
                 Password = request.Password,
-                Role = "Vendor"
+                Phone = request.Phone,
+                Role = "customer",
+                Status = "active"
             };
 
-            users.Add(user);
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
 
-            return Ok(new
-            {
-                message = "User registered successfully"
-            });
+            return Ok(new { message = "User registered successfully" });
         }
 
-        //  LOGIN
+        // LOGIN
         [HttpPost("login")]
-        public IActionResult Login([FromBody] LoginRequest request)
+        public async Task<IActionResult> Login(LoginRequest request)
         {
-            var user = users.FirstOrDefault(x =>
+            var user = await _context.Users.FirstOrDefaultAsync(x =>
                 x.Email == request.Email &&
                 x.Password == request.Password);
 
             if (user == null)
-                return Unauthorized("Invalid credentials");
-
-            var jwtKey = _configuration["JwtSettings:Key"];
-            var issuer = _configuration["JwtSettings:Issuer"];
-            var audience = _configuration["JwtSettings:Audience"];
-
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey!));
-
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+                return Unauthorized(new { message = "Invalid email or password" });
 
             var claims = new[]
             {
-                new Claim(ClaimTypes.Name, user.Email),
-                new Claim(ClaimTypes.Role, user.Role)
+                new Claim(ClaimTypes.Name, user.Email ?? ""),
+                new Claim(ClaimTypes.Role, user.Role ?? "")
             };
 
+            var key = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(_configuration["JwtSettings:Key"]!));
+
+            var creds = new SigningCredentials(
+                key,
+                SecurityAlgorithms.HmacSha256);
+
             var token = new JwtSecurityToken(
-                issuer: issuer,
-                audience: audience,
+                issuer: _configuration["JwtSettings:Issuer"]!,
+                audience: _configuration["JwtSettings:Audience"]!,
                 claims: claims,
-                expires: DateTime.UtcNow.AddHours(1),
+                expires: DateTime.Now.AddHours(2),
                 signingCredentials: creds
             );
 
@@ -85,26 +87,21 @@ namespace InframartAPI_New.Controllers
             });
         }
 
-        //  PROTECTED API
-        [Authorize]
-        [HttpGet("secure")]
-        public IActionResult Secure()
+        // FORGOT PASSWORD
+        [HttpPost("forget-password")]
+        public async Task<IActionResult> ForgetPassword([FromBody] ForgetPasswordRequest request)
         {
-            return Ok("You are authorized!");
+            var user = await _context.Users
+                .FirstOrDefaultAsync(x => x.Email == request.Email);
+
+            if (user == null)
+                return NotFound(new { message = "User not found" });
+
+            user.Password = request.NewPassword;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Password updated successfully" });
         }
-    }
-
-    // DTOs (keep here or move to DTO folder later)
-    public class LoginRequest
-    {
-        public string Email { get; set; } = "";
-        public string Password { get; set; } = "";
-    }
-
-    public class RegisterRequest
-    {
-        public string Name { get; set; } = "";
-        public string Email { get; set; } = "";
-        public string Password { get; set; } = "";
     }
 }
