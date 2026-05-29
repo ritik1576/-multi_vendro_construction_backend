@@ -11,6 +11,7 @@ namespace InframartAPI_New.Data
 
         public DbSet<User> Users => Set<User>();
         public DbSet<Vendor> Vendors => Set<Vendor>();
+        
         public DbSet<OtpVerification> OtpVerifications => Set<OtpVerification>();
 
         public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();

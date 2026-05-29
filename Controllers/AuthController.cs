@@ -31,19 +31,22 @@ namespace InframartAPI_New.Controllers
             _emailService = emailService;
         }
 
-        // REGISTER
+        // ================= REGISTER =================
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto request)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
             if (await _context.Users.AnyAsync(u => u.Email == request.Email))
                 return BadRequest(new { message = "Email already exists" });
 
             var user = new User
             {
                 Email = request.Email,
-                Password = request.Password,
-                Role = "customer"
-            };
+                Password = PasswordHelper.HashPassword(request.Password),
+                Role = request.Role
+            }; 
 
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
@@ -51,17 +54,20 @@ namespace InframartAPI_New.Controllers
             return Ok(new { message = "User registered successfully" });
         }
 
-        // LOGIN
+        // ================= LOGIN =================
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto request)
         {
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u =>
-                    u.Email == request.Email &&
-                    u.Password == request.Password);
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
-            if (user == null)
-                return Unauthorized(new { message = "Invalid email or password" });
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.Email == request.Email);
+                  if (user == null || string.IsNullOrEmpty(user.Password) ||
+                     !PasswordHelper.VerifyPassword(request.Password, user.Password))
+              {
+                  return Unauthorized(new { message = "Invalid email or password" });
+              }
 
             var claims = new[]
             {
@@ -73,10 +79,7 @@ namespace InframartAPI_New.Controllers
                 Encoding.UTF8.GetBytes(_configuration["JwtSettings:Key"]!)
             );
 
-            var creds = new SigningCredentials(
-                key,
-                SecurityAlgorithms.HmacSha256
-            );
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
                 issuer: _configuration["JwtSettings:Issuer"],
@@ -94,10 +97,13 @@ namespace InframartAPI_New.Controllers
             });
         }
 
-        // FORGOT PASSWORD (EMAIL LINK)
+        // ================= FORGOT PASSWORD =================
         [HttpPost("forgot-password")]
-        public async Task<IActionResult> ForgetPassword([FromBody] ResetPasswordRequest request)
+        public async Task<IActionResult> ForgetPassword([FromBody] ForgetPasswordRequest request)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
             var user = await _context.Users
                 .FirstOrDefaultAsync(u => u.Email == request.Email);
 
@@ -123,17 +129,20 @@ namespace InframartAPI_New.Controllers
             return Ok(new { message = "Password reset link sent to email" });
         }
 
-        // RESET PASSWORD (NEW ADD)
+        // ================= RESET PASSWORD =================
         [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
             var user = await _context.Users
                 .FirstOrDefaultAsync(u => u.Email == request.Email);
 
             if (user == null)
                 return NotFound(new { message = "User not found" });
 
-            user.Password = request.NewPassword;
+            user.Password = PasswordHelper.HashPassword(request.NewPassword);
 
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
