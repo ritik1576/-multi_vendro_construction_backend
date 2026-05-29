@@ -31,6 +31,7 @@ namespace InframartAPI_New.Controllers
             _emailService = emailService;
         }
 
+        // REGISTER
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto request)
         {
@@ -39,9 +40,9 @@ namespace InframartAPI_New.Controllers
 
             var user = new User
             {
-               Email = request.Email,
-               Password = request.Password,
-               Role = "customer"
+                Email = request.Email,
+                Password = request.Password,
+                Role = "customer"
             };
 
             _context.Users.Add(user);
@@ -50,6 +51,7 @@ namespace InframartAPI_New.Controllers
             return Ok(new { message = "User registered successfully" });
         }
 
+        // LOGIN
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto request)
         {
@@ -92,8 +94,9 @@ namespace InframartAPI_New.Controllers
             });
         }
 
+        // FORGOT PASSWORD (EMAIL LINK)
         [HttpPost("forgot-password")]
-        public async Task<IActionResult> ForgetPassword([FromBody] ForgetPasswordRequest request)
+        public async Task<IActionResult> ForgetPassword([FromBody] ResetPasswordRequest request)
         {
             var user = await _context.Users
                 .FirstOrDefaultAsync(u => u.Email == request.Email);
@@ -118,6 +121,24 @@ namespace InframartAPI_New.Controllers
             );
 
             return Ok(new { message = "Password reset link sent to email" });
+        }
+
+        // RESET PASSWORD (NEW ADD)
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+        {
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.Email == request.Email);
+
+            if (user == null)
+                return NotFound(new { message = "User not found" });
+
+            user.Password = request.NewPassword;
+
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Password reset successfully" });
         }
     }
 }
