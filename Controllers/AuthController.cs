@@ -4,9 +4,12 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+
 using InframartAPI_New.Data;
 using InframartAPI_New.Models;
+using InframartAPI_New.DTOs.Auth;
 using InframartAPI_New.DTOs;
+using InframartAPI_New.Services;
 
 namespace InframartAPI_New.Controllers
 {
@@ -16,31 +19,29 @@ namespace InframartAPI_New.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IConfiguration _configuration;
+        private readonly IEmailService _emailService;
 
-        public AuthController(AppDbContext context, IConfiguration configuration)
+        public AuthController(
+            AppDbContext context,
+            IConfiguration configuration,
+            IEmailService emailService)
         {
             _context = context;
             _configuration = configuration;
+            _emailService = emailService;
         }
 
-        // REGISTER
         [HttpPost("register")]
-        public async Task<IActionResult> Register(RegisterRequest request)
+        public async Task<IActionResult> Register([FromBody] RegisterDto request)
         {
-            var existingUser = await _context.Users
-                .FirstOrDefaultAsync(x => x.Email == request.Email);
-
-            if (existingUser != null)
+            if (await _context.Users.AnyAsync(u => u.Email == request.Email))
                 return BadRequest(new { message = "Email already exists" });
 
             var user = new User
             {
-                Name = request.Name,
-                Email = request.Email,
-                Password = request.Password,
-                Phone = request.Phone,
-                Role = "customer",
-                Status = "active"
+               Email = request.Email,
+               Password = request.Password,
+               Role = "customer"
             };
 
             _context.Users.Add(user);
@@ -49,35 +50,39 @@ namespace InframartAPI_New.Controllers
             return Ok(new { message = "User registered successfully" });
         }
 
-        // LOGIN
         [HttpPost("login")]
-        public async Task<IActionResult> Login(LoginRequest request)
+        public async Task<IActionResult> Login([FromBody] LoginDto request)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(x =>
-                x.Email == request.Email &&
-                x.Password == request.Password);
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u =>
+                    u.Email == request.Email &&
+                    u.Password == request.Password);
 
             if (user == null)
                 return Unauthorized(new { message = "Invalid email or password" });
 
             var claims = new[]
             {
-                new Claim(ClaimTypes.Name, user.Email ?? ""),
-                new Claim(ClaimTypes.Role, user.Role ?? "")
+                new Claim(ClaimTypes.Name, user.Email!),
+                new Claim(ClaimTypes.Role, user.Role!)
             };
 
             var key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(_configuration["JwtSettings:Key"]!));
+                Encoding.UTF8.GetBytes(_configuration["JwtSettings:Key"]!)
+            );
 
             var creds = new SigningCredentials(
                 key,
-                SecurityAlgorithms.HmacSha256);
+                SecurityAlgorithms.HmacSha256
+            );
 
             var token = new JwtSecurityToken(
-                issuer: _configuration["JwtSettings:Issuer"]!,
-                audience: _configuration["JwtSettings:Audience"]!,
+                issuer: _configuration["JwtSettings:Issuer"],
+                audience: _configuration["JwtSettings:Audience"],
                 claims: claims,
-                expires: DateTime.Now.AddHours(2),
+                expires: DateTime.Now.AddMinutes(
+                    Convert.ToDouble(_configuration["JwtSettings:ExpiryMinutes"])
+                ),
                 signingCredentials: creds
             );
 
@@ -87,21 +92,32 @@ namespace InframartAPI_New.Controllers
             });
         }
 
-        // FORGOT PASSWORD
-        [HttpPost("forget-password")]
+        [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgetPassword([FromBody] ForgetPasswordRequest request)
         {
             var user = await _context.Users
-                .FirstOrDefaultAsync(x => x.Email == request.Email);
+                .FirstOrDefaultAsync(u => u.Email == request.Email);
 
             if (user == null)
                 return NotFound(new { message = "User not found" });
 
-            user.Password = request.NewPassword;
+            var resetToken = Guid.NewGuid().ToString();
 
-            await _context.SaveChangesAsync();
+            var resetLink = $"http://localhost:3000/reset-password?token={resetToken}";
 
-            return Ok(new { message = "Password updated successfully" });
+            var emailBody = $@"
+                <h2>Password Reset</h2>
+                <p>Click below to reset your password:</p>
+                <a href='{resetLink}'>Reset Password</a>
+            ";
+
+            await _emailService.SendEmailAsync(
+                user.Email!,
+                "Reset Your Inframart Password",
+                emailBody
+            );
+
+            return Ok(new { message = "Password reset link sent to email" });
         }
     }
 }
