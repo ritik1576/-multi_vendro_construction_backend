@@ -12,5 +12,8 @@ namespace MultiVendorAPI.Services.Interfaces
     string name,
     UpdateProductDto dto);
         Task<ServiceResponse<string>> DeleteProductAsync(string productName);
+        Task<ServiceResponse<List<string>>> GetCategoriesAsync();
+        Task<ServiceResponse<List<ProductDto>>> SearchProductsAsync(string searchTerm);
+
     }
 }

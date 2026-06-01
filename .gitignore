@@ -1,0 +1,62 @@
+# Visual Studio Code
+.vscode/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build folders
+bin/
+obj/
+
+# ASP.NET Core
+wwwroot/uploads/
+
+# Logs
+*.log
+
+# NuGet
+packages/
+*.nupkg
+
+# Rider
+.idea/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Environment Files
+.env
+.env.*
+appsettings.Production.json
+
+# Temporary Files
+*.tmp
+*.temp
+
+# Publish Output
+publish/
+
+# IIS Express
+iisexpress/
+
+# ReSharper
+_ReSharper*/
+*.DotSettings.user
+
+# Coverage Reports
+coverage/
+TestResults/
+
+# Node (for future React frontend)
+node_modules/
+dist/
+build/
+
+# Generated Swagger
+swagger.json
+swagger.yaml

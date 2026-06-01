@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MultiVendorAPI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a04cbada99ef6d4e266fc5e0138f5d43867352c0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8ff7710befd7dec40e4d20eb6c6dc4ed62e68027")]
 [assembly: System.Reflection.AssemblyProductAttribute("MultiVendorAPI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MultiVendorAPI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

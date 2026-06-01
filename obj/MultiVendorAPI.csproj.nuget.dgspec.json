@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Users\\sonwa\\OneDrive\\Desktop\\Work\\InfraMart\\Inframard Backend\\MultiVendorAPI\\MultiVendorAPI.csproj": {}
+    "C:\\Users\\sonwa\\OneDrive\\Desktop\\Work\\InfraMart\\Inframard Backend\\MultiVendorAPI\\MultiVendorAPI.csproj": {}
   },
   "projects": {
-    "c:\\Users\\sonwa\\OneDrive\\Desktop\\Work\\InfraMart\\Inframard Backend\\MultiVendorAPI\\MultiVendorAPI.csproj": {
+    "C:\\Users\\sonwa\\OneDrive\\Desktop\\Work\\InfraMart\\Inframard Backend\\MultiVendorAPI\\MultiVendorAPI.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\sonwa\\OneDrive\\Desktop\\Work\\InfraMart\\Inframard Backend\\MultiVendorAPI\\MultiVendorAPI.csproj",
+        "projectUniqueName": "C:\\Users\\sonwa\\OneDrive\\Desktop\\Work\\InfraMart\\Inframard Backend\\MultiVendorAPI\\MultiVendorAPI.csproj",
         "projectName": "MultiVendorAPI",
-        "projectPath": "c:\\Users\\sonwa\\OneDrive\\Desktop\\Work\\InfraMart\\Inframard Backend\\MultiVendorAPI\\MultiVendorAPI.csproj",
+        "projectPath": "C:\\Users\\sonwa\\OneDrive\\Desktop\\Work\\InfraMart\\Inframard Backend\\MultiVendorAPI\\MultiVendorAPI.csproj",
         "packagesPath": "C:\\Users\\sonwa\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\sonwa\\OneDrive\\Desktop\\Work\\InfraMart\\Inframard Backend\\MultiVendorAPI\\obj\\",
+        "outputPath": "C:\\Users\\sonwa\\OneDrive\\Desktop\\Work\\InfraMart\\Inframard Backend\\MultiVendorAPI\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

@@ -77,6 +77,25 @@ namespace MultiVendorAPI.Controllers
                 response);
         }
 
+        [HttpGet("categories")]
+        public async Task<IActionResult> GetCategories()
+        {
+            var response = await _productService.GetCategoriesAsync();
+
+            return StatusCode(
+                response.StatusCode,
+                response);
+        }
+
+        [HttpGet("search/{searchTerm}")]
+        public async Task<IActionResult> SearchProducts(string searchTerm)
+        {
+            var response = await _productService.SearchProductsAsync(searchTerm);
+
+            return StatusCode(
+                response.StatusCode,
+                response);
+        }
 
     }
 }

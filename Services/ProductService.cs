@@ -248,12 +248,50 @@ namespace MultiVendorAPI.Services
                     "Product deleted successfully",
                     200);
         }
+        public async Task<ServiceResponse<List<string>>> GetCategoriesAsync()
+        {
+            var categories = await _context.Categories
+                .Select(c => c.Name)
+                .ToListAsync();
 
+            return ServiceResponse<List<string>>
+                .SuccessResponse(
+                    categories,
+                    "Categories retrieved successfully",
+                    200);
+        }
+        public async Task<ServiceResponse<List<ProductDto>>> SearchProductsAsync(string searchTerm)
+        {
+            var products = await _context.Products
+                .Where(p => p.Name.Contains(searchTerm))
+                .Select(p => new ProductDto
+                {
+                    Name = p.Name,
+                    Price = p.Price,
+                    DiscountPrice = p.DiscountPrice,
+                    Thumbnail = p.Thumbnail,
+                    CategoryId = p.CategoryId,
+                    ShortDescription = p.ShortDescription,
+                    Category = _context.Categories
+                        .Where(c => c.Id == p.CategoryId)
+                        .Select(c => c.Name)
+                        .FirstOrDefault()
+                })
+                .ToListAsync();
 
-
-
-
-
+            return ServiceResponse<List<ProductDto>>
+                .SuccessResponse(
+                    products,
+                    "Products retrieved successfully",
+                    200);
+        }
 
     }
+
+
+
+
+
+
+
 }
