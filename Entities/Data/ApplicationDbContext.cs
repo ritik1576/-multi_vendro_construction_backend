@@ -1,3 +1,4 @@
+using InframartAPI_New.Models;
 using Microsoft.EntityFrameworkCore;
 using MultiVendorAPI.Models;
 
@@ -14,10 +15,14 @@ namespace MultiVendorAPI.Data
         public DbSet<Category> Categories { get; set; }
         public DbSet<Cart> Carts { get; set; }
         public DbSet<CartItem> CartItems { get; set; }
+        public DbSet<Vendor> Vendors { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Product>().ToTable("products");
+
+            modelBuilder.Entity<Vendor>().ToTable("vendors");
 
             modelBuilder.Entity<Product>().Property(p => p.Id).HasColumnName("id");
             modelBuilder.Entity<Product>().Property(p => p.VendorId).HasColumnName("vendor_id");

@@ -17,10 +17,10 @@ namespace MultiVendorAPI.Controllers
             _cartService = cartService;
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetCart()
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetCart(long userId)
         {
-            var userId = GetUserId();
+
             var response = await _cartService.GetCartByUserIdAsync(userId);
             return StatusCode(response.StatusCode, response);
         }
@@ -28,7 +28,7 @@ namespace MultiVendorAPI.Controllers
         [HttpPost("items")]
         public async Task<IActionResult> AddToCart([FromBody] AddToCartDto dto)
         {
-            var userId = GetUserId();
+
             var response = await _cartService.AddToCartAsync(dto);
             return StatusCode(response.StatusCode, response);
         }
@@ -36,33 +36,25 @@ namespace MultiVendorAPI.Controllers
         [HttpPut("items")]
         public async Task<IActionResult> UpdateCartItem([FromBody] UpdateCartItemDto dto)
         {
-            var userId = GetUserId();
-            var response = await _cartService.UpdateCartItemAsync(userId, dto);
+
+            var response = await _cartService.UpdateCartItemAsync(dto);
             return StatusCode(response.StatusCode, response);
         }
 
-        [HttpDelete("items/{productName}")]
-        public async Task<IActionResult> RemoveFromCart(string productName)
+        [HttpDelete("items/delete/{id}")]
+        public async Task<IActionResult> RemoveFromCart(long id)
         {
-            var userId = GetUserId();
-            var response = await _cartService.RemoveFromCartAsync(userId, productName);
+
+            var response = await _cartService.RemoveFromCartAsync(id);
             return StatusCode(response.StatusCode, response);
         }
 
-        [HttpDelete]
-        public async Task<IActionResult> ClearCart()
+        [HttpDelete("items/{id}")]
+        public async Task<IActionResult> ClearCart(long userId)
         {
-            var userId = GetUserId();
             var response = await _cartService.ClearCartAsync(userId);
             return StatusCode(response.StatusCode, response);
         }
 
-        private string GetUserId()
-        {
-            return User.FindFirstValue(ClaimTypes.Name)
-                ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
-                ?? User.FindFirstValue(ClaimTypes.Email)
-                ?? string.Empty;
-        }
     }
 }

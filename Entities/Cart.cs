@@ -4,7 +4,7 @@ namespace MultiVendorAPI.Models
     {
         public int Id { get; set; }
 
-        public string UserId { get; set; } = string.Empty;
+        public long UserId { get; set; } = 0;
 
         public ICollection<CartItem> CartItems { get; set; } = new List<CartItem>();
     }

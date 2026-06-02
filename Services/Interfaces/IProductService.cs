@@ -7,13 +7,15 @@ namespace MultiVendorAPI.Services.Interfaces
     {
         Task<List<ProductDto>> GetProductsAsync();
         Task<ServiceResponse<ProductDto>> CreateProductAsync(CreateProductDto dto);
-        Task<ServiceResponse<ProductDto>> GetProductByNameAsync(string name);
+        Task<ServiceResponse<GetDetailedProductDto>> GetProductByNameAsync(string name);
         Task<ServiceResponse<ProductDto>> UpdateProductAsync(
     string name,
     UpdateProductDto dto);
         Task<ServiceResponse<string>> DeleteProductAsync(string productName);
         Task<ServiceResponse<List<string>>> GetCategoriesAsync();
         Task<ServiceResponse<List<ProductDto>>> SearchProductsAsync(string searchTerm);
+
+
 
     }
 }

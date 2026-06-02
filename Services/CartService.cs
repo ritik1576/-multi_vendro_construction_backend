@@ -15,7 +15,7 @@ namespace MultiVendorAPI.Services
             _cartRepository = cartRepository;
         }
 
-        public async Task<ServiceResponse<CartDto>> GetCartByUserIdAsync(string userId)
+        public async Task<ServiceResponse<CartDto>> GetCartByUserIdAsync(long userId)
         {
             var cart = await _cartRepository.GetByUserIdWithItemsAsync(userId);
 
@@ -29,7 +29,7 @@ namespace MultiVendorAPI.Services
 
         public async Task<ServiceResponse<CartDto>> AddToCartAsync(AddToCartDto dto)
         {
-            string userId = dto.userId.ToString();
+            long userId = dto.userId;
             if (string.IsNullOrWhiteSpace(dto.ProductName) || dto.Quantity <= 0)
             {
                 return ServiceResponse<CartDto>.FailureResponse("Invalid cart item data", 400);
@@ -74,9 +74,10 @@ namespace MultiVendorAPI.Services
                 200);
         }
 
-        public async Task<ServiceResponse<CartDto>> UpdateCartItemAsync(string userId, UpdateCartItemDto dto)
+        public async Task<ServiceResponse<CartDto>> UpdateCartItemAsync(UpdateCartItemDto dto)
         {
-            if (string.IsNullOrWhiteSpace(dto.ProductName) || dto.Quantity <= 0)
+            long userId = dto.userId;
+            if (string.IsNullOrWhiteSpace(dto.ProductName) || dto.Quantity < 0)
             {
                 return ServiceResponse<CartDto>.FailureResponse("Invalid cart item data", 400);
             }
@@ -88,16 +89,23 @@ namespace MultiVendorAPI.Services
             }
 
             var cartItem = cart.CartItems.FirstOrDefault(ci =>
-                ci.Product?.Name != null &&
-                ci.Product.Name.Equals(dto.ProductName, StringComparison.OrdinalIgnoreCase));
+                ci.CartId == dto.CartId);
 
             if (cartItem == null)
             {
                 return ServiceResponse<CartDto>.FailureResponse("Cart item not found", 404);
             }
 
-            cartItem.Quantity = dto.Quantity;
-            await _cartRepository.UpdateCartItemAsync(cartItem);
+            if (dto.Quantity == 0)
+            {
+                await _cartRepository.RemoveCartItemAsync(cartItem);
+            }
+            else
+            {
+                cartItem.Quantity = dto.Quantity;
+                await _cartRepository.UpdateCartItemAsync(cartItem);
+            }
+
             await _cartRepository.SaveChangesAsync();
 
             var updatedCart = await _cartRepository.GetByUserIdWithItemsAsync(userId);
@@ -107,33 +115,26 @@ namespace MultiVendorAPI.Services
                 200);
         }
 
-        public async Task<ServiceResponse<string>> RemoveFromCartAsync(string userId, string productName)
+        public async Task<ServiceResponse<string>> RemoveFromCartAsync(long cartItemId)
         {
-            var cart = await _cartRepository.GetByUserIdWithItemsAsync(userId);
-            if (cart == null)
-            {
-                return ServiceResponse<string>.FailureResponse("Cart not found", 404);
-            }
-
-            var cartItem = cart.CartItems.FirstOrDefault(ci =>
-                ci.Product?.Name != null &&
-                ci.Product.Name.Equals(productName, StringComparison.OrdinalIgnoreCase));
+            var cartItem = await _cartRepository.GetCartItemByIdAsync(cartItemId);
 
             if (cartItem == null)
             {
-                return ServiceResponse<string>.FailureResponse("Cart item not found", 404);
+                return ServiceResponse<string>.FailureResponse(
+                    "Cart item not found",
+                    404);
             }
 
             await _cartRepository.RemoveCartItemAsync(cartItem);
             await _cartRepository.SaveChangesAsync();
 
             return ServiceResponse<string>.SuccessResponse(
-                productName,
+                cartItemId.ToString(),
                 "Item removed from cart",
                 200);
         }
-
-        public async Task<ServiceResponse<string>> ClearCartAsync(string userId)
+        public async Task<ServiceResponse<string>> ClearCartAsync(long userId)
         {
             var cart = await _cartRepository.GetByUserIdWithItemsAsync(userId);
             if (cart == null)

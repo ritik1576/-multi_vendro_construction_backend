@@ -1,10 +1,11 @@
 using MultiVendorAPI.Models;
+using MultiVendorAPI.Common;
 
 namespace MultiVendorAPI.Repositories.Interfaces
 {
     public interface ICartRepository
     {
-        Task<Cart?> GetByUserIdWithItemsAsync(string userId);
+        Task<Cart?> GetByUserIdWithItemsAsync(long userId);
 
         Task<Product?> GetProductByNameAsync(string productName);
 
@@ -19,5 +20,7 @@ namespace MultiVendorAPI.Repositories.Interfaces
         Task RemoveCartItemsAsync(IEnumerable<CartItem> cartItems);
 
         Task SaveChangesAsync();
+
+        public Task<CartItem?> GetCartItemByIdAsync(long cartItemId);
     }
 }
