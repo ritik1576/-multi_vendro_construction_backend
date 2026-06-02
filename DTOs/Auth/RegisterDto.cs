@@ -1,9 +1,16 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace InframartAPI_New.DTOs.Auth
 {
     public class RegisterDto
-{
-    public string Email { get; set; } = "customer";
-    public string Password { get; set; } = "password";
-    public string Role { get; set; } = "customer";
-}
+    {
+        [Required]
+        public string FullName { get; set; } = string.Empty;
+
+        [Required]
+        public string Email { get; set; } = string.Empty;
+
+        [Required]
+        public string Password { get; set; } = string.Empty;
     }
+}
