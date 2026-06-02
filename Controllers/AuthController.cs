@@ -45,7 +45,8 @@ namespace InframartAPI_New.Controllers
             {
                 Email = request.Email,
                 Password = PasswordHelper.HashPassword(request.Password),
-                Role = request.Role
+                Name = request.FullName,
+                Role = "User"
             }; 
 
             _context.Users.Add(user);
