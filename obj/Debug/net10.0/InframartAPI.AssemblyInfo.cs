@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("InframartAPI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ac4fcd7d8a5094b3165e8f1653d5c32eaf95f535")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1523a21968be8b72ad3364115bb621127c376dfb")]
 [assembly: System.Reflection.AssemblyProductAttribute("InframartAPI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("InframartAPI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
