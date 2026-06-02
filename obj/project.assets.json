@@ -3193,11 +3193,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\sonwa\\OneDrive\\Desktop\\Work\\InfraMart\\Inframart Combined\\-multi_vendro_construction_backend\\Marketplaces.API.csproj",
+      "projectUniqueName": "C:\\Users\\sonwa\\OneDrive\\Desktop\\Work\\InfraMart\\Inframard Backend\\Customer APIs\\Marketplaces.API.csproj",
       "projectName": "MultiVendorAPI",
-      "projectPath": "C:\\Users\\sonwa\\OneDrive\\Desktop\\Work\\InfraMart\\Inframart Combined\\-multi_vendro_construction_backend\\Marketplaces.API.csproj",
+      "projectPath": "C:\\Users\\sonwa\\OneDrive\\Desktop\\Work\\InfraMart\\Inframard Backend\\Customer APIs\\Marketplaces.API.csproj",
       "packagesPath": "C:\\Users\\sonwa\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\sonwa\\OneDrive\\Desktop\\Work\\InfraMart\\Inframart Combined\\-multi_vendro_construction_backend\\obj\\",
+      "outputPath": "C:\\Users\\sonwa\\OneDrive\\Desktop\\Work\\InfraMart\\Inframard Backend\\Customer APIs\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

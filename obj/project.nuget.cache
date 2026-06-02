@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "Gtu3ZQsXei0=",
+  "dgSpecHash": "qMFEgTl32pg=",
   "success": true,
-  "projectFilePath": "C:\\Users\\sonwa\\OneDrive\\Desktop\\Work\\InfraMart\\Inframart Combined\\-multi_vendro_construction_backend\\Marketplaces.API.csproj",
+  "projectFilePath": "C:\\Users\\sonwa\\OneDrive\\Desktop\\Work\\InfraMart\\Inframard Backend\\Customer APIs\\Marketplaces.API.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\sonwa\\.nuget\\packages\\bcrypt.net-next\\4.2.0\\bcrypt.net-next.4.2.0.nupkg.sha512",
     "C:\\Users\\sonwa\\.nuget\\packages\\bouncycastle.cryptography\\2.6.2\\bouncycastle.cryptography.2.6.2.nupkg.sha512",
