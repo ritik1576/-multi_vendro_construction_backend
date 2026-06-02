@@ -1,26 +1,3 @@
-using InframartAPI_New.Services;
-using InframartAPI_New.Data;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
-
-var builder = WebApplication.CreateBuilder(args);
-
-// DB
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySql(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
-    )
-);
-
-// Services
-builder.Services.AddScoped<IEmailService, EmailService>();
-
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 using System.Text;
 using InframartAPI_New.Data;
 using InframartAPI_New.Repositories;
@@ -38,18 +15,40 @@ using MultiVendorAPI.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("DefaultConnection is not configured.");
+
+var serverVersion = ServerVersion.AutoDetect(connectionString);
+
+// Database Contexts
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseMySql(connectionString, serverVersion));
+
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseMySql(connectionString, serverVersion));
+
+// Controllers
 builder.Services.AddControllers();
+
+// Swagger
 builder.Services.AddEndpointsApiExplorer();
+
 builder.Services.AddSwaggerGen(options =>
 {
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Inframart API",
+        Version = "v1"
+    });
+
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
         Type = SecuritySchemeType.Http,
-        Scheme = "Bearer",
+        Scheme = "bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Enter JWT token"
+        Description = "Enter JWT Token"
     });
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -68,84 +67,66 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
-
-var serverVersion = ServerVersion.AutoDetect(connectionString);
-
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySql(connectionString, serverVersion));
-
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseMySql(connectionString, serverVersion));
-
-builder.Services.AddScoped<IEmailService, EmailService>();
+// Repositories
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
 builder.Services.AddScoped<IVendorRepository, VendorRepository>();
-builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ICartRepository, CartRepository>();
+
+// Services
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ICartService, CartService>();
 
-// JWT
+// JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        ValidateIssuer = false,
-        ValidateAudience = false,
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)
-        )
-    };
-});
-
-builder.Services.AddAuthorization();
-
-var app = builder.Build();
-
-app.UseSwagger();
-app.UseSwaggerUI();
-
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapControllers();
-
-app.Run("http://0.0.0.0:5000");
-
-
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = true,
-            ValidateAudience = true,
+            ValidateIssuer = false,
+            ValidateAudience = false,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
-            ValidAudience = builder.Configuration["JwtSettings:Audience"],
+
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:Key"]!)),
+                Encoding.UTF8.GetBytes(
+                    builder.Configuration["Jwt:Key"]!
+                )
+            ),
+
             RoleClaimType = System.Security.Claims.ClaimTypes.Role,
             NameClaimType = System.Security.Claims.ClaimTypes.Name
         };
     });
 
+// Authorization Policies
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("AdminOnly", policy => policy.RequireRole("admin"));
-    options.AddPolicy("VendorOnly", policy => policy.RequireRole("vendor"));
-    options.AddPolicy("CustomerOnly", policy => policy.RequireRole("customer"));
+    options.AddPolicy("AdminOnly",
+        policy => policy.RequireRole("admin"));
+
+    options.AddPolicy("VendorOnly",
+        policy => policy.RequireRole("vendor"));
+
+    options.AddPolicy("CustomerOnly",
+        policy => policy.RequireRole("customer"));
 });
 
 var app = builder.Build();
 
+// Swagger
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
+// Middleware
 app.UseHttpsRedirection();
+
 app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
+
 app.Run();

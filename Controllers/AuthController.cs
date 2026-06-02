@@ -47,7 +47,7 @@ namespace InframartAPI_New.Controllers
                 Password = PasswordHelper.HashPassword(request.Password),
                 Name = request.FullName,
                 Role = "User"
-            }; 
+            };
 
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
@@ -64,11 +64,11 @@ namespace InframartAPI_New.Controllers
 
             var user = await _context.Users
                 .FirstOrDefaultAsync(u => u.Email == request.Email);
-                  if (user == null || string.IsNullOrEmpty(user.Password) ||
-                     !PasswordHelper.VerifyPassword(request.Password, user.Password))
-              {
-                  return Unauthorized(new { message = "Invalid email or password" });
-              }
+            if (user == null || string.IsNullOrEmpty(user.Password) ||
+               !PasswordHelper.VerifyPassword(request.Password, user.Password))
+            {
+                return Unauthorized(new { message = "Invalid email or password" });
+            }
 
             var claims = new[]
             {
@@ -77,17 +77,17 @@ namespace InframartAPI_New.Controllers
             };
 
             var key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(_configuration["JwtSettings:Key"]!)
+                Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!)
             );
 
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
-                issuer: _configuration["JwtSettings:Issuer"],
-                audience: _configuration["JwtSettings:Audience"],
+                issuer: _configuration["Jwt:Issuer"],
+                audience: _configuration["Jwt:Audience"],
                 claims: claims,
                 expires: DateTime.Now.AddMinutes(
-                    Convert.ToDouble(_configuration["JwtSettings:ExpiryMinutes"])
+                    Convert.ToDouble(_configuration["Jwt:ExpiryMinutes"])
                 ),
                 signingCredentials: creds
             );

@@ -103,48 +103,53 @@ namespace MultiVendorAPI.Services
 
         public async Task<ServiceResponse<GetDetailedProductDto>> GetProductByNameAsync(string name)
         {
-            var product = await _context.Products
-                .FirstOrDefaultAsync(p =>
-                    p.Name != null &&
-                    p.Name.ToLower() == name.ToLower());
+            // var product = await _context.Products
+            //     .FirstOrDefaultAsync(p =>
+            //         p.Name != null &&
+            //         p.Name.ToLower() == name.ToLower());
 
-            if (product == null)
-            {
-                return ServiceResponse<GetDetailedProductDto>
-                    .FailureResponse(
-                        "Product not found",
-                        404);
-            }
+            // if (product == null)
+            // {
+            //     return ServiceResponse<GetDetailedProductDto>
+            //         .FailureResponse(
+            //             "Product not found",
+            //             404);
+            // }
 
-            var getDetailedProductDto = new GetDetailedProductDto
-            {
-                Name = product.Name,
-                Price = product.Price,
-                DiscountPrice = product.DiscountPrice,
-                Thumbnail = product.Thumbnail,
-                CategoryId = product.CategoryId,
-                ShortDescription = product.ShortDescription,
-                LongDescription = product.Description,
-                Images = product.Thumbnail != null
-                    ? new List<string> { product.Thumbnail }
-                    : new List<string>(),
+            // var getDetailedProductDto = new GetDetailedProductDto
+            // {
+            //     Name = product.Name,
+            //     Price = product.Price,
+            //     DiscountPrice = product.DiscountPrice,
+            //     Thumbnail = product.Thumbnail,
+            //     CategoryId = product.CategoryId,
+            //     ShortDescription = product.ShortDescription,
+            //     LongDescription = product.Description,
+            //     Images = product.Thumbnail != null
+            //         ? new List<string> { product.Thumbnail }
+            //         : new List<string>(),
 
-                Category = await _context.Categories
-                    .Where(c => c.Id == product.CategoryId)
-                    .Select(c => c.Name)
-                    .FirstOrDefaultAsync(),
+            //     Category = await _context.Categories
+            //         .Where(c => c.Id == product.CategoryId)
+            //         .Select(c => c.Name)
+            //         .FirstOrDefaultAsync(),
 
-                VendorName = await _context.Vendors
-                    .Where(v => v.Id == product.VendorId)
-                    .Select(v => v.BusinessName)
-                    .FirstOrDefaultAsync()
-            };
+            //     VendorName = await _context.Vendors
+            //         .Where(v => v.Id == product.VendorId)
+            //         .Select(v => v.BusinessName)
+            //         .FirstOrDefaultAsync()
+            // };
 
+            // return ServiceResponse<GetDetailedProductDto>
+            //     .SuccessResponse(
+            //         getDetailedProductDto,
+            //         "Product retrieved successfully",
+            //         200);
             return ServiceResponse<GetDetailedProductDto>
-                .SuccessResponse(
-                    getDetailedProductDto,
-                    "Product retrieved successfully",
-                    200);
+                .FailureResponse(
+                    "Method not implemented",
+                    501);
+
         }
 
         public async Task<ServiceResponse<ProductDto>> UpdateProductAsync(
