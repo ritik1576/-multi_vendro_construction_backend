@@ -17,6 +17,7 @@ namespace InframartAPI_New.Controllers
     [ApiController]
     public class AuthController : ControllerBase
     {
+
         private readonly AppDbContext _context;
         private readonly IConfiguration _configuration;
         private readonly IEmailService _emailService;
@@ -56,6 +57,48 @@ namespace InframartAPI_New.Controllers
         }
 
         // ================= LOGIN =================
+        // [HttpPost("login")]
+        // public async Task<IActionResult> Login([FromBody] LoginDto request)
+        // {
+        //     if (!ModelState.IsValid)
+        //         return BadRequest(ModelState);
+
+        //     var user = await _context.Users
+        //         .FirstOrDefaultAsync(u => u.Email == request.Email);
+        //     if (user == null || string.IsNullOrEmpty(user.Password) ||
+        //        !PasswordHelper.VerifyPassword(request.Password, user.Password))
+        //     {
+        //         return Unauthorized(new { message = "Invalid email or password" });
+        //     }
+
+        //     var claims = new[]
+        //     {
+        //         new Claim(ClaimTypes.Name, user.Email!),
+        //         new Claim(ClaimTypes.Role, user.Role!)
+        //     };
+
+        //     var key = new SymmetricSecurityKey(
+        //         Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!)
+        //     );
+
+        //     var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        //     var token = new JwtSecurityToken(
+        //         issuer: _configuration["Jwt:Issuer"],
+        //         audience: _configuration["Jwt:Audience"],
+        //         claims: claims,
+        //         expires: DateTime.Now.AddMinutes(
+        //             Convert.ToDouble(_configuration["Jwt:ExpiryMinutes"])
+        //         ),
+        //         signingCredentials: creds
+        //     );
+
+        //     return Ok(new
+        //     {
+        //         token = new JwtSecurityTokenHandler().WriteToken(token)
+        //     });
+        // }
+
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto request)
         {
@@ -64,23 +107,30 @@ namespace InframartAPI_New.Controllers
 
             var user = await _context.Users
                 .FirstOrDefaultAsync(u => u.Email == request.Email);
+
             if (user == null || string.IsNullOrEmpty(user.Password) ||
-               !PasswordHelper.VerifyPassword(request.Password, user.Password))
+                !PasswordHelper.VerifyPassword(request.Password, user.Password))
             {
-                return Unauthorized(new { message = "Invalid email or password" });
+                return Unauthorized(new AuthResponseDto
+                {
+                    Message = "Invalid email or password"
+                });
             }
 
             var claims = new[]
             {
-                new Claim(ClaimTypes.Name, user.Email!),
-                new Claim(ClaimTypes.Role, user.Role!)
-            };
+        new Claim(ClaimTypes.Name, user.Email!),
+        new Claim(ClaimTypes.Role, user.Role!)
+    };
 
             var key = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!)
             );
 
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var creds = new SigningCredentials(
+                key,
+                SecurityAlgorithms.HmacSha256
+            );
 
             var token = new JwtSecurityToken(
                 issuer: _configuration["Jwt:Issuer"],
@@ -92,10 +142,16 @@ namespace InframartAPI_New.Controllers
                 signingCredentials: creds
             );
 
-            return Ok(new
+            var response = new AuthResponseDto
             {
-                token = new JwtSecurityTokenHandler().WriteToken(token)
-            });
+                Message = "Login successful",
+                UserId = user.Id,
+                Email = user.Email,
+                Role = user.Role,
+                Token = new JwtSecurityTokenHandler().WriteToken(token)
+            };
+
+            return Ok(response);
         }
 
         // ================= FORGOT PASSWORD =================

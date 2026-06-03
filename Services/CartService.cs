@@ -17,6 +17,8 @@ namespace MultiVendorAPI.Services
 
         public async Task<ServiceResponse<CartDto>> GetCartByUserIdAsync(long userId)
         {
+            Console.WriteLine($"UserId received: {userId}");
+
             var cart = await _cartRepository.GetByUserIdWithItemsAsync(userId);
 
             if (cart == null)
@@ -26,52 +28,81 @@ namespace MultiVendorAPI.Services
 
             return ServiceResponse<CartDto>.SuccessResponse(MapToDto(cart));
         }
-
-        public async Task<ServiceResponse<CartDto>> AddToCartAsync(AddToCartDto dto)
+        public async Task<ServiceResponse<AddToCartResponseDto>> AddToCartAsync(AddToCartDto dto)
         {
             long userId = dto.userId;
+
+            Console.WriteLine($"DTO UserId = {dto.userId}");
+            Console.WriteLine($"Local UserId = {userId}");
+
             if (string.IsNullOrWhiteSpace(dto.ProductName) || dto.Quantity <= 0)
             {
-                return ServiceResponse<CartDto>.FailureResponse("Invalid cart item data", 400);
+                return ServiceResponse<AddToCartResponseDto>
+                    .FailureResponse("Invalid cart item data", 400);
             }
 
             var product = await _cartRepository.GetProductByNameAsync(dto.ProductName);
+
             if (product == null)
             {
-                return ServiceResponse<CartDto>.FailureResponse("Product not found", 404);
+                return ServiceResponse<AddToCartResponseDto>
+                    .FailureResponse("Product not found", 404);
             }
 
             var cart = await _cartRepository.GetByUserIdWithItemsAsync(userId);
+
             if (cart == null)
             {
-                cart = new Cart { UserId = userId };
+                cart = new Cart
+                {
+                    UserId = userId
+                };
+
                 await _cartRepository.AddCartAsync(cart);
                 await _cartRepository.SaveChangesAsync();
             }
 
-            var existingItem = cart.CartItems.FirstOrDefault(ci => ci.ProductId == product.Id);
+            CartItem? cartItem;
+
+            var existingItem = cart.CartItems
+                .FirstOrDefault(ci => ci.ProductId == product.Id);
+
             if (existingItem != null)
             {
                 existingItem.Quantity += dto.Quantity;
+
                 await _cartRepository.UpdateCartItemAsync(existingItem);
+
+                cartItem = existingItem;
             }
             else
             {
-                await _cartRepository.AddCartItemAsync(new CartItem
+                cartItem = new CartItem
                 {
                     CartId = cart.Id,
                     ProductId = product.Id,
                     Quantity = dto.Quantity
-                });
+                };
+
+                await _cartRepository.AddCartItemAsync(cartItem);
             }
 
             await _cartRepository.SaveChangesAsync();
 
-            var updatedCart = await _cartRepository.GetByUserIdWithItemsAsync(userId);
-            return ServiceResponse<CartDto>.SuccessResponse(
-                MapToDto(updatedCart!),
-                "Item added to cart",
-                200);
+            var response = new AddToCartResponseDto
+            {
+                ProductName = product.Name,
+                Quantity = cartItem.Quantity,
+                userId = userId,
+                CartItemId = cartItem.Id,
+                CartId = cart.Id
+            };
+
+            return ServiceResponse<AddToCartResponseDto>
+                .SuccessResponse(
+                    response,
+                    "Item added to cart"
+                );
         }
 
         public async Task<ServiceResponse<CartDto>> UpdateCartItemAsync(UpdateCartItemDto dto)

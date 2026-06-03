@@ -18,10 +18,10 @@ namespace MultiVendorAPI.Controllers
         }
 
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetCart(long userId)
+        public async Task<IActionResult> GetCart(long id)
         {
 
-            var response = await _cartService.GetCartByUserIdAsync(userId);
+            var response = await _cartService.GetCartByUserIdAsync(id);
             return StatusCode(response.StatusCode, response);
         }
 

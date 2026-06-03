@@ -16,6 +16,9 @@ namespace MultiVendorAPI.Data
         public DbSet<Cart> Carts { get; set; }
         public DbSet<CartItem> CartItems { get; set; }
         public DbSet<Vendor> Vendors { get; set; }
+        public DbSet<Order> Orders { get; set; }
+
+        public DbSet<OrderItem> OrderItems { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -48,6 +51,7 @@ namespace MultiVendorAPI.Data
             modelBuilder.Entity<Category>().Property(c => c.Slug).HasColumnName("slug");
             modelBuilder.Entity<Category>().Property(c => c.Image).HasColumnName("image");
             modelBuilder.Entity<Category>().Property(c => c.Status).HasColumnName("status");
+            modelBuilder.Entity<Cart>().Property(c => c.UserId).HasColumnName("user_id");
 
             modelBuilder.Entity<Cart>(entity =>
             {
@@ -61,6 +65,17 @@ namespace MultiVendorAPI.Data
                     .HasForeignKey(ci => ci.CartId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
+
+            modelBuilder.Entity<OrderItem>().ToTable("order_items");
+
+            modelBuilder.Entity<OrderItem>()
+                .HasKey(o => o.Id);
+
+            modelBuilder.Entity<Order>().ToTable("orders");
+            modelBuilder.Entity<Cart>().ToTable("carts");
+
+            modelBuilder.Entity<Order>()
+                .HasKey(o => o.Id);
 
             modelBuilder.Entity<CartItem>(entity =>
             {

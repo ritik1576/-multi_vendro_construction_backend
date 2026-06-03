@@ -1,5 +1,4 @@
 using MultiVendorAPI.Models;
-using MultiVendorAPI.Common;
 
 namespace MultiVendorAPI.Repositories.Interfaces
 {

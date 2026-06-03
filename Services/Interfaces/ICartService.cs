@@ -7,7 +7,7 @@ namespace MultiVendorAPI.Services.Interfaces
     {
         Task<ServiceResponse<CartDto>> GetCartByUserIdAsync(long userId);
 
-        Task<ServiceResponse<CartDto>> AddToCartAsync(AddToCartDto dto);
+        Task<ServiceResponse<AddToCartResponseDto>> AddToCartAsync(AddToCartDto dto);
 
         Task<ServiceResponse<CartDto>> UpdateCartItemAsync(UpdateCartItemDto dto);
 
