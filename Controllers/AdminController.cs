@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace InframartAPI_New.Controllers
 {
-    [Route("api/admin")]
+    [Route("auth/admin")]
     [ApiController]
     public class AdminController : ControllerBase
     {
