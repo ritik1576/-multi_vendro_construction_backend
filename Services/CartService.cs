@@ -107,43 +107,38 @@ namespace MultiVendorAPI.Services
 
         public async Task<ServiceResponse<CartDto>> UpdateCartItemAsync(UpdateCartItemDto dto)
         {
-            long userId = dto.userId;
-            if (string.IsNullOrWhiteSpace(dto.ProductName) || dto.Quantity < 0)
+            if (string.IsNullOrWhiteSpace(dto.ProductName) || dto.Quantity <= 0)
             {
-                return ServiceResponse<CartDto>.FailureResponse("Invalid cart item data", 400);
+                return ServiceResponse<CartDto>
+                    .FailureResponse("Invalid cart item data", 400);
             }
 
-            var cart = await _cartRepository.GetByUserIdWithItemsAsync(userId);
-            if (cart == null)
-            {
-                return ServiceResponse<CartDto>.FailureResponse("Cart not found", 404);
-            }
-
-            var cartItem = cart.CartItems.FirstOrDefault(ci =>
-                ci.CartId == dto.CartId);
+            var cartItem = await _cartRepository.GetCartItemByIdAsync(dto.CartItemId);
 
             if (cartItem == null)
             {
-                return ServiceResponse<CartDto>.FailureResponse("Cart item not found", 404);
+                return ServiceResponse<CartDto>
+                    .FailureResponse("Cart item not found", 404);
             }
 
-            if (dto.Quantity == 0)
+            var product = await _cartRepository.GetProductByNameAsync(dto.ProductName);
+
+            if (product == null)
             {
-                await _cartRepository.RemoveCartItemAsync(cartItem);
-            }
-            else
-            {
-                cartItem.Quantity = dto.Quantity;
-                await _cartRepository.UpdateCartItemAsync(cartItem);
+                return ServiceResponse<CartDto>
+                    .FailureResponse("Product not found", 404);
             }
 
+            cartItem.ProductId = product.Id;
+            cartItem.Quantity = dto.Quantity;
+
+            await _cartRepository.UpdateCartItemAsync(cartItem);
             await _cartRepository.SaveChangesAsync();
 
-            var updatedCart = await _cartRepository.GetByUserIdWithItemsAsync(userId);
-            return ServiceResponse<CartDto>.SuccessResponse(
-                MapToDto(updatedCart!),
-                "Cart item updated",
-                200);
+            var updatedCart = await _cartRepository.GetByUserIdWithItemsAsync(dto.userId);
+
+            return ServiceResponse<CartDto>
+                .SuccessResponse(MapToDto(updatedCart), "Cart item updated");
         }
 
         public async Task<ServiceResponse<string>> RemoveFromCartAsync(long cartItemId)
@@ -188,6 +183,7 @@ namespace MultiVendorAPI.Services
         {
             var items = cart.CartItems.Select(ci => new CartItemDto
             {
+                CartItemId = ci.Id,
                 ProductName = ci.Product?.Name ?? string.Empty,
                 Quantity = ci.Quantity,
                 Price = ci.Product?.Price

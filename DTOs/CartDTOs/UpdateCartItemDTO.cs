@@ -8,6 +8,6 @@ namespace MultiVendorAPI.DTOs.CartDTOs
 
         public int userId { get; set; }
 
-        public int CartId { get; set; }
+        public int CartItemId { get; set; }
     }
 }

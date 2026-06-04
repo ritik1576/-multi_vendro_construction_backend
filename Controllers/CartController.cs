@@ -33,7 +33,7 @@ namespace MultiVendorAPI.Controllers
             return StatusCode(response.StatusCode, response);
         }
 
-        [HttpPut("items")]
+        [HttpPut("update/items")]
         public async Task<IActionResult> UpdateCartItem([FromBody] UpdateCartItemDto dto)
         {
 
@@ -41,7 +41,7 @@ namespace MultiVendorAPI.Controllers
             return StatusCode(response.StatusCode, response);
         }
 
-        [HttpDelete("items/delete/{id}")]
+        [HttpDelete("delete/{id}")]
         public async Task<IActionResult> RemoveFromCart(long id)
         {
 
@@ -49,7 +49,7 @@ namespace MultiVendorAPI.Controllers
             return StatusCode(response.StatusCode, response);
         }
 
-        [HttpDelete("items/{id}")]
+        [HttpDelete("clear/{userId}")]
         public async Task<IActionResult> ClearCart(long userId)
         {
             var response = await _cartService.ClearCartAsync(userId);

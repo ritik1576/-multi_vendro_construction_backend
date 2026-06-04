@@ -25,7 +25,23 @@ namespace MultiVendorAPI.Data
         {
             modelBuilder.Entity<Product>().ToTable("products");
 
-            modelBuilder.Entity<Vendor>().ToTable("vendors");
+            modelBuilder.Entity<Vendor>(entity =>
+            {
+                entity.ToTable("vendors");
+                entity.HasKey(v => v.Id);
+                entity.Property(v => v.Id).HasColumnName("id");
+                entity.Property(v => v.UserId).HasColumnName("user_id");
+                entity.Property(v => v.shop_name).HasColumnName("shop_name");
+                entity.Property(v => v.ShopSlug).HasColumnName("shop_slug");
+                entity.Property(v => v.Description).HasColumnName("description");
+                entity.Property(v => v.Logo).HasColumnName("logo");
+                entity.Property(v => v.Banner).HasColumnName("banner");
+                entity.Property(v => v.GstNumber).HasColumnName("gst_number");
+                entity.Property(v => v.CommissionRate).HasColumnName("commission_rate");
+                entity.Property(v => v.Status).HasColumnName("status");
+                entity.Property(v => v.CreatedAt).HasColumnName("created_at");
+                entity.Property(v => v.UpdatedAt).HasColumnName("updated_at");
+            });
 
             modelBuilder.Entity<Product>().Property(p => p.Id).HasColumnName("id");
             modelBuilder.Entity<Product>().Property(p => p.VendorId).HasColumnName("vendor_id");
@@ -43,6 +59,10 @@ namespace MultiVendorAPI.Data
             modelBuilder.Entity<Product>().Property(p => p.Quantity).HasColumnName("quantity");
             modelBuilder.Entity<Product>().Property(p => p.CreatedAt).HasColumnName("created_at");
             modelBuilder.Entity<Product>().Property(p => p.UpdatedAt).HasColumnName("updated_at");
+            modelBuilder.Entity<Product>()
+                .HasOne(p => p.Vendor)
+                .WithMany()
+                .HasForeignKey(p => p.VendorId);
 
             modelBuilder.Entity<Category>().ToTable("categories");
             modelBuilder.Entity<Category>().Property(c => c.Id).HasColumnName("id");
