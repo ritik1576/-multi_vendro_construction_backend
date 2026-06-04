@@ -15,8 +15,10 @@ namespace MultiVendorAPI.Services
             _cartRepository = cartRepository;
         }
 
-        public async Task<ServiceResponse<CartDto>> GetCartByUserIdAsync(string userId)
+        public async Task<ServiceResponse<CartDto>> GetCartByUserIdAsync(long userId)
         {
+            Console.WriteLine($"UserId received: {userId}");
+
             var cart = await _cartRepository.GetByUserIdWithItemsAsync(userId);
 
             if (cart == null)
@@ -26,114 +28,139 @@ namespace MultiVendorAPI.Services
 
             return ServiceResponse<CartDto>.SuccessResponse(MapToDto(cart));
         }
-
-        public async Task<ServiceResponse<CartDto>> AddToCartAsync(AddToCartDto dto)
+        public async Task<ServiceResponse<AddToCartResponseDto>> AddToCartAsync(AddToCartDto dto)
         {
-            string userId = dto.userId.ToString();
+            long userId = dto.userId;
+
+            Console.WriteLine($"DTO UserId = {dto.userId}");
+            Console.WriteLine($"Local UserId = {userId}");
+
             if (string.IsNullOrWhiteSpace(dto.ProductName) || dto.Quantity <= 0)
             {
-                return ServiceResponse<CartDto>.FailureResponse("Invalid cart item data", 400);
+                return ServiceResponse<AddToCartResponseDto>
+                    .FailureResponse("Invalid cart item data", 400);
             }
 
             var product = await _cartRepository.GetProductByNameAsync(dto.ProductName);
+
             if (product == null)
             {
-                return ServiceResponse<CartDto>.FailureResponse("Product not found", 404);
+                return ServiceResponse<AddToCartResponseDto>
+                    .FailureResponse("Product not found", 404);
             }
 
             var cart = await _cartRepository.GetByUserIdWithItemsAsync(userId);
+
             if (cart == null)
             {
-                cart = new Cart { UserId = userId };
+                cart = new Cart
+                {
+                    UserId = userId
+                };
+
                 await _cartRepository.AddCartAsync(cart);
                 await _cartRepository.SaveChangesAsync();
             }
 
-            var existingItem = cart.CartItems.FirstOrDefault(ci => ci.ProductId == product.Id);
+            CartItem? cartItem;
+
+            var existingItem = cart.CartItems
+                .FirstOrDefault(ci => ci.ProductId == product.Id);
+
             if (existingItem != null)
             {
                 existingItem.Quantity += dto.Quantity;
+
                 await _cartRepository.UpdateCartItemAsync(existingItem);
+
+                cartItem = existingItem;
             }
             else
             {
-                await _cartRepository.AddCartItemAsync(new CartItem
+                cartItem = new CartItem
                 {
                     CartId = cart.Id,
                     ProductId = product.Id,
                     Quantity = dto.Quantity
-                });
+                };
+
+                await _cartRepository.AddCartItemAsync(cartItem);
             }
 
             await _cartRepository.SaveChangesAsync();
 
-            var updatedCart = await _cartRepository.GetByUserIdWithItemsAsync(userId);
-            return ServiceResponse<CartDto>.SuccessResponse(
-                MapToDto(updatedCart!),
-                "Item added to cart",
-                200);
+            var response = new AddToCartResponseDto
+            {
+                ProductName = product.Name,
+                Quantity = cartItem.Quantity,
+                userId = userId,
+                CartItemId = cartItem.Id,
+                CartId = cart.Id
+            };
+
+            return ServiceResponse<AddToCartResponseDto>
+                .SuccessResponse(
+                    response,
+                    "Item added to cart"
+                );
         }
 
-        public async Task<ServiceResponse<CartDto>> UpdateCartItemAsync(string userId, UpdateCartItemDto dto)
+        public async Task<ServiceResponse<CartDto>> UpdateCartItemAsync(UpdateCartItemDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.ProductName) || dto.Quantity <= 0)
             {
-                return ServiceResponse<CartDto>.FailureResponse("Invalid cart item data", 400);
+                return ServiceResponse<CartDto>
+                    .FailureResponse("Invalid cart item data", 400);
             }
 
-            var cart = await _cartRepository.GetByUserIdWithItemsAsync(userId);
-            if (cart == null)
-            {
-                return ServiceResponse<CartDto>.FailureResponse("Cart not found", 404);
-            }
-
-            var cartItem = cart.CartItems.FirstOrDefault(ci =>
-                ci.Product?.Name != null &&
-                ci.Product.Name.Equals(dto.ProductName, StringComparison.OrdinalIgnoreCase));
+            var cartItem = await _cartRepository.GetCartItemByIdAsync(dto.CartItemId);
 
             if (cartItem == null)
             {
-                return ServiceResponse<CartDto>.FailureResponse("Cart item not found", 404);
+                return ServiceResponse<CartDto>
+                    .FailureResponse("Cart item not found", 404);
             }
 
+            var product = await _cartRepository.GetProductByNameAsync(dto.ProductName);
+
+            if (product == null)
+            {
+                return ServiceResponse<CartDto>
+                    .FailureResponse("Product not found", 404);
+            }
+
+            cartItem.ProductId = product.Id;
             cartItem.Quantity = dto.Quantity;
+
             await _cartRepository.UpdateCartItemAsync(cartItem);
             await _cartRepository.SaveChangesAsync();
 
-            var updatedCart = await _cartRepository.GetByUserIdWithItemsAsync(userId);
-            return ServiceResponse<CartDto>.SuccessResponse(
-                MapToDto(updatedCart!),
-                "Cart item updated",
-                200);
+            var updatedCart = await _cartRepository.GetByUserIdWithItemsAsync(dto.userId);
+
+            return ServiceResponse<CartDto>
+                .SuccessResponse(MapToDto(updatedCart), "Cart item updated");
         }
 
-        public async Task<ServiceResponse<string>> RemoveFromCartAsync(string userId, string productName)
+        public async Task<ServiceResponse<string>> RemoveFromCartAsync(long cartItemId)
         {
-            var cart = await _cartRepository.GetByUserIdWithItemsAsync(userId);
-            if (cart == null)
-            {
-                return ServiceResponse<string>.FailureResponse("Cart not found", 404);
-            }
-
-            var cartItem = cart.CartItems.FirstOrDefault(ci =>
-                ci.Product?.Name != null &&
-                ci.Product.Name.Equals(productName, StringComparison.OrdinalIgnoreCase));
+            var cartItem = await _cartRepository.GetCartItemByIdAsync(cartItemId);
 
             if (cartItem == null)
             {
-                return ServiceResponse<string>.FailureResponse("Cart item not found", 404);
+                return ServiceResponse<string>.FailureResponse(
+                    "Cart item not found",
+                    404);
             }
 
             await _cartRepository.RemoveCartItemAsync(cartItem);
             await _cartRepository.SaveChangesAsync();
 
             return ServiceResponse<string>.SuccessResponse(
-                productName,
+                cartItemId.ToString(),
                 "Item removed from cart",
                 200);
         }
-
-        public async Task<ServiceResponse<string>> ClearCartAsync(string userId)
+        public async Task<ServiceResponse<string>> ClearCartAsync(long userId)
         {
             var cart = await _cartRepository.GetByUserIdWithItemsAsync(userId);
             if (cart == null)
@@ -156,6 +183,7 @@ namespace MultiVendorAPI.Services
         {
             var items = cart.CartItems.Select(ci => new CartItemDto
             {
+                CartItemId = ci.Id,
                 ProductName = ci.Product?.Name ?? string.Empty,
                 Quantity = ci.Quantity,
                 Price = ci.Product?.Price

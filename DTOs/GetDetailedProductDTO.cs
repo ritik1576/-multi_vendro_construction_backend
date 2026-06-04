@@ -1,16 +1,12 @@
-
-
-namespace MultiVendorAPI.Models
+namespace MultiVendorAPI.DTOs
 {
-    public class Product
+    public class GetDetailedProductDto
     {
         public long Id { get; set; }
 
         public long? VendorId { get; set; }
-        public Vendor? Vendor { get; set; }
 
         public long? CategoryId { get; set; }
-        public Category? Category { get; set; }
 
         public string? Name { get; set; }
 
@@ -19,6 +15,8 @@ namespace MultiVendorAPI.Models
         public string? ShortDescription { get; set; }
 
         public string? Description { get; set; }
+
+        public string? LongDescription { get; set; }
 
         public decimal? Price { get; set; }
 
@@ -37,5 +35,11 @@ namespace MultiVendorAPI.Models
         public DateTime? CreatedAt { get; set; }
 
         public DateTime? UpdatedAt { get; set; }
+
+        public List<string> Images { get; set; } = new();
+
+        public string? Category { get; set; }
+
+        public string? VendorName { get; set; }
     }
 }

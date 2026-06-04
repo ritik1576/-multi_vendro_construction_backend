@@ -2,6 +2,8 @@ namespace MultiVendorAPI.DTOs.CartDTOs
 {
     public class CartItemDto
     {
+        public int CartItemId { get; set; }
+
         public string ProductName { get; set; } = string.Empty;
 
         public decimal? Price { get; set; }

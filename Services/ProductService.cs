@@ -101,39 +101,78 @@ namespace MultiVendorAPI.Services
                     201);
         }
 
-        public async Task<ServiceResponse<ProductDto>> GetProductByNameAsync(string name)
+        public async Task<ServiceResponse<GetDetailedProductDto>> GetProductByNameAsync(string name)
         {
-            // var product = await _context.Products
-            //     .FirstOrDefaultAsync(p =>
-            // p.Name.ToLower() == name.ToLower());
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return ServiceResponse<GetDetailedProductDto>
+                    .FailureResponse("Product name is required", 400);
+            }
 
-            // if (product == null)
-            // {
-            //     return ServiceResponse<ProductDto>
-            //         .FailureResponse(
-            //             "Product not found",
-            //             404);
-            // }
+            var normalizedName = name.Trim().ToLower();
 
-            // var productDto = new ProductDto
-            // {
-            //     Name = product.Name,
-            //     Price = product.Price,
-            //     DiscountPrice = product.DiscountPrice,
-            //     Thumbnail = product.Thumbnail,
-            //     CategoryId = product.CategoryId,
-            //     ShortDescription = product.ShortDescription
-            // };
+            var product = await _context.Products
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p =>
+                    p.Name != null &&
+                    p.Name.ToLower() == normalizedName);
 
-            // return ServiceResponse<ProductDto>
-            //     .SuccessResponse(
-            //         productDto,
-            //         "Product found",
-            //         200);
-            return ServiceResponse<ProductDto>
-                .FailureResponse(
-                    "Method not implemented",
-                    501);
+            if (product == null)
+            {
+                return ServiceResponse<GetDetailedProductDto>
+                    .FailureResponse(
+                        "Product not found",
+                        404);
+            }
+
+            var categoryName = product.CategoryId.HasValue
+                ? await _context.Categories
+                    .AsNoTracking()
+                    .Where(c => c.Id == product.CategoryId.Value)
+                    .Select(c => c.Name)
+                    .FirstOrDefaultAsync()
+                : null;
+
+            var vendorName = product.VendorId.HasValue
+                ? await _context.Vendors
+                    .AsNoTracking()
+                    .Where(v => v.Id == product.VendorId.Value)
+                    .Select(v => v.shop_name)
+                    .FirstOrDefaultAsync()
+                : null;
+
+            var getDetailedProductDto = new GetDetailedProductDto
+            {
+                Id = product.Id,
+                VendorId = product.VendorId,
+                CategoryId = product.CategoryId,
+                Name = product.Name,
+                Slug = product.Slug,
+                ShortDescription = product.ShortDescription,
+                Description = product.Description,
+                LongDescription = product.Description,
+                Price = product.Price,
+                DiscountPrice = product.DiscountPrice,
+                Sku = product.Sku,
+                Thumbnail = product.Thumbnail,
+                Status = product.Status,
+                InStock = product.InStock,
+                Quantity = product.Quantity,
+                CreatedAt = product.CreatedAt,
+                UpdatedAt = product.UpdatedAt,
+                Images = string.IsNullOrWhiteSpace(product.Thumbnail)
+                    ? new List<string>()
+                    : new List<string> { product.Thumbnail },
+                Category = categoryName,
+                VendorName = vendorName
+            };
+
+            return ServiceResponse<GetDetailedProductDto>
+                .SuccessResponse(
+                    getDetailedProductDto,
+                    "Product retrieved successfully",
+                    200);
+
         }
 
         public async Task<ServiceResponse<ProductDto>> UpdateProductAsync(
