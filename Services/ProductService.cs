@@ -265,9 +265,11 @@ namespace MultiVendorAPI.Services
         public async Task<ServiceResponse<string>> DeleteProductAsync(
     string productName)
         {
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
             var product = await _context.Products
                 .FirstOrDefaultAsync(
-                    p => p.Name.ToLower() == productName.ToLower());
+                    p => p.Name.Equals(productName, StringComparison.CurrentCultureIgnoreCase));
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
 
             if (product == null)
             {
@@ -281,11 +283,13 @@ namespace MultiVendorAPI.Services
 
             await _context.SaveChangesAsync();
 
+#pragma warning disable CS8604 // Possible null reference argument.
             return ServiceResponse<string>
                 .SuccessResponse(
                     product.Name,
                     "Product deleted successfully",
                     200);
+#pragma warning restore CS8604 // Possible null reference argument.
         }
         public async Task<ServiceResponse<List<string>>> GetCategoriesAsync()
         {
@@ -293,14 +297,17 @@ namespace MultiVendorAPI.Services
                 .Select(c => c.Name)
                 .ToListAsync();
 
+#pragma warning disable CS8620 // Argument cannot be used for parameter due to differences in the nullability of reference types.
             return ServiceResponse<List<string>>
                 .SuccessResponse(
                     categories,
                     "Categories retrieved successfully",
                     200);
+#pragma warning restore CS8620 // Argument cannot be used for parameter due to differences in the nullability of reference types.
         }
         public async Task<ServiceResponse<List<ProductDto>>> SearchProductsAsync(string searchTerm)
         {
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
             var products = await _context.Products
                 .Where(p => p.Name.Contains(searchTerm))
                 .Select(p => new ProductDto
@@ -317,6 +324,7 @@ namespace MultiVendorAPI.Services
                         .FirstOrDefault()
                 })
                 .ToListAsync();
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
 
             return ServiceResponse<List<ProductDto>>
                 .SuccessResponse(
