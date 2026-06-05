@@ -6,7 +6,6 @@ public class Order
     public long Id { get; set; }
     public DateTime OrderDate { get; set; }
     public long AddressId { get; set; }
-
     public List<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
     public long? CouponId { get; set; }
     public string? OrderNumber { get; set; }
