@@ -1,6 +1,6 @@
 public class CreateOrderItemDto
 {
-    public long ProductId { get; set; }
+    public long CartItemId { get; set; }
 
     public int Quantity { get; set; }
 }
