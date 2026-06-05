@@ -40,10 +40,33 @@ public class OrderRepository : IOrderRepository
             .ToListAsync();
     }
 
-    public async Task<int> GetOrderItemCountAsync(long userId)
+    public async Task<List<Order>> GetOrdersAsync(long? userId)
+    {
+        var query = _context.Orders.AsQueryable();
+
+        if (userId.HasValue)
+        {
+            query = query.Where(o => o.UserId == userId.Value);
+        }
+
+        return await query
+            .Include(o => o.OrderItems)
+            .OrderByDescending(o => o.PlacedAt)
+            .ThenByDescending(o => o.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<Order?> GetOrderByIdWithItemsAsync(long orderId)
+    {
+        return await _context.Orders
+            .Include(o => o.OrderItems)
+            .FirstOrDefaultAsync(o => o.Id == orderId);
+    }
+
+    public async Task<int> GetOrderItemCountAsync(long orderId)
     {
         return await _context.OrderItems
-            .Where(oi => oi.Order.UserId == userId)
+            .Where(oi => oi.OrderId == orderId)
             .CountAsync();
     }
 }

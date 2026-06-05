@@ -19,6 +19,7 @@ namespace MultiVendorAPI.Data
         public DbSet<Order> Orders { get; set; }
 
         public DbSet<OrderItem> OrderItems { get; set; }
+        public DbSet<Address> Addresses { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -86,16 +87,44 @@ namespace MultiVendorAPI.Data
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
-            modelBuilder.Entity<OrderItem>().ToTable("order_items");
-
-            modelBuilder.Entity<OrderItem>()
-                .HasKey(o => o.Id);
+            modelBuilder.Entity<OrderItem>(entity =>
+            {
+                entity.ToTable("order_items");
+                entity.HasKey(o => o.Id);
+                entity.Property(o => o.Id).HasColumnName("id");
+                entity.Property(o => o.OrderId).HasColumnName("order_id");
+                entity.Property(o => o.ProductId).HasColumnName("product_id");
+                entity.Property(o => o.ProductName).HasColumnName("product_name");
+                entity.Property(o => o.Quantity).HasColumnName("quantity");
+                entity.Property(o => o.Price).HasColumnName("price");
+                entity.Property(o => o.TotalPrice).HasColumnName("total_price");
+                entity.Property(o => o.CreatedAt).HasColumnName("created_at");
+            });
 
             modelBuilder.Entity<Order>().ToTable("orders");
             modelBuilder.Entity<Cart>().ToTable("carts");
 
-            modelBuilder.Entity<Order>()
-                .HasKey(o => o.Id);
+            modelBuilder.Entity<Order>(entity =>
+            {
+                entity.HasKey(o => o.Id);
+                entity.Property(o => o.Id).HasColumnName("id");
+                entity.Property(o => o.UserId).HasColumnName("user_id");
+                entity.Property(o => o.AddressId).HasColumnName("address_id");
+                entity.Property(o => o.CouponId).HasColumnName("coupon_id");
+                entity.Property(o => o.OrderNumber).HasColumnName("order_number");
+                entity.Property(o => o.Subtotal).HasColumnName("subtotal");
+                entity.Property(o => o.DiscountAmount).HasColumnName("discount_amount");
+                entity.Property(o => o.ShippingCharge).HasColumnName("shipping_charge");
+                entity.Property(o => o.TotalAmount).HasColumnName("total_amount");
+                entity.Property(o => o.PaymentStatus).HasColumnName("payment_status");
+                entity.Property(o => o.OrderStatus).HasColumnName("order_status");
+                entity.Property(o => o.PlacedAt).HasColumnName("placed_at");
+                entity.Property(o => o.CreatedAt).HasColumnName("created_at");
+                entity.Ignore(o => o.OrderDate);
+                entity.HasMany(o => o.OrderItems)
+                    .WithOne(oi => oi.Order)
+                    .HasForeignKey(oi => oi.OrderId);
+            });
 
             modelBuilder.Entity<CartItem>(entity =>
             {
@@ -110,6 +139,25 @@ namespace MultiVendorAPI.Data
                     .HasForeignKey(ci => ci.ProductId)
                     .OnDelete(DeleteBehavior.Restrict);
                 entity.HasIndex(ci => new { ci.CartId, ci.ProductId }).IsUnique();
+            });
+
+            modelBuilder.Entity<Address>(entity =>
+            {
+                entity.ToTable("addresses");
+                entity.HasKey(a => a.Id);
+                entity.Property(a => a.Id).HasColumnName("id");
+                entity.Property(a => a.UserId).HasColumnName("user_id");
+                entity.Property(a => a.FullName).HasColumnName("full_name");
+                entity.Property(a => a.Phone).HasColumnName("phone");
+                entity.Property(a => a.AddressLine1).HasColumnName("address_line1");
+                entity.Property(a => a.AddressLine2).HasColumnName("address_line2");
+                entity.Property(a => a.City).HasColumnName("city");
+                entity.Property(a => a.State).HasColumnName("state");
+                entity.Property(a => a.Country).HasColumnName("country");
+                entity.Property(a => a.PostalCode).HasColumnName("postal_code");
+                entity.Property(a => a.AddressType).HasColumnName("address_type");
+                entity.Property(a => a.IsDefault).HasColumnName("is_default");
+                entity.Property(a => a.CreatedAt).HasColumnName("created_at");
             });
         }
     }
