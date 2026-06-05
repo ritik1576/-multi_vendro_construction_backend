@@ -1,21 +1,20 @@
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace InframartAPI_New.Models
 {
     public class Vendor
     {
-        public int Id { get; set; }
+        [Key]
+        public long Id { get; set; }
 
-        public string BusinessName { get; set; } = string.Empty;
+        public string? Name { get; set; }
 
-        public string GST { get; set; } = string.Empty;
+        // FK
+        public long UserId { get; set; }
 
-        public string Address { get; set; } = string.Empty;
-
-        public string BankDetails { get; set; } = string.Empty;
-
-        public string Status { get; set; } = "Pending";
-
-        public int UserId { get; set; }
-
-        public User? User { get; set; }
+        // Navigation
+        [ForeignKey("UserId")]
+        public required User User { get; set; }
     }
 }

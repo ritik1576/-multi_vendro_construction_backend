@@ -12,5 +12,6 @@ namespace InframartAPI_New.DTOs.Auth
 
         [Required]
         public string Password { get; set; } = string.Empty;
+        public string? Role { get; internal set; }
     }
 }

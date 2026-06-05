@@ -1,3 +1,7 @@
+using InframartAPI_New.Data;
+using InframartAPI_New.DTOs.Auth;
+using InframartAPI_New.Helpers;
+using InframartAPI_New.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -5,46 +9,47 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
-using InframartAPI_New.Data;
-using InframartAPI_New.Models;
-using InframartAPI_New.DTOs.Auth;
-using InframartAPI_New.DTOs;
-using InframartAPI_New.Services;
-
 namespace InframartAPI_New.Controllers
 {
     [Route("[controller]")]
     [ApiController]
+    [Route("auth")]
     public class AuthController : ControllerBase
     {
 
         private readonly AppDbContext _context;
         private readonly IConfiguration _configuration;
-        private readonly IEmailService _emailService;
 
-        public AuthController(
-            AppDbContext context,
-            IConfiguration configuration,
-            IEmailService emailService)
+        public AuthController(AppDbContext context, IConfiguration configuration)
         {
             _context = context;
             _configuration = configuration;
-            _emailService = emailService;
         }
 
         // ================= REGISTER =================
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto request)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            if (request == null)
+                return BadRequest(new { message = "Invalid request" });
 
-            if (await _context.Users.AnyAsync(u => u.Email == request.Email))
-                return BadRequest(new { message = "Email already exists" });
+            if (string.IsNullOrWhiteSpace(request.FullName) ||
+                string.IsNullOrWhiteSpace(request.Email) ||
+                string.IsNullOrWhiteSpace(request.Password))
+            {
+                return BadRequest(new { message = "All fields are required" });
+            }
+
+            var userExists = await _context.Users
+                .AnyAsync(x => x.Email == request.Email);
+
+            if (userExists)
+                return BadRequest(new { message = "User already exists" });
 
             var user = new User
             {
-                Email = request.Email,
+                Name = request.FullName.Trim(),
+                Email = request.Email.Trim(),
                 Password = PasswordHelper.HashPassword(request.Password),
                 Name = request.FullName,
                 Role = "User"
@@ -53,7 +58,11 @@ namespace InframartAPI_New.Controllers
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "User registered successfully" });
+            return Ok(new
+            {
+                message = "User registered successfully",
+                userId = user.Id
+            });
         }
 
         // ================= LOGIN =================
@@ -102,8 +111,8 @@ namespace InframartAPI_New.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto request)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            if (request == null)
+                return BadRequest(new { message = "Invalid request" });
 
             var user = await _context.Users
                 .FirstOrDefaultAsync(u => u.Email == request.Email);
@@ -117,7 +126,15 @@ namespace InframartAPI_New.Controllers
                 });
             }
 
-            var claims = new[]
+            if (user == null)
+                return Unauthorized(new { message = "Invalid email or password" });
+
+#pragma warning disable CS8604 // Possible null reference argument.
+            if (!PasswordHelper.VerifyPassword(request.Password, user.Password))
+                return Unauthorized(new { message = "Invalid email or password" });
+#pragma warning restore CS8604 // Possible null reference argument.
+
+            var claims = new List<Claim>
             {
         new Claim(ClaimTypes.Name, user.Email!),
         new Claim(ClaimTypes.Role, user.Role!)
@@ -152,59 +169,6 @@ namespace InframartAPI_New.Controllers
             };
 
             return Ok(response);
-        }
-
-        // ================= FORGOT PASSWORD =================
-        [HttpPost("forgot-password")]
-        public async Task<IActionResult> ForgetPassword([FromBody] ForgetPasswordRequest request)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == request.Email);
-
-            if (user == null)
-                return NotFound(new { message = "User not found" });
-
-            var resetToken = Guid.NewGuid().ToString();
-
-            var resetLink = $"http://localhost:3000/reset-password?token={resetToken}";
-
-            var emailBody = $@"
-                <h2>Password Reset</h2>
-                <p>Click below to reset your password:</p>
-                <a href='{resetLink}'>Reset Password</a>
-            ";
-
-            await _emailService.SendEmailAsync(
-                user.Email!,
-                "Reset Your Inframart Password",
-                emailBody
-            );
-
-            return Ok(new { message = "Password reset link sent to email" });
-        }
-
-        // ================= RESET PASSWORD =================
-        [HttpPost("reset-password")]
-        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == request.Email);
-
-            if (user == null)
-                return NotFound(new { message = "User not found" });
-
-            user.Password = PasswordHelper.HashPassword(request.NewPassword);
-
-            _context.Users.Update(user);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Password reset successfully" });
         }
     }
 }
