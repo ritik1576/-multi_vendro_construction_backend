@@ -13,7 +13,6 @@ namespace InframartAPI_New.Controllers
 {
     [Route("[controller]")]
     [ApiController]
-    [Route("auth")]
     public class AuthController : ControllerBase
     {
 
@@ -51,7 +50,7 @@ namespace InframartAPI_New.Controllers
                 Name = request.FullName.Trim(),
                 Email = request.Email.Trim(),
                 Password = PasswordHelper.HashPassword(request.Password),
-                Role = "User"
+                Role = "customer"
             };
 
             _context.Users.Add(user);
