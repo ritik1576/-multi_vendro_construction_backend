@@ -20,5 +20,4 @@ COPY --from=build /app/publish .
 
 RUN ls -la /app
 
-
-ENTRYPOINT ["dotnet", "Marketplaces.API.dll"]
+ENTRYPOINT ["dotnet", "MultiVendorAPI.dll"]
