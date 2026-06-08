@@ -115,14 +115,15 @@ namespace InframartAPI_New.Controllers
             var user = await _context.Users
                 .FirstOrDefaultAsync(u => u.Email == request.Email);
 
-            if (user == null || string.IsNullOrEmpty(user.Password) ||
+            if (string.IsNullOrEmpty(user.Password) ||
                 !PasswordHelper.VerifyPassword(request.Password, user.Password))
             {
                 return Unauthorized(new AuthResponseDto
                 {
-                    Message = "Invalid email or password"
+                    Message = "Invalid email or password, user: " + user.Email + ", password: " + user.Password
                 });
             }
+
 
             if (user == null)
                 return Unauthorized(new { message = "Invalid email or password" });
