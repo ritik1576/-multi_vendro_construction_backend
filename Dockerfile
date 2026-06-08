@@ -16,4 +16,9 @@ ENV ASPNETCORE_URLS=http://+:10000
 
 EXPOSE 10000
 
+COPY --from=build /app/publish .
+
+RUN ls -la /app
+
+
 ENTRYPOINT ["dotnet", "Marketplaces.API.dll"]
