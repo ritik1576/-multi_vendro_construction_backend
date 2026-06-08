@@ -13,7 +13,6 @@ namespace InframartAPI_New.Controllers
 {
     [Route("[controller]")]
     [ApiController]
-    [Route("auth")]
     public class AuthController : ControllerBase
     {
 
