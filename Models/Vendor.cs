@@ -1,20 +1,41 @@
-using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace InframartAPI_New.Models
+[Table("Vendors")]
+public class Vendor
 {
-    public class Vendor
-    {
-        [Key]
-        public long Id { get; set; }
+    [Column("id")]
+    public long Id { get; set; }
 
-        public string? Name { get; set; }
+    [Column("user_id")]
+    public long? UserId { get; set; }
 
-        // FK
-        public long UserId { get; set; }
+    [Column("shop_name")]
+    public string? ShopName { get; set; }
 
-        // Navigation
-        [ForeignKey("UserId")]
-        public required User User { get; set; }
-    }
+    [Column("shop_slug")]
+    public string? ShopSlug { get; set; }
+
+    [Column("description")]
+    public string? Description { get; set; }
+
+    [Column("logo")]
+    public string? Logo { get; set; }
+
+    [Column("banner")]
+    public string? Banner { get; set; }
+
+    [Column("gst_number")]
+    public string? GstNumber { get; set; }
+
+    [Column("commission_rate")]
+    public decimal? CommissionRate { get; set; }
+
+    [Column("status")]
+    public string? Status { get; set; }
+
+    [Column("created_at")]
+    public DateTime? CreatedAt { get; set; }
+
+    [Column("updated_at")]
+    public DateTime? UpdatedAt { get; set; }
 }

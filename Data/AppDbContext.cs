@@ -5,16 +5,26 @@ namespace InframartAPI_New.Data
 {
     public class AppDbContext : DbContext
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
+        public AppDbContext(DbContextOptions<AppDbContext> options)
+            : base(options) { }
+
+        public DbSet<User> Users { get; set; }
+        public DbSet<Vendor> Vendors { get; set; }
+        public DbSet<OtpVerification> OtpVerifications { get; set; }
+        public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
+        public DbSet<Order> Orders { get; set; }
+        public DbSet<Payment> Payments { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            
+            base.OnModelCreating(modelBuilder);
+
+            // Configure relationships and constraints if needed
+            modelBuilder.Entity<Vendor>()
+               .HasOne<User>()
+               .WithOne()
+               .HasForeignKey<Vendor>(v => v.UserId)
+               .OnDelete(DeleteBehavior.NoAction);
         }
-
-        public DbSet<User> Users => Set<User>();
-        public DbSet<Vendor> Vendors => Set<Vendor>();
-        
-        public DbSet<OtpVerification> OtpVerifications => Set<OtpVerification>();
-
-        public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     }
 }

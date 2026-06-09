@@ -1,3 +1,4 @@
+using InframartAPI_New.DTOs;
 using InframartAPI_New.Data;
 using InframartAPI_New.DTOs.Auth;
 using InframartAPI_New.Helpers;
@@ -8,22 +9,25 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using InframartAPI_New.Services;
 
 namespace InframartAPI_New.Controllers
 {
     [Route("[controller]")]
     [ApiController]
-    [Route("auth")]
     public class AuthController : ControllerBase
     {
 
         private readonly AppDbContext _context;
         private readonly IConfiguration _configuration;
+        private readonly IVendorService _vendorService;
 
-        public AuthController(AppDbContext context, IConfiguration configuration)
+        public AuthController(AppDbContext context, IConfiguration configuration, IVendorService vendorService)
         {
             _context = context;
             _configuration = configuration;
+            _vendorService = vendorService;
+
         }
 
         // ================= REGISTER =================
@@ -48,10 +52,10 @@ namespace InframartAPI_New.Controllers
 
             var user = new User
             {
-                Name = request.FullName.Trim(),
+                FullName = request.FullName.Trim(),
                 Email = request.Email.Trim(),
-                Password = PasswordHelper.HashPassword(request.Password),
-                Role = "User"
+                Password = Services.PasswordHelper.HashPassword(request.Password),
+                Role = "customer"
             };
 
             _context.Users.Add(user);
@@ -64,48 +68,6 @@ namespace InframartAPI_New.Controllers
             });
         }
 
-        // ================= LOGIN =================
-        // [HttpPost("login")]
-        // public async Task<IActionResult> Login([FromBody] LoginDto request)
-        // {
-        //     if (!ModelState.IsValid)
-        //         return BadRequest(ModelState);
-
-        //     var user = await _context.Users
-        //         .FirstOrDefaultAsync(u => u.Email == request.Email);
-        //     if (user == null || string.IsNullOrEmpty(user.Password) ||
-        //        !PasswordHelper.VerifyPassword(request.Password, user.Password))
-        //     {
-        //         return Unauthorized(new { message = "Invalid email or password" });
-        //     }
-
-        //     var claims = new[]
-        //     {
-        //         new Claim(ClaimTypes.Name, user.Email!),
-        //         new Claim(ClaimTypes.Role, user.Role!)
-        //     };
-
-        //     var key = new SymmetricSecurityKey(
-        //         Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!)
-        //     );
-
-        //     var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-        //     var token = new JwtSecurityToken(
-        //         issuer: _configuration["Jwt:Issuer"],
-        //         audience: _configuration["Jwt:Audience"],
-        //         claims: claims,
-        //         expires: DateTime.Now.AddMinutes(
-        //             Convert.ToDouble(_configuration["Jwt:ExpiryMinutes"])
-        //         ),
-        //         signingCredentials: creds
-        //     );
-
-        //     return Ok(new
-        //     {
-        //         token = new JwtSecurityTokenHandler().WriteToken(token)
-        //     });
-        // }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto request)
@@ -117,9 +79,9 @@ namespace InframartAPI_New.Controllers
                 .FirstOrDefaultAsync(u => u.Email == request.Email);
 
             if (user == null || string.IsNullOrEmpty(user.Password) ||
-                !PasswordHelper.VerifyPassword(request.Password, user.Password))
+                !Services.PasswordHelper.VerifyPassword(request.Password, user.Password))
             {
-                return Unauthorized(new AuthResponseDto
+                return Unauthorized(new DTOs.AuthResponseDto
                 {
                     Message = "Invalid email or password"
                 });
@@ -128,10 +90,8 @@ namespace InframartAPI_New.Controllers
             if (user == null)
                 return Unauthorized(new { message = "Invalid email or password" });
 
-#pragma warning disable CS8604 // Possible null reference argument.
-            if (!PasswordHelper.VerifyPassword(request.Password, user.Password))
+            if (!Services.PasswordHelper.VerifyPassword(request.Password, user.Password))
                 return Unauthorized(new { message = "Invalid email or password" });
-#pragma warning restore CS8604 // Possible null reference argument.
 
             var claims = new List<Claim>
             {
@@ -158,16 +118,59 @@ namespace InframartAPI_New.Controllers
                 signingCredentials: creds
             );
 
-            var response = new AuthResponseDto
+            Console.WriteLine($"DB User Id: {user.Id}");
+            Console.WriteLine($"DB Email: {user.Email}");
+            var response = new DTOs.AuthResponseDto
             {
                 Message = "Login successful",
                 UserId = user.Id,
-                Email = user.Email,
                 Role = user.Role,
                 Token = new JwtSecurityTokenHandler().WriteToken(token)
             };
 
             return Ok(response);
         }
+        [HttpPost("vendor/register")]
+        public async Task<IActionResult> RegisterVendor(
+    [FromBody] VendorRegisterDto dto)
+        {
+            var result = await _vendorService
+                .RegisterVendorAsync(dto);
+
+            if (!result.Success)
+                return BadRequest(result);
+
+            return Ok(result);
+        }
+
+        [HttpPost("vendor/login")]
+        public async Task<IActionResult> LoginVendor([FromBody] VendorLoginDto dto)
+        {
+            if (dto == null ||
+                string.IsNullOrWhiteSpace(dto.Email) ||
+                string.IsNullOrWhiteSpace(dto.Password))
+            {
+                return BadRequest(new { message = "Email and password are required" });
+            }
+
+            var result = await _vendorService.LoginVendorAsync(dto);
+
+            if (!result.Success)
+                return Unauthorized(result);
+
+            return Ok(result);
+        }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
