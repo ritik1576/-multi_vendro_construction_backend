@@ -13,6 +13,7 @@ using MultiVendorAPI.Repositories;
 using MultiVendorAPI.Repositories.Interfaces;
 using MultiVendorAPI.Services;
 using MultiVendorAPI.Services.Interfaces;
+using InframartAPI_New.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -144,8 +145,6 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
-
-app.UseAuthorization();
 
 app.MapControllers();
 
