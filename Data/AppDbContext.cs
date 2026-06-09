@@ -19,11 +19,12 @@ namespace InframartAPI_New.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            // Configure relationships and constraints if needed
             modelBuilder.Entity<Vendor>()
-                .HasOne(v => v.User)
-                .WithMany()
-                .HasForeignKey(v => v.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+               .HasOne<User>()
+               .WithOne()
+               .HasForeignKey<Vendor>(v => v.UserId)
+               .OnDelete(DeleteBehavior.NoAction);
         }
     }
 }

@@ -1,6 +1,7 @@
 using InframartAPI_New.Data;
 using InframartAPI_New.DTOs;
 using InframartAPI_New.Models;
+using InframartAPI_New.Repositories.Interfaces;
 using InframartAPI_New.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -8,115 +9,162 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
+
 namespace InframartAPI_New.Services
 {
     public class VendorService : IVendorService
     {
-        private readonly AppDbContext _context;
+        private readonly IVendorRepository _vendorRepository;
         private readonly IConfiguration _configuration;
-        
-        public VendorService(AppDbContext context, IConfiguration configuration)
+
+        public VendorService(
+            IVendorRepository vendorRepository,
+            IConfiguration configuration)
         {
-            _context = context;
+            _vendorRepository = vendorRepository;
             _configuration = configuration;
         }
 
-        // ================= REGISTER =================
-        public async Task<string> RegisterVendor(VendorRegisterDto dto)
+        public async Task<AuthResponseDto> RegisterVendorAsync(
+            VendorRegisterDto dto)
         {
-            var existingUser = await _context.Users
-                .FirstOrDefaultAsync(x => x.Email == dto.Email);
+            var exists = await _vendorRepository
+                .EmailExistsAsync(dto.Email);
 
-            if (existingUser != null)
-                return "Email already exists";
+            if (exists)
+            {
+                return new AuthResponseDto
+                {
+                    Success = false,
+                    Message = "Email already exists"
+                };
+            }
 
             var user = new User
             {
-                FullName = dto.FullName,
+
                 Email = dto.Email,
                 Phone = dto.Phone,
-                Password = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+                Password = PasswordHelper.HashPassword(dto.Password),
                 Role = "vendor",
-                Status = "active"
             };
 
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
+            await _vendorRepository.AddUserAsync(user);
+            await _vendorRepository.SaveChangesAsync();
 
             var vendor = new Vendor
             {
-                Name = dto.ShopName,
                 UserId = user.Id,
-                User = user
+                ShopName = dto.ShopName,
+                ShopSlug = dto.ShopSlug,
+                Description = dto.Description,
+                GstNumber = dto.GstNumber,
+                Status = "pending"
             };
 
-            _context.Vendors.Add(vendor);
-            await _context.SaveChangesAsync();
+            await _vendorRepository.AddVendorAsync(vendor);
+            await _vendorRepository.SaveChangesAsync();
 
-            return "Vendor Registered Successfully";
-        }
-
-        // ================= LOGIN =================
-        public async Task<AuthResponseDto?> LoginVendor(VendorLoginDto dto)
-        {
-            var user = await _context.Users
-                .FirstOrDefaultAsync(x =>
-                    x.Email == dto.Email &&
-                    x.Role == "vendor");
-
-            if (user == null)
-                return null;
-
-            bool validPassword = BCrypt.Net.BCrypt.Verify(dto.Password, user.Password ?? "");
-
-            if (!validPassword)
-                return null;
-
-            var vendor = await _context.Vendors
-                .FirstOrDefaultAsync(v => v.UserId == user.Id);
-
-            var token = GenerateToken(user, vendor?.Id ?? 0);
-
-            return new AuthResponseDto
+            var claims = new[]
             {
-                Success = true,
-                Message = "Login Success",
-                Token = token,
-
-                UserId = user.Id,
-                VendorId = vendor?.Id ?? 0,
-
-                Role = user.Role,
-                Status = vendor?.Status,
-                
-            };
-        }
-
-        // ================= JWT =================
-        private string GenerateToken(User user, long vendorId)
-        {
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Role, user.Role ?? "vendor"),
-                new Claim("vendorId", vendorId.ToString())
-            };
+            new Claim(ClaimTypes.Name,user.Email!),
+            new Claim(ClaimTypes.Role,user.Role!)
+        };
 
             var key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!)
-            );
+                Encoding.UTF8.GetBytes(
+                    _configuration["Jwt:Key"]!
+                ));
 
-            var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var creds = new SigningCredentials(
+                key,
+                SecurityAlgorithms.HmacSha256
+            );
 
             var token = new JwtSecurityToken(
                 issuer: _configuration["Jwt:Issuer"],
                 audience: _configuration["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddDays(7),
-                signingCredentials: credentials
+                expires: DateTime.Now.AddDays(7),
+                signingCredentials: creds
             );
 
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            return new AuthResponseDto
+            {
+                Success = true,
+                Message = "Vendor registered successfully",
+
+                UserId = user.Id,
+
+                VendorId = vendor.Id,
+
+                Role = user.Role,
+
+                Status = vendor.Status,
+
+                ShopName = vendor.ShopName,
+
+                Token = new JwtSecurityTokenHandler()
+                    .WriteToken(token)
+            };
+        }
+
+        public async Task<AuthResponseDto> LoginVendorAsync(VendorLoginDto dto)
+        {
+            var (user, vendor) = await _vendorRepository
+                .GetVendorUserByEmailAsync(dto.Email);
+
+            if (user == null || string.IsNullOrEmpty(user.Password) ||
+                !PasswordHelper.VerifyPassword(dto.Password, user.Password))
+            {
+                return new AuthResponseDto
+                {
+                    Success = false,
+                    Message = "Invalid email or password"
+                };
+            }
+
+            if (user.Status == "inactive" || user.Status == "banned")
+            {
+                return new AuthResponseDto
+                {
+                    Success = false,
+                    Message = "Your account has been suspended. Please contact support."
+                };
+            }
+
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Name, user.Email!),
+                new Claim(ClaimTypes.Role, user.Role!),
+                new Claim("vendorId", vendor?.Id.ToString() ?? "")
+            };
+
+            var key = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
+
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            var token = new JwtSecurityToken(
+                issuer: _configuration["Jwt:Issuer"],
+                audience: _configuration["Jwt:Audience"],
+                claims: claims,
+                expires: DateTime.Now.AddDays(7),
+                signingCredentials: creds
+            );
+
+            return new AuthResponseDto
+            {
+                Success = true,
+                Message = "Login successful",
+                UserId = user.Id,
+                VendorId = vendor?.Id ?? 0,
+                Role = user.Role,
+                Status = vendor?.Status,
+                ShopName = vendor?.ShopName,
+                Token = new JwtSecurityTokenHandler().WriteToken(token)
+            };
         }
     }
-}
+}

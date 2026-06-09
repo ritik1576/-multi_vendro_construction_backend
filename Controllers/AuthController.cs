@@ -9,6 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using InframartAPI_New.Services;
 
 namespace InframartAPI_New.Controllers
 {
@@ -19,11 +20,14 @@ namespace InframartAPI_New.Controllers
 
         private readonly AppDbContext _context;
         private readonly IConfiguration _configuration;
+        private readonly IVendorService _vendorService;
 
-        public AuthController(AppDbContext context, IConfiguration configuration)
+        public AuthController(AppDbContext context, IConfiguration configuration, IVendorService vendorService)
         {
             _context = context;
             _configuration = configuration;
+            _vendorService = vendorService;
+
         }
 
         // ================= REGISTER =================
@@ -50,7 +54,7 @@ namespace InframartAPI_New.Controllers
             {
                 FullName = request.FullName.Trim(),
                 Email = request.Email.Trim(),
-                Password = PasswordHelper.HashPassword(request.Password),
+                Password = Services.PasswordHelper.HashPassword(request.Password),
                 Role = "customer"
             };
 
@@ -75,7 +79,7 @@ namespace InframartAPI_New.Controllers
                 .FirstOrDefaultAsync(u => u.Email == request.Email);
 
             if (user == null || string.IsNullOrEmpty(user.Password) ||
-                !PasswordHelper.VerifyPassword(request.Password, user.Password))
+                !Services.PasswordHelper.VerifyPassword(request.Password, user.Password))
             {
                 return Unauthorized(new DTOs.AuthResponseDto
                 {
@@ -86,7 +90,7 @@ namespace InframartAPI_New.Controllers
             if (user == null)
                 return Unauthorized(new { message = "Invalid email or password" });
 
-            if (!PasswordHelper.VerifyPassword(request.Password, user.Password))
+            if (!Services.PasswordHelper.VerifyPassword(request.Password, user.Password))
                 return Unauthorized(new { message = "Invalid email or password" });
 
             var claims = new List<Claim>
@@ -114,6 +118,8 @@ namespace InframartAPI_New.Controllers
                 signingCredentials: creds
             );
 
+            Console.WriteLine($"DB User Id: {user.Id}");
+            Console.WriteLine($"DB Email: {user.Email}");
             var response = new DTOs.AuthResponseDto
             {
                 Message = "Login successful",
@@ -124,8 +130,39 @@ namespace InframartAPI_New.Controllers
 
             return Ok(response);
         }
+        [HttpPost("vendor/register")]
+        public async Task<IActionResult> RegisterVendor(
+    [FromBody] VendorRegisterDto dto)
+        {
+            var result = await _vendorService
+                .RegisterVendorAsync(dto);
+
+            if (!result.Success)
+                return BadRequest(result);
+
+            return Ok(result);
+        }
+
+        [HttpPost("vendor/login")]
+        public async Task<IActionResult> LoginVendor([FromBody] VendorLoginDto dto)
+        {
+            if (dto == null ||
+                string.IsNullOrWhiteSpace(dto.Email) ||
+                string.IsNullOrWhiteSpace(dto.Password))
+            {
+                return BadRequest(new { message = "Email and password are required" });
+            }
+
+            var result = await _vendorService.LoginVendorAsync(dto);
+
+            if (!result.Success)
+                return Unauthorized(result);
+
+            return Ok(result);
+        }
     }
 }
+
 
 
 

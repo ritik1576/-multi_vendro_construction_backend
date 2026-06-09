@@ -32,7 +32,7 @@ namespace MultiVendorAPI.Data
                 entity.HasKey(v => v.Id);
                 entity.Property(v => v.Id).HasColumnName("id");
                 entity.Property(v => v.UserId).HasColumnName("user_id");
-                entity.Property(v => v.shop_name).HasColumnName("shop_name");
+                entity.Property(v => v.ShopName).HasColumnName("shop_name");
                 entity.Property(v => v.ShopSlug).HasColumnName("shop_slug");
                 entity.Property(v => v.Description).HasColumnName("description");
                 entity.Property(v => v.Logo).HasColumnName("logo");

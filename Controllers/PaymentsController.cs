@@ -36,7 +36,7 @@ namespace InframartAPI_New.Controllers
             if (order == null)
                 return NotFound("Order not found");
 
-            decimal total_amount = order.Total_Amount ?? 0m;
+            decimal total_amount = order.TotalAmount;
 
             var client = new RazorpayClient(_razorpay.KeyId, _razorpay.KeySecret);
 
@@ -44,7 +44,7 @@ namespace InframartAPI_New.Controllers
             {
                 { "amount", Convert.ToInt32(total_amount * 100) },
                 { "currency", "INR" },
-                { "receipt", order.Order_Number ?? $"ORD-{order.Id}" }
+                { "receipt", order.OrderNumber ?? $"ORD-{order.Id}" }
             };
 
             var razorpayOrder = client.Order.Create(options);
@@ -52,7 +52,7 @@ namespace InframartAPI_New.Controllers
             var payment = new DbPayment
             {
                 Order_Id = order.Id,
-                User_Id = order.User_Id,
+                User_Id = order.UserId,
                 Amount = total_amount,
                 Status = "created",
                 Payment_Method = "razorpay",
@@ -108,7 +108,7 @@ namespace InframartAPI_New.Controllers
             var order = await _context.Orders.FindAsync(request.Order_Id);
 
             if (order != null)
-                order.Payment_Status = "paid";
+                order.PaymentStatus = "paid";
 
             await _context.SaveChangesAsync();
 
@@ -162,7 +162,7 @@ namespace InframartAPI_New.Controllers
                     .FirstOrDefaultAsync(x => x.Id == dbPayment.Order_Id);
 
                 if (order != null)
-                    order.Payment_Status = "refunded";
+                    order.PaymentStatus = "refunded";
 
                 await _context.SaveChangesAsync();
 
@@ -184,4 +184,4 @@ namespace InframartAPI_New.Controllers
         }
     }
 }
-    
+
