@@ -1,4 +1,5 @@
 
+using InframartAPI_New.Models;
 
 namespace MultiVendorAPI.Models
 {
