@@ -1,3 +1,4 @@
+using InframartAPI_New.Models;
 using System.Text;
 using InframartAPI_New.Data;
 using InframartAPI_New.Repositories;
@@ -12,8 +13,11 @@ using MultiVendorAPI.Repositories;
 using MultiVendorAPI.Repositories.Interfaces;
 using MultiVendorAPI.Services;
 using MultiVendorAPI.Services.Interfaces;
+using InframartAPI_New.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
+
+AppContext.SetSwitch("MySql.EnableLegacyTimestampBehavior", true);
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("DefaultConnection is not configured.");
@@ -26,6 +30,14 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseMySql(connectionString, serverVersion));
+// ================= SERVICES =================
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IVendorService, VendorService>();
+
+// ================= RAZORPAY CONFIG =================
+builder.Services.Configure<RazorpaySettings>(
+    builder.Configuration.GetSection("Razorpay")
+);
 
 // Controllers
 builder.Services.AddControllers();
@@ -33,8 +45,23 @@ builder.Services.AddControllers();
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
 
+builder.Services.AddScoped<IAuthRepository, AuthRepository>();
+builder.Services.AddScoped<IVendorRepository, VendorRepository>();
+builder.Services.AddScoped<ICartRepository, CartRepository>();
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+builder.Services.AddScoped<IAddressRepository, AddressRepository>();
+
+// Services
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<ICartService, CartService>();
+builder.Services.AddScoped<IOrderService, OrderServices>();
+builder.Services.AddScoped<IAddressService, AddressService>();
 builder.Services.AddSwaggerGen(options =>
 {
+    // Repositories
+
+    // JWT Authentication
     options.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "Inframart API",
@@ -43,12 +70,12 @@ builder.Services.AddSwaggerGen(options =>
 
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
+        Description = "Enter JWT Token. Example: Bearer {your token}",
         Name = "Authorization",
+        In = ParameterLocation.Header,
         Type = SecuritySchemeType.Http,
         Scheme = "bearer",
-        BearerFormat = "JWT",
-        In = ParameterLocation.Header,
-        Description = "Enter JWT Token"
+        BearerFormat = "JWT"
     });
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -62,29 +89,17 @@ builder.Services.AddSwaggerGen(options =>
                     Id = "Bearer"
                 }
             },
-            new string[] { }
+            Array.Empty<string>()
         }
     });
 });
 
-// Repositories
-builder.Services.AddScoped<IAuthRepository, AuthRepository>();
-builder.Services.AddScoped<IVendorRepository, VendorRepository>();
-builder.Services.AddScoped<ICartRepository, CartRepository>();
-builder.Services.AddScoped<IOrderRepository, OrderRepository>();
-builder.Services.AddScoped<IAddressRepository, AddressRepository>();
-
-// Services
-builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddScoped<IProductService, ProductService>();
-builder.Services.AddScoped<ICartService, CartService>();
-builder.Services.AddScoped<IOrderService, OrderServices>();
-builder.Services.AddScoped<IAddressService, AddressService>();
-
-// JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        options.RequireHttpsMetadata = false;
+        options.SaveToken = true;
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = false,
@@ -92,28 +107,29 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
 
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(
-                    builder.Configuration["Jwt:Key"]!
-                )
-            ),
+            ValidIssuer =
+                    builder.Configuration["Jwt:Issuer"],
 
-            RoleClaimType = System.Security.Claims.ClaimTypes.Role,
-            NameClaimType = System.Security.Claims.ClaimTypes.Name
+            ValidAudience =
+                    builder.Configuration["Jwt:Audience"],
+
+            IssuerSigningKey =
+                    new SymmetricSecurityKey(
+                        Encoding.UTF8.GetBytes(
+                            builder.Configuration["Jwt:Key"]!
+                        )
+                    ),
+
+            ClockSkew = TimeSpan.Zero
         };
     });
 
 // Authorization Policies
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("AdminOnly",
-        policy => policy.RequireRole("admin"));
-
-    options.AddPolicy("VendorOnly",
-        policy => policy.RequireRole("vendor"));
-
-    options.AddPolicy("CustomerOnly",
-        policy => policy.RequireRole("customer"));
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("admin"));
+    options.AddPolicy("VendorOnly", policy => policy.RequireRole("vendor"));
+    options.AddPolicy("CustomerOnly", policy => policy.RequireRole("customer"));
 });
 
 var app = builder.Build();
@@ -129,8 +145,12 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
-app.UseAuthorization();
 
 app.MapControllers();
 
+
+
 app.Run();
+
+
+

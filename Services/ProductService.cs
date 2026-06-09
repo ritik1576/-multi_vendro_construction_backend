@@ -137,7 +137,7 @@ namespace MultiVendorAPI.Services
                 ? await _context.Vendors
                     .AsNoTracking()
                     .Where(v => v.Id == product.VendorId.Value)
-                    .Select(v => v.shop_name)
+                    .Select(v => v.ShopName)
                     .FirstOrDefaultAsync()
                 : null;
 
