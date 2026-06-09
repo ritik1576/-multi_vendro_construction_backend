@@ -1,93 +1,23 @@
-using InframartAPI_New.Data;
-using InframartAPI_New.DTOs.Auth;
-using InframartAPI_New.Helpers;
-using InframartAPI_New.Models;
-using InframartAPI_New.Services.Interfaces;
-using System.Linq;
+using InframartAPI_New.DTOs;
 
-namespace InframartAPI_New.Services
+namespace InframartAPI_New.Services.Interfaces
 {
-    public class AuthService : IAuthService
+    public interface IAuthService
     {
-        private readonly AppDbContext _context;
+        // ================= USER =================
 
-        public AuthService(AppDbContext context)
-        {
-            _context = context;
-        }
+        Task<AuthResponseDto> LoginUserAsync(LoginDto dto);
 
-        // ================= REGISTER =================
-        public AuthResponseDto Register(RegisterDto dto)
-        {
-            var userExists = _context.Users
-                .FirstOrDefault(x => x.Email == dto.Email);
+        Task<AuthResponseDto> RegisterUserAsync(RegisterDto dto);
 
-            if (userExists != null)
-            {
-                return new AuthResponseDto
-                {
-                    Message = "User already exists"
-                };
-            }
+        // ================= VENDOR =================
 
-            var user = new User
-            {
-                Name = dto.FullName,
-                Email = dto.Email,
-                Password = PasswordHelper.HashPassword(dto.Password),
-                Role = string.IsNullOrWhiteSpace(dto.Role) ? "customer" : dto.Role,
-                Status = "active"
-            };
+        Task<AuthResponseDto> LoginVendorAsync(VendorLoginDto dto);
 
-            _context.Users.Add(user);
-            _context.SaveChanges();
+        Task<AuthResponseDto> RegisterVendorAsync(VendorRegisterDto dto);
 
-            return new AuthResponseDto
-            {
-                Message = "Register Success",
-                UserId = user.Id,
-                Email = user.Email,
-                Role = user.Role,
-                Token = "dummy-token"
-            };
-        }
+        // ================= TOKEN =================
 
-        // ================= LOGIN =================
-        public AuthResponseDto Login(LoginDto dto)
-        {
-            var user = _context.Users
-                .FirstOrDefault(x => x.Email == dto.Email);
-
-            if (user == null)
-            {
-                return new AuthResponseDto
-                {
-                    Message = "Invalid credentials"
-                };
-            }
-
-
-#pragma warning disable CS8604 // Possible null reference argument.
-            if (!PasswordHelper.VerifyPassword(dto.Password, user.Password))
-            {
-                return new AuthResponseDto
-                {
-                    Message = "Invalid credentials"
-                };
-    
-
-            }
-#pragma warning restore CS8604 // Possible null reference argument.
-
-
-            return new AuthResponseDto
-            {
-                Message = "Login Success",
-                UserId = user.Id,
-                Email = user.Email,
-                Role = user.Role,
-                Token = "dummy-token"
-            };
-        }
+        Task<bool> ValidateTokenAsync(string token);
     }
 }

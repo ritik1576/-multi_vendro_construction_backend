@@ -1,3 +1,4 @@
+using InframartAPI_New.DTOs;
 using InframartAPI_New.Data;
 using InframartAPI_New.DTOs.Auth;
 using InframartAPI_New.Helpers;
@@ -11,10 +12,11 @@ using System.Text;
 
 namespace InframartAPI_New.Controllers
 {
+    [Route("auth/[controller]")]
     [ApiController]
-    [Route("auth")]
     public class AuthController : ControllerBase
     {
+
         private readonly AppDbContext _context;
         private readonly IConfiguration _configuration;
 
@@ -32,7 +34,7 @@ namespace InframartAPI_New.Controllers
                 return BadRequest(new { message = "Invalid request" });
 
             if (string.IsNullOrWhiteSpace(request.FullName) ||
-                string.IsNullOrWhiteSpace(request.Email) ||
+                string.IsNullOrWhiteSpace(request.Email) ||                      
                 string.IsNullOrWhiteSpace(request.Password))
             {
                 return BadRequest(new { message = "All fields are required" });
@@ -46,11 +48,10 @@ namespace InframartAPI_New.Controllers
 
             var user = new User
             {
-                Name = request.FullName.Trim(),
+                FullName = request.FullName.Trim(),
                 Email = request.Email.Trim(),
                 Password = PasswordHelper.HashPassword(request.Password),
-                Role = "customer",
-                Status = "active"
+                Role = "customer"
             };
 
             _context.Users.Add(user);
@@ -63,7 +64,8 @@ namespace InframartAPI_New.Controllers
             });
         }
 
-        // ================= LOGIN =================
+       
+
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto request)
         {
@@ -73,47 +75,66 @@ namespace InframartAPI_New.Controllers
             var user = await _context.Users
                 .FirstOrDefaultAsync(u => u.Email == request.Email);
 
+            if (user == null || string.IsNullOrEmpty(user.Password) ||
+                !PasswordHelper.VerifyPassword(request.Password, user.Password))
+            {
+                return Unauthorized(new AuthResponseDto
+                {
+                    Message = "Invalid email or password"
+                });
+            }
+
             if (user == null)
                 return Unauthorized(new { message = "Invalid email or password" });
 
-#pragma warning disable CS8604 // Possible null reference argument.
             if (!PasswordHelper.VerifyPassword(request.Password, user.Password))
                 return Unauthorized(new { message = "Invalid email or password" });
-#pragma warning restore CS8604 // Possible null reference argument.
 
             var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.Name, user.Email ?? ""),
-                new Claim(ClaimTypes.Role, user.Role ?? "customer"),
-                new Claim("UserId", user.Id.ToString())
-            };
+        new Claim(ClaimTypes.Name, user.Email!),
+        new Claim(ClaimTypes.Role, user.Role!)
+    };
 
             var key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(_configuration["JwtSettings:Key"]!)
+                Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!)
             );
 
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var creds = new SigningCredentials(
+                key,
+                SecurityAlgorithms.HmacSha256
+            );
 
             var token = new JwtSecurityToken(
-                issuer: _configuration["JwtSettings:Issuer"],
-                audience: _configuration["JwtSettings:Audience"],
+                issuer: _configuration["Jwt:Issuer"],
+                audience: _configuration["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(
-                    Convert.ToDouble(_configuration["JwtSettings:ExpiryMinutes"])
+                expires: DateTime.Now.AddMinutes(
+                    Convert.ToDouble(_configuration["Jwt:ExpiryMinutes"])
                 ),
                 signingCredentials: creds
             );
 
-            var jwtToken = new JwtSecurityTokenHandler().WriteToken(token);
-
-            return Ok(new AuthResponseDto
+            var response = new AuthResponseDto
             {
-                Message = "Login Success",
+                Message = "Login successful",
                 UserId = user.Id,
-                Email = user.Email,
                 Role = user.Role,
-                Token = jwtToken
-            });
+                Token = new JwtSecurityTokenHandler().WriteToken(token)
+            };
+
+            return Ok(response);
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+

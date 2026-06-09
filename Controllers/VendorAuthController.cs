@@ -1,34 +1,36 @@
-using InframartAPI_New.Data;
 using InframartAPI_New.DTOs;
+using InframartAPI_New.Data;
 using InframartAPI_New.Models;
-using InframartAPI_New.Services.Interfaces;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
-namespace InframartAPI_New.Services
+namespace InframartAPI_New.Controllers
 {
-    public class VendorService : IVendorService
+    [ApiController]
+    [Route("auth/vendor")]
+    public class VendorAuthController : ControllerBase
     {
         private readonly AppDbContext _context;
-        private readonly IConfiguration _configuration;
-        
-        public VendorService(AppDbContext context, IConfiguration configuration)
+        private readonly IConfiguration _config;
+
+        public VendorAuthController(AppDbContext context, IConfiguration config)
         {
             _context = context;
-            _configuration = configuration;
+            _config = config;
         }
 
         // ================= REGISTER =================
-        public async Task<string> RegisterVendor(VendorRegisterDto dto)
+        [HttpPost("register")]
+        public async Task<IActionResult> Register(VendorRegisterDto dto)
         {
-            var existingUser = await _context.Users
-                .FirstOrDefaultAsync(x => x.Email == dto.Email);
+            var existing = await _context.Users.FirstOrDefaultAsync(x => x.Email == dto.Email);
 
-            if (existingUser != null)
-                return "Email already exists";
+            if (existing != null)
+                return BadRequest("Email already exists");
 
             var user = new User
             {
@@ -46,50 +48,51 @@ namespace InframartAPI_New.Services
             var vendor = new Vendor
             {
                 Name = dto.ShopName,
-                UserId = user.Id,
-                User = user
+                Status = "approved",
+                UserId = user.Id
             };
 
             _context.Vendors.Add(vendor);
             await _context.SaveChangesAsync();
 
-            return "Vendor Registered Successfully";
+            return Ok(new
+            {
+                 Success = true,
+                message = "Vendor registered",
+                vendorId = vendor.Id,
+                userId = user.Id
+            });
         }
 
         // ================= LOGIN =================
-        public async Task<AuthResponseDto?> LoginVendor(VendorLoginDto dto)
+        [HttpPost("login")]
+        public async Task<IActionResult> Login(VendorLoginDto dto)
+
         {
-            var user = await _context.Users
-                .FirstOrDefaultAsync(x =>
-                    x.Email == dto.Email &&
-                    x.Role == "vendor");
+            var user = await _context.Users.FirstOrDefaultAsync(x =>
+                x.Email == dto.Email && x.Role == "vendor");
 
             if (user == null)
-                return null;
+                return Unauthorized("Invalid credentials");
 
-            bool validPassword = BCrypt.Net.BCrypt.Verify(dto.Password, user.Password ?? "");
+            if (!BCrypt.Net.BCrypt.Verify(dto.Password, user.Password ?? ""))
+                return Unauthorized("Invalid credentials");
 
-            if (!validPassword)
-                return null;
-
-            var vendor = await _context.Vendors
-                .FirstOrDefaultAsync(v => v.UserId == user.Id);
+            var vendor = await _context.Vendors.FirstOrDefaultAsync(v => v.UserId == user.Id);
 
             var token = GenerateToken(user, vendor?.Id ?? 0);
 
-            return new AuthResponseDto
+            return Ok(new AuthResponseDto
             {
                 Success = true,
-                Message = "Login Success",
+                Message = "Login success",
                 Token = token,
-
                 UserId = user.Id,
                 VendorId = vendor?.Id ?? 0,
-
                 Role = user.Role,
                 Status = vendor?.Status,
                 
-            };
+            });
         }
 
         // ================= JWT =================
@@ -103,17 +106,17 @@ namespace InframartAPI_New.Services
             };
 
             var key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!)
+                Encoding.UTF8.GetBytes(_config["Jwt:Key"]!)
             );
 
-            var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var token = new JwtSecurityToken(
-                issuer: _configuration["Jwt:Issuer"],
-                audience: _configuration["Jwt:Audience"],
+            var token = new JwtSecurityToken( 
+                issuer: _config["Jwt:Issuer"],
+                audience: _config["Jwt:Audience"],
                 claims: claims,
                 expires: DateTime.UtcNow.AddDays(7),
-                signingCredentials: credentials
+                signingCredentials: creds
             );
 
             return new JwtSecurityTokenHandler().WriteToken(token);

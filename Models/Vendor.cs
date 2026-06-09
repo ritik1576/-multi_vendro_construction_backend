@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace InframartAPI_New.Models
 {
@@ -10,11 +9,11 @@ namespace InframartAPI_New.Models
 
         public string? Name { get; set; }
 
-        // FK
+        public string? Status { get; set; } = "pending"; 
+        // pending / approved / rejected
+
         public long UserId { get; set; }
 
-        // Navigation
-        [ForeignKey("UserId")]
-        public required User User { get; set; }
+        public User User { get; set; } = null!;
     }
 }

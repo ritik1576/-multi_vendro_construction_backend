@@ -1,3 +1,4 @@
+using InframartAPI_New.Models;
 using System.Text;
 using InframartAPI_New.Data;
 using InframartAPI_New.Services;
@@ -9,18 +10,27 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+AppContext.SetSwitch("MySql.EnableLegacyTimestampBehavior", true);
+
 // ================= DATABASE =================
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var connectionString =
+    builder.Configuration.GetConnectionString("defaultConnection");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(
         connectionString,
-        ServerVersion.AutoDetect(connectionString)
-    ));
+        new MySqlServerVersion(new Version(8, 0, 36))
+    )
+);
 
 // ================= SERVICES =================
 builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IVendorService, VendorService>();
+
+// ================= RAZORPAY CONFIG =================
+builder.Services.Configure<RazorpaySettings>(
+    builder.Configuration.GetSection("Razorpay")
+);
 
 // ================= CONTROLLERS =================
 builder.Services.AddControllers();
@@ -29,19 +39,25 @@ builder.Services.AddEndpointsApiExplorer();
 // ================= SWAGGER =================
 builder.Services.AddSwaggerGen(options =>
 {
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Inframart API",
+        Version = "v1"
+    });
+
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
+        Description = "Enter JWT Token. Example: Bearer {your token}",
         Name = "Authorization",
+        In = ParameterLocation.Header,
         Type = SecuritySchemeType.Http,
         Scheme = "bearer",
-        BearerFormat = "JWT",
-        In = ParameterLocation.Header,
-        Description = "Enter JWT Token"
+        BearerFormat = "JWT"
     });
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
-        {
+        {    
             new OpenApiSecurityScheme
             {
                 Reference = new OpenApiReference
@@ -50,40 +66,56 @@ builder.Services.AddSwaggerGen(options =>
                     Id = "Bearer"
                 }
             },
-            new string[] { }
+            Array.Empty<string>()     
         }
     });
 });
 
-// ================= JWT AUTH =================
+// ================= JWT AUTHENTICATION =================
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        options.RequireHttpsMetadata = false;
+        options.SaveToken = true;
+
         options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
+            {
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
 
-            ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
-            ValidAudience = builder.Configuration["JwtSettings:Audience"],
+                ValidIssuer =
+                    builder.Configuration["JwtSettings:Issuer"],
 
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:Key"]!)
-            ),
+                ValidAudience =
+                    builder.Configuration["JwtSettings:Audience"],
 
-            RoleClaimType = "role",
-            NameClaimType = "name"
-        };
+                IssuerSigningKey =
+                    new SymmetricSecurityKey(
+                        Encoding.UTF8.GetBytes(
+                            builder.Configuration["JwtSettings:Key"]!
+                        )
+                    ),
+
+                ClockSkew = TimeSpan.Zero
+            };
     });
 
 // ================= AUTHORIZATION =================
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("AdminOnly", policy => policy.RequireRole("admin"));
-    options.AddPolicy("VendorOnly", policy => policy.RequireRole("vendor"));
-    options.AddPolicy("CustomerOnly", policy => policy.RequireRole("customer"));
+    options.AddPolicy(
+        "AdminOnly",
+        policy => policy.RequireRole("admin"));
+
+    options.AddPolicy(
+        "VendorOnly",
+        policy => policy.RequireRole("vendor"));
+
+    options.AddPolicy(
+        "CustomerOnly",
+        policy => policy.RequireRole("customer"));
 });
 
 var app = builder.Build();
@@ -96,9 +128,15 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseAuthentication();
+
 app.UseAuthorization();
 
 app.MapControllers();
 
-// ================= RUN =================
-app.Run("http://0.0.0.0:5000");
+
+
+app.Run("http://192.168.1.100:5000");
+
+
+ 
+  
