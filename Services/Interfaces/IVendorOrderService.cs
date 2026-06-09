@@ -7,6 +7,12 @@ namespace InframartAPI_New.Services.Interfaces
         /// <summary>GET /vendor/status?userId={id}</summary>
         Task<(bool success, string? error, VendorStatusDto? data)> GetVendorStatusAsync(long userId);
 
+        /// <summary>GET /vendor/status/vendorId/{vendorId}</summary>
+        Task<(bool success, string? error, VendorStatusDto? data)> GetVendorStatusByVendorIdAsync(long vendorId);
+
+        /// <summary>GET /vendor/products/{vendorId}</summary>
+        Task<(bool success, string? error, List<VendorProductInfoDto>? data)> GetVendorProductsAsync(long vendorId);
+
         /// <summary>GET /vendor/orders — all orders containing this vendor's products</summary>
         Task<(bool success, string? error, List<VendorOrderListDto>? data)> GetVendorOrdersAsync(long vendorId);
 

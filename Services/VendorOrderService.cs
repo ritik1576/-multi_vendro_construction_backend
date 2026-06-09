@@ -51,6 +51,70 @@ namespace InframartAPI_New.Services
         }
 
         // ─────────────────────────────────────────────────────────────────────
+        // GET /vendor/{vendorId}/status
+        // ─────────────────────────────────────────────────────────────────────
+        public async Task<(bool success, string? error, VendorStatusDto? data)>
+            GetVendorStatusByVendorIdAsync(long vendorId)
+        {
+            var vendor = await _authCtx.Vendors.FirstOrDefaultAsync(v => v.Id == vendorId);
+            if (vendor == null)
+                return (false, "Vendor profile not found", null);
+
+            var user = await _authCtx.Users.FirstOrDefaultAsync(u => u.Id == vendor.UserId);
+            if (user == null)
+                return (false, "User not found for this vendor", null);
+
+            return (true, null, new VendorStatusDto
+            {
+                UserId      = user.Id,
+                VendorId    = vendor.Id,
+                ShopName    = vendor.ShopName,
+                ShopSlug    = vendor.ShopSlug,
+                Description = vendor.Description,
+                Logo        = vendor.Logo,
+                Banner      = vendor.Banner,
+                GstNumber   = vendor.GstNumber,
+                CommissionRate = vendor.CommissionRate,
+                Status      = vendor.Status,
+                CreatedAt   = vendor.CreatedAt,
+                UpdatedAt   = vendor.UpdatedAt,
+                Email       = user.Email,
+                Phone       = user.Phone
+            });
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // GET /vendor/products/{vendorId}
+        // ─────────────────────────────────────────────────────────────────────
+        public async Task<(bool success, string? error, List<VendorProductInfoDto>? data)>
+            GetVendorProductsAsync(long vendorId)
+        {
+            var products = await _appCtx.Products
+                .Include(p => p.Category)
+                .Where(p => p.VendorId == vendorId)
+                .ToListAsync();
+
+            var data = products.Select(prod => new VendorProductInfoDto
+            {
+                ProductId        = prod.Id,
+                Name             = prod.Name,
+                Slug             = prod.Slug,
+                Sku              = prod.Sku,
+                ShortDescription = prod.ShortDescription,
+                Description      = prod.Description,
+                Price            = prod.Price,
+                DiscountPrice    = prod.DiscountPrice,
+                Thumbnail        = prod.Thumbnail,
+                Status           = prod.Status,
+                InStock          = prod.InStock,
+                StockQuantity    = prod.Quantity,
+                CategoryName     = prod.Category?.Name
+            }).ToList();
+
+            return (true, null, data);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
         // GET /vendor/orders
         // ─────────────────────────────────────────────────────────────────────
         public async Task<(bool success, string? error, List<VendorOrderListDto>? data)>

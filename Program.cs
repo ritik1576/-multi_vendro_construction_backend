@@ -57,6 +57,7 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<IOrderService, OrderServices>();
 builder.Services.AddScoped<IAddressService, AddressService>();
+builder.Services.AddScoped<IVendorOrderService, VendorOrderService>();
 builder.Services.AddSwaggerGen(options =>
 {
     // Repositories
