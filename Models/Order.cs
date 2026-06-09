@@ -1,31 +1,23 @@
-namespace InframartAPI_New.Models
+using MultiVendorAPI.Models;
+
+public class Order
 {
-    public class Order
-    {
-        public long Id { get; set; }
 
-        public long? User_Id { get; set; }
+    public long Id { get; set; }
+    public DateTime OrderDate { get; set; }
+    public long AddressId { get; set; }
 
-        public long? Address_Id { get; set; }
+    public List<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
+    public long? CouponId { get; set; }
+    public string? OrderNumber { get; set; }
+    public decimal Subtotal { get; set; }
+    public decimal TotalAmount { get; set; }
+    public decimal DiscountAmount { get; set; }
+    public decimal ShippingCharge { get; set; }
+    public string PaymentStatus { get; set; } = "Pending";
+    public string OrderStatus { get; set; } = "Pending";
+    public DateTime PlacedAt { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public long UserId { get; set; }
 
-        public long? Coupon_Id { get; set; }
-
-        public string? Order_Number { get; set; }
-
-        public decimal? Subtotal { get; set; }
-
-        public decimal? Discount_Amount { get; set; }
-
-        public decimal? Shipping_Charge { get; set; }
-
-        public decimal? Total_Amount { get; set; }
-
-        public string? Payment_Status { get; set; }
-
-        public string? Order_Status { get; set; }
-
-        public DateTime? Placed_At { get; set; }
-
-        public DateTime? Created_At { get; set; }
-    }
 }

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace InframartAPI_New.Controllers
 {
-    [Route("auth/vendor")]
+    [Route("vendor")]
     [ApiController]
     public class VendorController : ControllerBase
     {

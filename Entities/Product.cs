@@ -1,3 +1,5 @@
+
+
 namespace MultiVendorAPI.Models
 {
     public class Product
@@ -5,8 +7,10 @@ namespace MultiVendorAPI.Models
         public long Id { get; set; }
 
         public long? VendorId { get; set; }
+        public Vendor? Vendor { get; set; }
 
         public long? CategoryId { get; set; }
+        public Category? Category { get; set; }
 
         public string? Name { get; set; }
 

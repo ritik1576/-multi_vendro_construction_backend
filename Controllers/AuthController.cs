@@ -65,7 +65,6 @@ namespace InframartAPI_New.Controllers
         }
 
 
-
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto request)
         {
@@ -78,7 +77,7 @@ namespace InframartAPI_New.Controllers
             if (user == null || string.IsNullOrEmpty(user.Password) ||
                 !PasswordHelper.VerifyPassword(request.Password, user.Password))
             {
-                return Unauthorized(new AuthResponseDto
+                return Unauthorized(new DTOs.AuthResponseDto
                 {
                     Message = "Invalid email or password"
                 });
@@ -115,7 +114,7 @@ namespace InframartAPI_New.Controllers
                 signingCredentials: creds
             );
 
-            var response = new AuthResponseDto
+            var response = new DTOs.AuthResponseDto
             {
                 Message = "Login successful",
                 UserId = user.Id,

@@ -27,5 +27,6 @@ namespace MultiVendorAPI.DTOs
 
         public String? Category { get; set; }
 
+
     }
 }

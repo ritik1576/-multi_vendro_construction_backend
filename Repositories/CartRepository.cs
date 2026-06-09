@@ -14,7 +14,7 @@ namespace MultiVendorAPI.Repositories
             _context = context;
         }
 
-        public Task<Cart?> GetByUserIdWithItemsAsync(string userId)
+        public Task<Cart?> GetByUserIdWithItemsAsync(long userId)
         {
             return _context.Carts
                 .Include(c => c.CartItems)
@@ -59,6 +59,11 @@ namespace MultiVendorAPI.Repositories
         public Task SaveChangesAsync()
         {
             return _context.SaveChangesAsync();
+        }
+        public async Task<CartItem?> GetCartItemByIdAsync(long cartItemId)
+        {
+            return await _context.CartItems
+                .FirstOrDefaultAsync(ci => ci.Id == cartItemId);
         }
     }
 }
