@@ -12,7 +12,7 @@ using System.Text;
 
 namespace InframartAPI_New.Controllers
 {
-    [Route("auth/[controller]")]
+    [Route("[controller]")]
     [ApiController]
     public class AuthController : ControllerBase
     {
@@ -34,7 +34,7 @@ namespace InframartAPI_New.Controllers
                 return BadRequest(new { message = "Invalid request" });
 
             if (string.IsNullOrWhiteSpace(request.FullName) ||
-                string.IsNullOrWhiteSpace(request.Email) ||                      
+                string.IsNullOrWhiteSpace(request.Email) ||
                 string.IsNullOrWhiteSpace(request.Password))
             {
                 return BadRequest(new { message = "All fields are required" });
@@ -64,7 +64,7 @@ namespace InframartAPI_New.Controllers
             });
         }
 
-       
+
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto request)

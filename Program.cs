@@ -57,7 +57,7 @@ builder.Services.AddSwaggerGen(options =>
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
-        {    
+        {
             new OpenApiSecurityScheme
             {
                 Reference = new OpenApiReference
@@ -66,7 +66,7 @@ builder.Services.AddSwaggerGen(options =>
                     Id = "Bearer"
                 }
             },
-            Array.Empty<string>()     
+            Array.Empty<string>()
         }
     });
 });
@@ -79,27 +79,27 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         options.SaveToken = true;
 
         options.TokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidateAudience = true,
-                ValidateLifetime = true,
-                ValidateIssuerSigningKey = true,
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
 
-                ValidIssuer =
-                    builder.Configuration["JwtSettings:Issuer"],
+            ValidIssuer =
+                    builder.Configuration["Jwt:Issuer"],
 
-                ValidAudience =
-                    builder.Configuration["JwtSettings:Audience"],
+            ValidAudience =
+                    builder.Configuration["Jwt:Audience"],
 
-                IssuerSigningKey =
+            IssuerSigningKey =
                     new SymmetricSecurityKey(
                         Encoding.UTF8.GetBytes(
-                            builder.Configuration["JwtSettings:Key"]!
+                            builder.Configuration["Jwt:Key"]!
                         )
                     ),
 
-                ClockSkew = TimeSpan.Zero
-            };
+            ClockSkew = TimeSpan.Zero
+        };
     });
 
 // ================= AUTHORIZATION =================
@@ -135,8 +135,7 @@ app.MapControllers();
 
 
 
-app.Run("http://192.168.1.100:5000");
+app.Run();
 
 
- 
-  
+
