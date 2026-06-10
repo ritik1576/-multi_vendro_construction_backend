@@ -436,6 +436,9 @@ namespace InframartAPI_New.Services
                     .Sum(oi => oi.TotalPrice);
             }
 
+            var lowStockAlerts = await _appCtx.Products
+                .CountAsync(p => p.VendorId == vendorId && (p.Quantity ?? 0) <= 5);
+
             var dashboard = new VendorDashboardDto
             {
                 TotalOrders = totalOrders,
@@ -445,7 +448,8 @@ namespace InframartAPI_New.Services
                 CompletedOrders = completedOrders,
                 CancelledOrders = cancelledOrders,
                 TotalRevenue = totalRevenue,
-                TotalProducts = vendorProductIds.Count
+                TotalProducts = vendorProductIds.Count,
+                LowStockAlerts = lowStockAlerts
             };
 
             return (true, null, dashboard);

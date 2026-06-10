@@ -146,13 +146,74 @@ namespace InframartAPI_New.Controllers
             {
                 return BadRequest(new { message = "Email and password are required" });
             }
-
             var result = await _vendorService.LoginVendorAsync(dto);
 
             if (!result.Success)
                 return Unauthorized(result);
 
             return Ok(result);
+        }
+
+        [HttpPost("admin/login")]
+        public async Task<IActionResult> LoginAdmin([FromBody] LoginDto request)
+        {
+            if (request == null)
+                return BadRequest(new { message = "Invalid request" });
+
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.Email == request.Email);
+
+            if (user == null || string.IsNullOrEmpty(user.Password) ||
+                !Services.PasswordHelper.VerifyPassword(request.Password, user.Password))
+            {
+                return Unauthorized(new DTOs.AuthResponseDto
+                {
+                    Message = "Invalid email or password"
+                });
+            }
+
+            if (user.Role != "admin")
+            {
+                return Unauthorized(new DTOs.AuthResponseDto
+                {
+                    Message = "Access denied. Admin role required."
+                });
+            }
+
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, user.Email!),
+                new Claim(ClaimTypes.Role, user.Role!)
+            };
+
+            var key = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!)
+            );
+
+            var creds = new SigningCredentials(
+                key,
+                SecurityAlgorithms.HmacSha256
+            );
+
+            var token = new JwtSecurityToken(
+                issuer: _configuration["Jwt:Issuer"],
+                audience: _configuration["Jwt:Audience"],
+                claims: claims,
+                expires: DateTime.Now.AddMinutes(
+                    Convert.ToDouble(_configuration["Jwt:ExpiryMinutes"])
+                ),
+                signingCredentials: creds
+            );
+
+            var response = new DTOs.AuthResponseDto
+            {
+                Message = "Admin login successful",
+                UserId = user.Id,
+                Role = user.Role,
+                Token = new JwtSecurityTokenHandler().WriteToken(token)
+            };
+
+            return Ok(response);
         }
     }
 }
