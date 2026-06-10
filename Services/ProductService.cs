@@ -65,6 +65,7 @@ namespace MultiVendorAPI.Services
 
             var product = new Product
             {
+                VendorId = dto.VendorId,
                 CategoryId = category.Id,
                 Name = dto.Name,
                 Slug = dto.Slug,

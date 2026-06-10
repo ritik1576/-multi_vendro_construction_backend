@@ -2,6 +2,8 @@ namespace MultiVendorAPI.DTOs
 {
     public class CreateProductDto
     {
+        // Injected from JWT by the controller — NOT sent in the request body
+        public int? VendorId { get; set; }
 
         public string Name { get; set; } = string.Empty;
 
@@ -25,8 +27,6 @@ namespace MultiVendorAPI.DTOs
 
         public int Quantity { get; set; }
 
-        public String? Category { get; set; }
-
-
+        public string? Category { get; set; }
     }
 }

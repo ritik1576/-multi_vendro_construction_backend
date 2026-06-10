@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using MultiVendorAPI.Services.Interfaces;
 using MultiVendorAPI.DTOs;
 using MultiVendorAPI.Models;
+using System.Security.Claims;
 
 namespace MultiVendorAPI.Controllers
 {
@@ -54,9 +56,18 @@ namespace MultiVendorAPI.Controllers
 
 
         [HttpPost]
-
-        public async Task<IActionResult> CreateProduct(CreateProductDto dto)
+        [Authorize(Policy = "VendorOnly")]
+        public async Task<IActionResult> CreateProduct([FromBody] CreateProductDto dto)
         {
+            // Read the vendor's own Id from the "vendorId" claim set during vendor login
+            var vendorIdClaim = User.FindFirstValue("vendorId");
+
+            if (string.IsNullOrEmpty(vendorIdClaim) || !int.TryParse(vendorIdClaim, out var vendorId))
+                return Unauthorized(new { message = "Vendor identity could not be determined from token." });
+
+            // Stamp VendorId onto the DTO (not from request body)
+            dto.VendorId = vendorId;
+
             var result = await _productService.CreateProductAsync(dto);
 
             if (!result.Success)
