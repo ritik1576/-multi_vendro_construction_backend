@@ -133,6 +133,21 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("CustomerOnly", policy => policy.RequireRole("customer"));
 });
 
+// ================= CORS =================
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendPolicy", policy =>
+    {
+        policy.WithOrigins(
+                "http://192.168.10.177:5173",
+                "http://192.168.10.131:5173",
+                "https://multi-vendro-construction-frontend.vercel.app"
+            )
+            .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+            .WithHeaders("Authorization", "Content-Type");
+    });
+});
+
 var app = builder.Build();
 
 // Swagger
@@ -145,7 +160,12 @@ if (app.Environment.IsDevelopment())
 // Middleware
 app.UseHttpsRedirection();
 
+// CORS must be before Authentication and Authorization
+app.UseCors("FrontendPolicy");
+
 app.UseAuthentication();
+
+app.UseAuthorization();
 
 app.MapControllers();
 
