@@ -23,7 +23,7 @@ namespace MultiVendorAPI.Services
             var products = await _context.Products
                 .Select(p => new ProductDto
                 {
-
+                    Id = p.Id,
                     Name = p.Name,
                     Price = p.Price,
                     DiscountPrice = p.DiscountPrice,
@@ -85,6 +85,7 @@ namespace MultiVendorAPI.Services
 
             var productDto = new ProductDto
             {
+                Id = product.Id,
                 Name = product.Name,
                 Price = product.Price,
                 DiscountPrice = product.DiscountPrice,
