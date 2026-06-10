@@ -86,19 +86,32 @@ namespace InframartAPI_New.Controllers
 
         // ─────────────────────────────────────────────────────────────────────
         // PUT /vendor/{vendorId}/orders/{orderId}/status
-        // Body: { "orderStatus": "Shipped" }
+        // Body: { "status": "shipped" }
         // ─────────────────────────────────────────────────────────────────────
         [HttpPut("{vendorId:long}/orders/{orderId:long}/status")]
         public async Task<IActionResult> UpdateOrderStatus(long vendorId, long orderId, [FromBody] UpdateOrderStatusDto dto)
         {
-            if (dto == null || string.IsNullOrWhiteSpace(dto.OrderStatus))
-                return BadRequest(new { message = "orderStatus is required" });
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Status))
+                return BadRequest(new { message = "status is required" });
 
             var (success, error) = await _vendorOrderService.UpdateOrderStatusAsync(vendorId, orderId, dto);
             if (!success)
                 return BadRequest(new { message = error });
 
-            return Ok(new { success = true, message = "Order status updated successfully", orderId, newStatus = dto.OrderStatus });
+            return Ok(new { success = true, message = "Order status updated successfully", orderId, newStatus = dto.Status });
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // PUT /vendor/orders/{orderId}/status
+        // Body: { "status": "shipped" }
+        // Note: Assumes JWT auth will provide vendor ID in a real scenario, but for now we require vendorId in query string or we just update it.
+        // Let's add a simplified route that bypasses vendorId check for simplicity if requested explicitly.
+        // ─────────────────────────────────────────────────────────────────────
+        [HttpPut("orders/{orderId:long}/status")]
+        public async Task<IActionResult> UpdateOrderStatusSlim(long orderId, [FromQuery] long vendorId, [FromBody] UpdateOrderStatusDto dto)
+        {
+            if (vendorId <= 0) return BadRequest(new { message = "vendorId query parameter is required" });
+            return await UpdateOrderStatus(vendorId, orderId, dto);
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -112,6 +125,41 @@ namespace InframartAPI_New.Controllers
                 return NotFound(new { message = error });
 
             return Ok(new { success = true, message = "Order deleted successfully", orderId });
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // GET /vendor/{userId}/orders
+        // ─────────────────────────────────────────────────────────────────────
+        [HttpGet("{userId:long}/orders")]
+        public async Task<IActionResult> GetOrdersByUserId(long userId)
+        {
+            var (success, error, data) = await _vendorOrderService.GetVendorOrdersByUserIdAsync(userId);
+            if (!success)
+                return BadRequest(new { message = error });
+
+            return Ok(new
+            {
+                success = true,
+                totalOrders = data!.Count,
+                data
+            });
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // GET /vendor/{userId}/dashboard
+        // ─────────────────────────────────────────────────────────────────────
+        [HttpGet("{userId:long}/dashboard")]
+        public async Task<IActionResult> GetVendorDashboard(long userId)
+        {
+            var (statusSuccess, statusError, statusData) = await _vendorOrderService.GetVendorStatusAsync(userId);
+            if (!statusSuccess || statusData == null)
+                return BadRequest(new { message = "Vendor not found for this user" });
+
+            var (success, error, data) = await _vendorOrderService.GetVendorDashboardAsync(statusData.VendorId);
+            if (!success)
+                return BadRequest(new { message = error });
+
+            return Ok(new { success = true, data });
         }
     }
 }

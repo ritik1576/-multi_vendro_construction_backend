@@ -64,6 +64,17 @@ public class OrderServices : IOrderService
                     .FailureResponse($"Product {cartItem.ProductId} not found", 404);
             }
 
+            // ── Stock check ────────────────────────────────────────────────
+            var availableStock = product.Quantity ?? 0;
+            if (availableStock < item.Quantity)
+            {
+                return ServiceResponse<PlaceOrderResponseDto>
+                    .FailureResponse(
+                        $"Insufficient stock for '{product.Name}'. " +
+                        $"Available: {availableStock}, Requested: {item.Quantity}",
+                        400);
+            }
+
             subtotal += product.Price.GetValueOrDefault() * item.Quantity;
             products.Add(product);
         }
@@ -104,6 +115,14 @@ public class OrderServices : IOrderService
                 TotalPrice = price * item.Quantity,
                 CreatedAt = now
             });
+
+            // ── Deduct stock ───────────────────────────────────────────────
+            product.Quantity = (product.Quantity ?? 0) - item.Quantity;
+            if (product.Quantity <= 0)
+            {
+                product.Quantity = 0;
+                product.InStock = false;
+            }
         }
 
         await _orderRepository.SaveChangesAsync();

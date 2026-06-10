@@ -135,8 +135,21 @@ namespace InframartAPI_New.DTOs.VendorDTOs
     public class UpdateOrderStatusDto
     {
         /// <summary>
-        /// Allowed: Pending | Processing | Shipped | Delivered | Cancelled
+        /// Allowed: pending | confirmed | shipped | delivered | cancelled
         /// </summary>
-        public string OrderStatus { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+    }
+
+    // ─── Dashboard ────────────────────────────────────────────────────────────
+    public class VendorDashboardDto
+    {
+        public int TotalOrders { get; set; }
+        public int PendingOrders { get; set; }
+        public int ConfirmedOrders { get; set; }
+        public int ShippedOrders { get; set; }
+        public int CompletedOrders { get; set; }
+        public int CancelledOrders { get; set; }
+        public decimal TotalRevenue { get; set; }
+        public int TotalProducts { get; set; }
     }
 }

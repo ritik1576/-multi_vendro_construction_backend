@@ -24,5 +24,11 @@ namespace InframartAPI_New.Services.Interfaces
 
         /// <summary>DELETE /vendor/orders/{orderId}</summary>
         Task<(bool success, string? error)> DeleteOrderAsync(long vendorId, long orderId);
+
+        /// <summary>GET /vendor/{userId}/orders</summary>
+        Task<(bool success, string? error, List<VendorOrderListDto>? data)> GetVendorOrdersByUserIdAsync(long userId);
+
+        /// <summary>GET /vendor/{vendorId}/dashboard</summary>
+        Task<(bool success, string? error, VendorDashboardDto? data)> GetVendorDashboardAsync(long vendorId);
     }
 }

@@ -313,8 +313,9 @@ namespace InframartAPI_New.Services
         public async Task<(bool success, string? error)>
             UpdateOrderStatusAsync(long vendorId, long orderId, UpdateOrderStatusDto dto)
         {
-            var allowed = new[] { "Pending", "Processing", "Shipped", "Delivered", "Cancelled" };
-            if (!allowed.Contains(dto.OrderStatus, StringComparer.OrdinalIgnoreCase))
+            var allowed = new[] { "pending", "confirmed", "shipped", "delivered", "cancelled" };
+            var newStatus = dto.Status?.ToLower() ?? "";
+            if (!allowed.Contains(newStatus))
                 return (false, $"Invalid status. Allowed: {string.Join(", ", allowed)}");
 
             var vendorProductIds = await _appCtx.Products
@@ -332,7 +333,22 @@ namespace InframartAPI_New.Services
             if (!order.OrderItems.Any(oi => vendorProductIds.Contains(oi.ProductId)))
                 return (false, "Order not found for this vendor");
 
-            order.OrderStatus = dto.OrderStatus;
+            var currentStatus = (order.OrderStatus ?? "pending").ToLower();
+
+            // Validate state transition
+            if (currentStatus == "delivered" || currentStatus == "cancelled")
+                return (false, $"Cannot change status from {currentStatus}");
+
+            if (currentStatus == "pending" && newStatus != "confirmed" && newStatus != "cancelled")
+                return (false, "Pending orders can only be changed to confirmed or cancelled");
+
+            if (currentStatus == "confirmed" && newStatus != "shipped" && newStatus != "cancelled")
+                return (false, "Confirmed orders can only be changed to shipped or cancelled");
+
+            if (currentStatus == "shipped" && newStatus != "delivered" && newStatus != "cancelled")
+                return (false, "Shipped orders can only be changed to delivered or cancelled");
+
+            order.OrderStatus = newStatus;
             await _appCtx.SaveChangesAsync();
 
             return (true, null);
@@ -363,6 +379,76 @@ namespace InframartAPI_New.Services
             await _appCtx.SaveChangesAsync();
 
             return (true, null);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // GET /vendor/{userId}/orders
+        // ─────────────────────────────────────────────────────────────────────
+        public async Task<(bool success, string? error, List<VendorOrderListDto>? data)>
+            GetVendorOrdersByUserIdAsync(long userId)
+        {
+            var vendor = await _authCtx.Vendors.FirstOrDefaultAsync(v => v.UserId == userId);
+            if (vendor == null)
+                return (false, "Vendor profile not found for this user", null);
+
+            return await GetVendorOrdersAsync(vendor.Id);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // GET /vendor/{vendorId}/dashboard
+        // ─────────────────────────────────────────────────────────────────────
+        public async Task<(bool success, string? error, VendorDashboardDto? data)>
+            GetVendorDashboardAsync(long vendorId)
+        {
+            var vendorProductIds = await _appCtx.Products
+                .Where(p => p.VendorId == vendorId)
+                .Select(p => p.Id)
+                .ToListAsync();
+
+            if (!vendorProductIds.Any())
+            {
+                return (true, null, new VendorDashboardDto());
+            }
+
+            var orderIds = await _appCtx.OrderItems
+                .Where(oi => vendorProductIds.Contains(oi.ProductId))
+                .Select(oi => oi.OrderId)
+                .Distinct()
+                .ToListAsync();
+
+            var orders = await _appCtx.Orders
+                .Where(o => orderIds.Contains(o.Id))
+                .Include(o => o.OrderItems)
+                .ToListAsync();
+
+            var totalOrders = orders.Count;
+            var pendingOrders = orders.Count(o => (o.OrderStatus ?? "").ToLower() == "pending");
+            var confirmedOrders = orders.Count(o => (o.OrderStatus ?? "").ToLower() == "confirmed");
+            var shippedOrders = orders.Count(o => (o.OrderStatus ?? "").ToLower() == "shipped");
+            var completedOrders = orders.Count(o => (o.OrderStatus ?? "").ToLower() == "delivered");
+            var cancelledOrders = orders.Count(o => (o.OrderStatus ?? "").ToLower() == "cancelled");
+
+            decimal totalRevenue = 0;
+            foreach (var order in orders.Where(o => (o.OrderStatus ?? "").ToLower() == "delivered"))
+            {
+                totalRevenue += order.OrderItems
+                    .Where(oi => vendorProductIds.Contains(oi.ProductId))
+                    .Sum(oi => oi.TotalPrice);
+            }
+
+            var dashboard = new VendorDashboardDto
+            {
+                TotalOrders = totalOrders,
+                PendingOrders = pendingOrders,
+                ConfirmedOrders = confirmedOrders,
+                ShippedOrders = shippedOrders,
+                CompletedOrders = completedOrders,
+                CancelledOrders = cancelledOrders,
+                TotalRevenue = totalRevenue,
+                TotalProducts = vendorProductIds.Count
+            };
+
+            return (true, null, dashboard);
         }
     }
 }
