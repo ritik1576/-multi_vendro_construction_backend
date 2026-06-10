@@ -35,6 +35,8 @@ namespace MultiVendorAPI.Models
 
         public int? Quantity { get; set; }
 
+        public string? Unit { get; set; }
+
         public DateTime? CreatedAt { get; set; }
 
         public DateTime? UpdatedAt { get; set; }

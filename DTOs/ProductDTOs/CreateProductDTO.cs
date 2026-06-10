@@ -27,6 +27,8 @@ namespace MultiVendorAPI.DTOs
 
         public int Quantity { get; set; }
 
+        public string? Unit { get; set; }
+
         public string? Category { get; set; }
     }
 }

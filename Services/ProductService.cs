@@ -30,6 +30,7 @@ namespace MultiVendorAPI.Services
                     Thumbnail = p.Thumbnail,
                     CategoryId = p.CategoryId,
                     ShortDescription = p.ShortDescription,
+                    Unit = p.Unit,
                     Category = _context.Categories
                         .Where(c => c.Id == p.CategoryId)
                         .Select(c => c.Name)
@@ -77,6 +78,7 @@ namespace MultiVendorAPI.Services
                 Thumbnail = dto.Thumbnail,
                 InStock = dto.InStock,
                 Quantity = dto.Quantity,
+                Unit = dto.Unit,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -160,6 +162,7 @@ namespace MultiVendorAPI.Services
                 Status = product.Status,
                 InStock = product.InStock,
                 Quantity = product.Quantity,
+                Unit = product.Unit,
                 CreatedAt = product.CreatedAt,
                 UpdatedAt = product.UpdatedAt,
                 Images = string.IsNullOrWhiteSpace(product.Thumbnail)
@@ -238,6 +241,8 @@ namespace MultiVendorAPI.Services
             product.InStock = dto.InStock;
 
             product.Quantity = dto.Quantity;
+
+            product.Unit = dto.Unit;
 
             // updated_at
             product.UpdatedAt = DateTime.UtcNow;
@@ -320,6 +325,7 @@ namespace MultiVendorAPI.Services
                     Thumbnail = p.Thumbnail,
                     CategoryId = p.CategoryId,
                     ShortDescription = p.ShortDescription,
+                    Unit = p.Unit,
                     Category = _context.Categories
                         .Where(c => c.Id == p.CategoryId)
                         .Select(c => c.Name)
