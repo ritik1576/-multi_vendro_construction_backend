@@ -140,6 +140,7 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins(
                 "http://192.168.10.177:5173",
+                "http://192.168.137.1:5173",
                 "http://192.168.10.131:5173",
                 "https://multi-vendro-construction-frontend.vercel.app"
             )

@@ -87,13 +87,6 @@ namespace InframartAPI_New.Controllers
                 });
             }
 
-
-            if (user == null)
-                return Unauthorized(new { message = "Invalid email or password" });
-
-            if (!Services.PasswordHelper.VerifyPassword(request.Password, user.Password))
-                return Unauthorized(new { message = "Invalid email or password" });
-
             var claims = new List<Claim>
             {
         new Claim(ClaimTypes.Name, user.Email!),
