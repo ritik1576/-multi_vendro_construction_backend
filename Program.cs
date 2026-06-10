@@ -139,13 +139,16 @@ builder.Services.AddCors(options =>
     options.AddPolicy("FrontendPolicy", policy =>
     {
         policy.WithOrigins(
+                "http://localhost:5173",
                 "http://192.168.10.177:5173",
                 "http://192.168.137.1:5173",
                 "http://192.168.10.131:5173",
                 "https://multi-vendro-construction-frontend.vercel.app"
             )
-            .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-            .WithHeaders("Authorization", "Content-Type");
+            .AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+
     });
 });
 
