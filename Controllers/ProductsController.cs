@@ -28,20 +28,25 @@ namespace MultiVendorAPI.Controllers
 
 
 
-        [HttpGet("{id:long}")]
-        public async Task<IActionResult> GetProductById(long id)
+        [HttpGet]
+
+        [Route("{name}")]
+        public async Task<IActionResult> GetProductByName(string name)
         {
-            var response = await _productService.GetProductByIdAsync(id);
+            var response =
+            await _productService.GetProductByNameAsync(name);
 
             return StatusCode(
                 response.StatusCode,
                 response);
         }
 
-        [HttpPut("{id:long}")]
-        public async Task<IActionResult> UpdateProductById(long id, UpdateProductDto dto)
+        [HttpPut]
+
+        [Route("{name}")]
+        public async Task<IActionResult> UpdateProductByName(string name, UpdateProductDto dto)
         {
-            var result = await _productService.UpdateProductAsync(id, dto);
+            var result = await _productService.UpdateProductAsync(name, dto);
 
             if (!result.Success)
                 return BadRequest(result);
@@ -71,12 +76,12 @@ namespace MultiVendorAPI.Controllers
             return Ok(result);
         }
 
-        [HttpDelete("{id:long}")]
+        [HttpDelete("{name}")]
         public async Task<IActionResult> DeleteProduct(
-     long id)
+    string name)
         {
             var response =
-                await _productService.DeleteProductAsync(id);
+                await _productService.DeleteProductAsync(name);
 
             return StatusCode(
                 response.StatusCode,
