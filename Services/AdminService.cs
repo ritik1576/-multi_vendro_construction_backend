@@ -275,7 +275,17 @@ namespace InframartAPI_New.Services
             }
 
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
-            if (user == null || string.IsNullOrEmpty(user.Password) ||
+            if (user == null)
+            {
+                return (false, "Invalid email or password", null);
+            }
+
+            if (!string.Equals(user.Status ?? "active", "active", StringComparison.OrdinalIgnoreCase))
+            {
+                return (false, "Your account is not active. Please contact support.", null);
+            }
+
+            if (string.IsNullOrEmpty(user.Password) ||
                 !PasswordHelper.VerifyPassword(dto.Password, user.Password))
             {
                 return (false, "Invalid email or password", null);

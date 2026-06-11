@@ -55,7 +55,8 @@ namespace InframartAPI_New.Controllers
                 FullName = request.FullName.Trim(),
                 Email = request.Email.Trim(),
                 Password = Services.PasswordHelper.HashPassword(request.Password),
-                Role = "customer"
+                Role = "customer",
+                Status = "active"
             };
 
             _context.Users.Add(user);
@@ -78,12 +79,28 @@ namespace InframartAPI_New.Controllers
             var user = await _context.Users
                 .FirstOrDefaultAsync(u => u.Email == request.Email);
 
-            if (user == null || string.IsNullOrEmpty(user.Password) ||
+            if (user == null)
+            {
+                return Unauthorized(new DTOs.AuthResponseDto
+                {
+                    Message = "Invalid email or password"
+                });
+            }
+
+            if (!string.Equals(user.Status ?? "active", "active", StringComparison.OrdinalIgnoreCase))
+            {
+                return Unauthorized(new DTOs.AuthResponseDto
+                {
+                    Message = "Your account is not active. Please contact support."
+                });
+            }
+
+            if (string.IsNullOrEmpty(user.Password) ||
                 !Services.PasswordHelper.VerifyPassword(request.Password, user.Password))
             {
                 return Unauthorized(new DTOs.AuthResponseDto
                 {
-                    Message = "Invalid email or password,"
+                    Message = "Invalid email or password"
                 });
             }
 
@@ -163,7 +180,23 @@ namespace InframartAPI_New.Controllers
             var user = await _context.Users
                 .FirstOrDefaultAsync(u => u.Email == request.Email);
 
-            if (user == null || string.IsNullOrEmpty(user.Password) ||
+            if (user == null)
+            {
+                return Unauthorized(new DTOs.AuthResponseDto
+                {
+                    Message = "Invalid email or password"
+                });
+            }
+
+            if (!string.Equals(user.Status ?? "active", "active", StringComparison.OrdinalIgnoreCase))
+            {
+                return Unauthorized(new DTOs.AuthResponseDto
+                {
+                    Message = "Your account is not active. Please contact support."
+                });
+            }
+
+            if (string.IsNullOrEmpty(user.Password) ||
                 !Services.PasswordHelper.VerifyPassword(request.Password, user.Password))
             {
                 return Unauthorized(new DTOs.AuthResponseDto

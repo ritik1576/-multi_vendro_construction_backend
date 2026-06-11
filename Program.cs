@@ -59,6 +59,7 @@ builder.Services.AddScoped<IOrderService, OrderServices>();
 builder.Services.AddScoped<IAddressService, AddressService>();
 builder.Services.AddScoped<IVendorOrderService, VendorOrderService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IFileUploadService, FileUploadService>();
 builder.Services.AddSwaggerGen(options =>
 {
     // Repositories
