@@ -88,6 +88,13 @@ namespace MultiVendorAPI.Controllers
                 response);
         }
 
+        [HttpPut("{id:long}/block")]
+        public async Task<IActionResult> BlockProduct(long id)
+        {
+            var response = await _productService.BlockProductByIdAsync(id);
+            return StatusCode(response.StatusCode, response);
+        }
+
         [HttpGet("categories")]
         public async Task<IActionResult> GetCategories()
         {

@@ -21,6 +21,7 @@ namespace MultiVendorAPI.Services
 
 
             var products = await _context.Products
+                .Where(p => p.Status != "inactive")
                 .Select(p => new ProductDto
                 {
                     Id = p.Id,
@@ -119,7 +120,8 @@ namespace MultiVendorAPI.Services
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p =>
                     p.Name != null &&
-                    p.Name.ToLower() == normalizedName);
+                    p.Name.ToLower() == normalizedName &&
+                    p.Status != "inactive");
 
             if (product == null)
             {
@@ -316,7 +318,7 @@ namespace MultiVendorAPI.Services
         {
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
             var products = await _context.Products
-                .Where(p => p.Name.Contains(searchTerm))
+                .Where(p => p.Name.Contains(searchTerm) && p.Status != "inactive")
                 .Select(p => new ProductDto
                 {
                     Name = p.Name,
@@ -341,12 +343,20 @@ namespace MultiVendorAPI.Services
                     200);
         }
 
+        public async Task<ServiceResponse<bool>> BlockProductByIdAsync(long id)
+        {
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == id);
+            if (product == null)
+            {
+                return ServiceResponse<bool>.FailureResponse("Product not found", 404);
+            }
+
+            product.Status = "inactive";
+            product.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return ServiceResponse<bool>.SuccessResponse(true, "Product blocked successfully", 200);
+        }
     }
-
-
-
-
-
-
-
 }

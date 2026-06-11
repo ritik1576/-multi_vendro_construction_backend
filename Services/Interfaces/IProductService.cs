@@ -14,8 +14,6 @@ namespace MultiVendorAPI.Services.Interfaces
         Task<ServiceResponse<string>> DeleteProductAsync(string productName);
         Task<ServiceResponse<List<string>>> GetCategoriesAsync();
         Task<ServiceResponse<List<ProductDto>>> SearchProductsAsync(string searchTerm);
-
-
-
+        Task<ServiceResponse<bool>> BlockProductByIdAsync(long id);
     }
 }
