@@ -91,7 +91,7 @@ namespace InframartAPI_New.Services
         {
             var products = await _appCtx.Products
                 .Include(p => p.Category)
-                .Where(p => p.VendorId == vendorId)
+                .Where(p => p.VendorId == vendorId && p.Status != "deleted")
                 .ToListAsync();
 
             var data = products.Select(prod => new VendorProductInfoDto
