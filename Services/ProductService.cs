@@ -106,21 +106,18 @@ namespace MultiVendorAPI.Services
                     201);
         }
 
-        public async Task<ServiceResponse<GetDetailedProductDto>> GetProductByNameAsync(string name)
+        public async Task<ServiceResponse<GetDetailedProductDto>> GetProductByIdAsync(long id)
         {
-            if (string.IsNullOrWhiteSpace(name))
+            if (id <= 0)
             {
                 return ServiceResponse<GetDetailedProductDto>
-                    .FailureResponse("Product name is required", 400);
+                    .FailureResponse("Product ID must be greater than zero", 400);
             }
-
-            var normalizedName = name.Trim().ToLower();
 
             var product = await _context.Products
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p =>
-                    p.Name != null &&
-                    p.Name.ToLower() == normalizedName &&
+                    p.Id == id &&
                     p.Status != "inactive");
 
             if (product == null)
@@ -183,11 +180,11 @@ namespace MultiVendorAPI.Services
         }
 
         public async Task<ServiceResponse<ProductDto>> UpdateProductAsync(
-    string name,
+    long id,
     UpdateProductDto dto)
         {
             var product = await _context.Products
-                .FirstOrDefaultAsync(p => p.Name == name);
+                .FirstOrDefaultAsync(p => p.Id == id);
 
             if (product == null)
             {
@@ -272,13 +269,10 @@ namespace MultiVendorAPI.Services
         }
 
         public async Task<ServiceResponse<string>> DeleteProductAsync(
-    string productName)
+    long id)
         {
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
             var product = await _context.Products
-                .FirstOrDefaultAsync(
-                    p => p.Name.Equals(productName, StringComparison.CurrentCultureIgnoreCase));
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
+                .FirstOrDefaultAsync(p => p.Id == id);
 
             if (product == null)
             {
