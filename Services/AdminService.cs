@@ -1,10 +1,16 @@
 using InframartAPI_New.Data;
 using InframartAPI_New.DTOs;
+using InframartAPI_New.DTOs.Auth;
 using InframartAPI_New.DTOs.VendorDTOs;
 using InframartAPI_New.Models;
 using InframartAPI_New.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using MultiVendorAPI.Data;
+using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 
 namespace InframartAPI_New.Services
 {
@@ -12,12 +18,15 @@ namespace InframartAPI_New.Services
     {
         private readonly AppDbContext _context;
         private readonly ApplicationDbContext _appContext;
+        private readonly IConfiguration _configuration;
 
-        public AdminService(AppDbContext context, ApplicationDbContext appContext)
+        public AdminService(AppDbContext context, ApplicationDbContext appContext, IConfiguration configuration)
         {
             _context = context;
             _appContext = appContext;
+            _configuration = configuration;
         }
+
 
         public async Task<(bool success, string? error, List<VendorStatusDto>? data)> GetAllVendorsAsync()
         {
@@ -74,19 +83,25 @@ namespace InframartAPI_New.Services
 
         public async Task<(bool success, string? error, List<UserResponseDto>? data)> GetAllUsersAsync()
         {
-            var users = await _context.Users
-                .Select(u => new UserResponseDto
-                {
-                    Id = u.Id,
-                    FullName = u.FullName,
-                    Email = u.Email,
-                    Phone = u.Phone,
-                    Role = u.Role,
-                    Status = u.Status
-                })
-                .ToListAsync();
+            var users = await _context.Users.ToListAsync();
 
-            return (true, null, users);
+            var orderCounts = await _appContext.Orders
+                .GroupBy(o => o.UserId)
+                .Select(g => new { UserId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.UserId, x => x.Count);
+
+            var userDtos = users.Select(u => new UserResponseDto
+            {
+                Id = u.Id,
+                FullName = u.FullName,
+                Email = u.Email,
+                Phone = u.Phone,
+                Role = u.Role,
+                Status = u.Status,
+                OrderCount = orderCounts.TryGetValue(u.Id, out var count) ? count : 0
+            }).ToList();
+
+            return (true, null, userDtos);
         }
 
         public async Task<(bool success, string? error, UserDetailsResponseDto? data)> GetUserDetailsAsync(long userId)
@@ -250,6 +265,63 @@ namespace InframartAPI_New.Services
             }).ToList();
 
             return (true, null, orderList);
+        }
+
+        public async Task<(bool success, string? error, AuthResponseDto? data)> LoginAdminAsync(LoginDto dto)
+        {
+            if (dto == null)
+            {
+                return (false, "Invalid request", null);
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
+            if (user == null || string.IsNullOrEmpty(user.Password) ||
+                !PasswordHelper.VerifyPassword(dto.Password, user.Password))
+            {
+                return (false, "Invalid email or password", null);
+            }
+
+            if (user.Role != "admin")
+            {
+                return (false, "Access denied. Admin role required.", null);
+            }
+
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Name, user.Email!),
+                new Claim(ClaimTypes.Role, user.Role!)
+            };
+
+            var key = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!)
+            );
+
+            var creds = new SigningCredentials(
+                key,
+                SecurityAlgorithms.HmacSha256
+            );
+
+            var token = new JwtSecurityToken(
+                issuer: _configuration["Jwt:Issuer"],
+                audience: _configuration["Jwt:Audience"],
+                claims: claims,
+                expires: DateTime.Now.AddMinutes(
+                    Convert.ToDouble(_configuration["Jwt:ExpiryMinutes"] ?? "120")
+                ),
+                signingCredentials: creds
+            );
+
+            var response = new AuthResponseDto
+            {
+                Success = true,
+                Message = "Admin login successful",
+                UserId = user.Id,
+                Role = user.Role,
+                Token = new JwtSecurityTokenHandler().WriteToken(token)
+            };
+
+            return (true, null, response);
         }
     }
 }

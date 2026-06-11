@@ -12,6 +12,7 @@ namespace InframartAPI_New.DTOs
         public string? Phone { get; set; }
         public string? Role { get; set; }
         public string? Status { get; set; }
+        public int OrderCount { get; set; }
     }
 
     public class UserDetailsResponseDto

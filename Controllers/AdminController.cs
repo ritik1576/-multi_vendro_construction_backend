@@ -1,4 +1,5 @@
 using InframartAPI_New.DTOs;
+using InframartAPI_New.DTOs.Auth;
 using InframartAPI_New.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,6 +20,23 @@ namespace InframartAPI_New.Controllers
         public AdminController(IAdminService adminService)
         {
             _adminService = adminService;
+        }
+
+        [HttpPost("login")]
+        public async Task<IActionResult> LoginAdmin([FromBody] LoginDto request)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
+            {
+                return BadRequest(new { message = "Email and password are required" });
+            }
+
+            var (success, error, data) = await _adminService.LoginAdminAsync(request);
+            if (!success)
+            {
+                return Unauthorized(new { message = error });
+            }
+
+            return Ok(data);
         }
 
         // [Authorize(Roles = "admin")]
