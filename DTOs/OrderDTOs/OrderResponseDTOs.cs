@@ -76,3 +76,41 @@ public class TrackingStepDto
     public string State { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
 }
+
+public class OrderWithItemsDto
+{
+    public long OrderId { get; set; }
+    public string? OrderNumber { get; set; }
+    public decimal Subtotal { get; set; }
+    public decimal TotalAmount { get; set; }
+    public decimal DiscountAmount { get; set; }
+    public decimal ShippingCharge { get; set; }
+    public string PaymentStatus { get; set; } = string.Empty;
+    public string OrderStatus { get; set; } = string.Empty;
+    public DateTime PlacedAt { get; set; }
+    public DateTime CreatedAt { get; set; }
+    
+    // Customer
+    public long CustomerId { get; set; }
+    public string? CustomerName { get; set; }
+    public string? CustomerEmail { get; set; }
+    public string? CustomerPhone { get; set; }
+    
+    // Items
+    public List<OrderItemWithVendorDto> OrderItems { get; set; } = new();
+}
+
+public class OrderItemWithVendorDto
+{
+    public long Id { get; set; }
+    public long ProductId { get; set; }
+    public string ProductName { get; set; } = string.Empty;
+    public int Quantity { get; set; }
+    public decimal Price { get; set; }
+    public decimal TotalPrice { get; set; }
+    
+    // Vendor Info
+    public long? VendorId { get; set; }
+    public string? VendorName { get; set; }
+    public string? VendorStatus { get; set; }
+}

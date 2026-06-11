@@ -358,5 +358,29 @@ namespace MultiVendorAPI.Services
 
             return ServiceResponse<bool>.SuccessResponse(true, "Product blocked successfully", 200);
         }
+
+        public async Task<ServiceResponse<List<ProductDto>>> GetBlockedProductsAsync()
+        {
+            var products = await _context.Products
+                .Where(p => p.Status == "inactive")
+                .Select(p => new ProductDto
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    Price = p.Price,
+                    DiscountPrice = p.DiscountPrice,
+                    Thumbnail = p.Thumbnail,
+                    CategoryId = p.CategoryId,
+                    ShortDescription = p.ShortDescription,
+                    Unit = p.Unit,
+                    Category = _context.Categories
+                        .Where(c => c.Id == p.CategoryId)
+                        .Select(c => c.Name)
+                        .FirstOrDefault()
+                })
+                .ToListAsync();
+
+            return ServiceResponse<List<ProductDto>>.SuccessResponse(products, "Blocked products retrieved successfully", 200);
+        }
     }
 }

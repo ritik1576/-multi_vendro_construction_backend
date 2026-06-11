@@ -36,6 +36,16 @@ public class OrdersController : ControllerBase
             result);
     }
 
+    [HttpGet("all-with-items")]
+    public async Task<IActionResult> GetAllOrdersWithItems()
+    {
+        var result = await _service.GetAllOrdersWithItemsAsync();
+
+        return StatusCode(
+            result.StatusCode,
+            result);
+    }
+
     [HttpGet("{id:long}")]
     public async Task<IActionResult> GetOrderDetails(long id)
     {

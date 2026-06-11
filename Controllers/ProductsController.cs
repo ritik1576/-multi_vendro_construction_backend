@@ -95,6 +95,13 @@ namespace MultiVendorAPI.Controllers
             return StatusCode(response.StatusCode, response);
         }
 
+        [HttpGet("blocked")]
+        public async Task<IActionResult> GetBlockedProducts()
+        {
+            var response = await _productService.GetBlockedProductsAsync();
+            return StatusCode(response.StatusCode, response);
+        }
+
         [HttpGet("categories")]
         public async Task<IActionResult> GetCategories()
         {

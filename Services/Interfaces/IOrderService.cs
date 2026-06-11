@@ -16,4 +16,6 @@ public interface IOrderService
 
     Task<ServiceResponse<OrderTrackingDto>>
         GetOrderTrackingAsync(long orderId);
+
+    Task<ServiceResponse<List<OrderWithItemsDto>>> GetAllOrdersWithItemsAsync();
 }

@@ -1,6 +1,8 @@
 using MultiVendorAPI.Common;
 using MultiVendorAPI.Models;
 using MultiVendorAPI.Repositories.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using System.Linq;
 
 public class OrderServices : IOrderService
 {
@@ -9,11 +11,19 @@ public class OrderServices : IOrderService
 
     private readonly IOrderRepository _orderRepository;
     private readonly ICartRepository _cartRepository;
+    private readonly InframartAPI_New.Data.AppDbContext _appDbContext;
+    private readonly MultiVendorAPI.Data.ApplicationDbContext _applicationDbContext;
 
-    public OrderServices(IOrderRepository orderRepository, ICartRepository cartRepository)
+    public OrderServices(
+        IOrderRepository orderRepository,
+        ICartRepository cartRepository,
+        InframartAPI_New.Data.AppDbContext appDbContext,
+        MultiVendorAPI.Data.ApplicationDbContext applicationDbContext)
     {
         _orderRepository = orderRepository;
         _cartRepository = cartRepository;
+        _appDbContext = appDbContext;
+        _applicationDbContext = applicationDbContext;
     }
 
     public async Task<ServiceResponse<PlaceOrderResponseDto>>
@@ -385,5 +395,75 @@ public class OrderServices : IOrderService
         }
 
         return "piece";
+    }
+
+    public async Task<ServiceResponse<List<OrderWithItemsDto>>> GetAllOrdersWithItemsAsync()
+    {
+        var orders = await _orderRepository.GetOrdersAsync(null);
+
+        var customerIds = orders.Select(o => o.UserId).Distinct().ToList();
+        var productIds = orders.SelectMany(o => o.OrderItems).Select(oi => oi.ProductId).Distinct().ToList();
+
+        var customers = await _appDbContext.Users
+            .Where(u => customerIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id);
+
+        var products = await _applicationDbContext.Products
+            .Where(p => productIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id);
+
+        var vendorIds = products.Values.Where(p => p.VendorId.HasValue).Select(p => p.VendorId!.Value).Distinct().ToList();
+        
+        var vendors = await _appDbContext.Vendors
+            .Where(v => vendorIds.Contains(v.Id))
+            .ToDictionaryAsync(v => v.Id);
+
+        var result = orders.Select(order =>
+        {
+            customers.TryGetValue(order.UserId, out var customer);
+
+            return new OrderWithItemsDto
+            {
+                OrderId = order.Id,
+                OrderNumber = GetOrderNumber(order),
+                Subtotal = order.Subtotal,
+                TotalAmount = order.TotalAmount,
+                DiscountAmount = order.DiscountAmount,
+                ShippingCharge = order.ShippingCharge,
+                PaymentStatus = order.PaymentStatus,
+                OrderStatus = order.OrderStatus,
+                PlacedAt = order.PlacedAt == default ? order.CreatedAt : order.PlacedAt,
+                CreatedAt = order.CreatedAt,
+                CustomerId = order.UserId,
+                CustomerName = customer?.FullName,
+                CustomerEmail = customer?.Email,
+                CustomerPhone = customer?.Phone,
+                OrderItems = order.OrderItems.Select(item =>
+                {
+                    products.TryGetValue(item.ProductId, out var product);
+                    global::Vendor? vendor = null;
+                    if (product != null && product.VendorId.HasValue)
+                    {
+                        vendors.TryGetValue(product.VendorId.Value, out vendor);
+                    }
+
+                    return new OrderItemWithVendorDto
+                    {
+                        Id = item.Id,
+                        ProductId = item.ProductId,
+                        ProductName = item.ProductName,
+                        Quantity = item.Quantity,
+                        Price = item.Price,
+                        TotalPrice = item.TotalPrice,
+                        VendorId = product?.VendorId,
+                        VendorName = vendor?.ShopName,
+                        VendorStatus = vendor?.Status
+                    };
+                }).ToList()
+            };
+        }).ToList();
+
+        return ServiceResponse<List<OrderWithItemsDto>>
+            .SuccessResponse(result, "All orders with items retrieved successfully");
     }
 }
