@@ -100,7 +100,7 @@ namespace InframartAPI_New.Controllers
         [HttpPut("vendors/{id:long}/approve")]
         public async Task<IActionResult> ApproveVendor(long id)
         {
-            var (success, error) = await _adminService.UpdateVendorStatusAsync(id, "active");
+            var (success, error) = await _adminService.UpdateVendorStatusAsync(id, "approved");
             if (!success)
                 return BadRequest(new { message = error });
 
