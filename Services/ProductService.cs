@@ -21,7 +21,7 @@ namespace MultiVendorAPI.Services
 
 
             var products = await _context.Products
-                .Where(p => p.Status != "inactive")
+                .Where(p => p.Status != "inactive" && p.Status != "deleted")
                 .Select(p => new ProductDto
                 {
                     Id = p.Id,
@@ -125,7 +125,8 @@ namespace MultiVendorAPI.Services
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p =>
                     p.Id == id &&
-                    p.Status != "inactive");
+                    p.Status != "inactive" &&
+                    p.Status != "deleted");
 
             if (product == null)
             {
@@ -296,7 +297,8 @@ namespace MultiVendorAPI.Services
                         404);
             }
 
-            _context.Products.Remove(product);
+            product.Status = "deleted";
+            product.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
 
@@ -326,7 +328,7 @@ namespace MultiVendorAPI.Services
         {
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
             var products = await _context.Products
-                .Where(p => p.Name.Contains(searchTerm) && p.Status != "inactive")
+                .Where(p => p.Name.Contains(searchTerm) && p.Status != "inactive" && p.Status != "deleted")
                 .Select(p => new ProductDto
                 {
                     Name = p.Name,
