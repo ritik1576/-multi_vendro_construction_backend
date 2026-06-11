@@ -61,7 +61,7 @@ namespace InframartAPI_New.Services
 
         public async Task<(bool success, string? error)> UpdateVendorStatusAsync(long vendorId, string status)
         {
-            var allowedStatuses = new[] { "pending", "active", "suspended", "rejected" };
+            var allowedStatuses = new[] { "pending", "approved", "suspended", "rejected" };
             var newStatus = status?.ToLower() ?? "";
 
             if (!allowedStatuses.Contains(newStatus))
