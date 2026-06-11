@@ -28,7 +28,7 @@ namespace MultiVendorAPI.Data
 
             modelBuilder.Entity<Vendor>(entity =>
             {
-                entity.ToTable("vendors");
+                entity.ToTable("Vendors");
                 entity.HasKey(v => v.Id);
                 entity.Property(v => v.Id).HasColumnName("id");
                 entity.Property(v => v.UserId).HasColumnName("user_id");

@@ -48,10 +48,17 @@ namespace MultiVendorAPI.Services
             CreateProductDto dto)
 
         {
-            if (!Validations.ValidateProductDto(dto))
+            try
             {
-                return ServiceResponse<ProductDto>
-                    .FailureResponse("Invalid product data", 400);
+                if (!Validations.ValidateProductDto(dto))
+                {
+                    return ServiceResponse<ProductDto>
+                        .FailureResponse("Invalid product data", 400);
+                }
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<ProductDto>.FailureResponse(ex.Message, 400);
             }
 
             var category = await _context.Categories
@@ -213,10 +220,17 @@ namespace MultiVendorAPI.Services
 
             // Update allowed fields
 
-            if (!Validations.ValidateProductDto(dto))
+            try
             {
-                return ServiceResponse<ProductDto>
-                   .FailureResponse("Invalid product data", 400);
+                if (!Validations.ValidateProductDto(dto))
+                {
+                    return ServiceResponse<ProductDto>
+                       .FailureResponse("Invalid product data", 400);
+                }
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<ProductDto>.FailureResponse(ex.Message, 400);
             }
 
             product.Name = dto.Name;
