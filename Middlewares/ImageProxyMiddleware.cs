@@ -7,6 +7,7 @@ using MultiVendorAPI.Models;
 using InframartAPI_New.Models;
 using System.Security.Claims;
 using System.Text.Json;
+using System.Net;
 
 namespace InframartAPI_New.Middlewares
 {
@@ -23,11 +24,14 @@ namespace InframartAPI_New.Middlewares
             _r2Settings = r2Settings.Value;
             _configuration = configuration;
 
+            // FIX: Removed ForcePathStyle = true which breaks Cloudflare R2 structure.
+            // ADDED: DisableDefaultChecksumValidation to comply with Cloudflare MD5 rules.
             var config = new AmazonS3Config
             {
                 ServiceURL = $"https://{_r2Settings.AccountId}.r2.cloudflarestorage.com",
-                ForcePathStyle = true
+                DisableDefaultChecksumValidation = true
             };
+
             _s3Client = new AmazonS3Client(_r2Settings.AccessKeyId, _r2Settings.SecretAccessKey, config);
         }
 
@@ -35,7 +39,7 @@ namespace InframartAPI_New.Middlewares
         {
             var path = context.Request.Path.Value ?? string.Empty;
 
-            // Try manual token extraction if context is not authenticated (handles lowercase "bearer" scheme)
+            // Manual token extraction layer (handles casing anomalies safely)
             if (context.User.Identity?.IsAuthenticated != true)
             {
                 var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
@@ -73,18 +77,20 @@ namespace InframartAPI_New.Middlewares
                         }
                         catch
                         {
-                            // Keep unauthenticated if validation fails
+                            // Quietly swallow authentication exceptions to let request drop to unauthorized logic below
                         }
                     }
                 }
             }
 
+            // Route matching checks
             if (path.Equals("/sys/upload", StringComparison.OrdinalIgnoreCase))
             {
                 await HandleUploadAsync(context);
                 return;
             }
-            else if (path.StartsWith("/sys/stream/", StringComparison.OrdinalIgnoreCase))
+            // FIX: Added dynamic safety check ensuring keys are split properly from trailing slashes
+            else if (path.StartsWith("/sys/stream/", StringComparison.OrdinalIgnoreCase) && path.Length > "/sys/stream/".Length)
             {
                 await HandleStreamAsync(context, path.Substring("/sys/stream/".Length));
                 return;
@@ -97,7 +103,7 @@ namespace InframartAPI_New.Middlewares
         {
             context.Response.ContentType = "application/json";
 
-            // 1. Authentication & Authorization Check
+            // 1. Authentication & Security Policy Checks
             if (context.User.Identity?.IsAuthenticated != true)
             {
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -115,7 +121,7 @@ namespace InframartAPI_New.Middlewares
                 return;
             }
 
-            // 2. Validate Multipart Form
+            // 2. Validate Multipart Form Details
             if (!context.Request.HasFormContentType)
             {
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
@@ -133,7 +139,7 @@ namespace InframartAPI_New.Middlewares
                 return;
             }
 
-            // 3. Size Validation (Max 5MB)
+            // 3. Size Limits Validation (Max 5MB)
             if (file.Length > 5 * 1024 * 1024)
             {
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
@@ -141,7 +147,7 @@ namespace InframartAPI_New.Middlewares
                 return;
             }
 
-            // 4. Extension & MIME Validation
+            // 4. File Format Protections
             var extension = Path.GetExtension(file.FileName).TrimStart('.').ToLower();
             var allowedExtensions = new[] { "jpg", "jpeg", "png", "webp" };
             if (!allowedExtensions.Contains(extension))
@@ -159,7 +165,7 @@ namespace InframartAPI_New.Middlewares
                 return;
             }
 
-            // 5. Upload to Cloudflare R2
+            // 5. Stream Transport straight to Cloudflare R2 Node
             var guid = Guid.NewGuid().ToString();
             var storageKey = $"products/{vendorId}/{guid}.{extension}";
 
@@ -173,13 +179,13 @@ namespace InframartAPI_New.Middlewares
                         Key = storageKey,
                         InputStream = stream,
                         ContentType = file.ContentType,
-                        DisablePayloadSigning = true
+                        DisablePayloadSigning = true // CRITICAL COMPATIBILITY FLAG FOR R2
                     };
 
                     await _s3Client.PutObjectAsync(putRequest);
                 }
 
-                // 6. Save Metadata to DB
+                // 6. DB Metadata Sync
                 var db = context.RequestServices.GetRequiredService<ApplicationDbContext>();
                 var imageFile = new ImageFile
                 {
@@ -201,16 +207,21 @@ namespace InframartAPI_New.Middlewares
                     imageUrl = $"/sys/stream/{storageKey}"
                 });
             }
+            catch (AmazonS3Exception ex)
+            {
+                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                await context.Response.WriteAsJsonAsync(new { success = false, message = $"Cloudflare S3 Error: {ex.Message}" });
+            }
             catch (Exception ex)
             {
                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                await context.Response.WriteAsJsonAsync(new { success = false, message = $"Upload failed: {ex.Message}" });
+                await context.Response.WriteAsJsonAsync(new { success = false, message = $"Upload handler system failure: {ex.Message}" });
             }
         }
 
         private async Task HandleStreamAsync(HttpContext context, string key)
         {
-            // Path Traversal Mitigation
+            // Structural path cleaning against injection strategies
             if (string.IsNullOrEmpty(key) || key.Contains("..") || key.Contains("\\") || key.Contains(":") || key.Contains("//"))
             {
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
@@ -231,22 +242,22 @@ namespace InframartAPI_New.Middlewares
                 {
                     context.Response.ContentType = response.Headers.ContentType;
                     context.Response.StatusCode = StatusCodes.Status200OK;
-                    
-                    // Stream directly to response body to avoid loading file in memory
+
+                    // Directly pipes bytes downstream to the client interface connection
                     await response.ResponseStream.CopyToAsync(context.Response.Body, context.RequestAborted);
                 }
             }
-            catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            catch (AmazonS3Exception ex) when (ex.StatusCode == HttpStatusCode.NotFound)
             {
                 context.Response.StatusCode = StatusCodes.Status404NotFound;
                 context.Response.ContentType = "application/json";
-                await context.Response.WriteAsJsonAsync(new { success = false, message = "File not found." });
+                await context.Response.WriteAsJsonAsync(new { success = false, message = "File not found inside R2 container." });
             }
             catch (Exception ex)
             {
                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
                 context.Response.ContentType = "application/json";
-                await context.Response.WriteAsJsonAsync(new { success = false, message = $"Stream failed: {ex.Message}" });
+                await context.Response.WriteAsJsonAsync(new { success = false, message = $"Stream system failure: {ex.Message}" });
             }
         }
     }
