@@ -21,15 +21,17 @@ namespace MultiVendorAPI.Services
 
 
             var products = await _context.Products
+                .Where(p => p.Status != "inactive" && p.Status != "deleted")
                 .Select(p => new ProductDto
                 {
-
+                    Id = p.Id,
                     Name = p.Name,
                     Price = p.Price,
                     DiscountPrice = p.DiscountPrice,
                     Thumbnail = p.Thumbnail,
                     CategoryId = p.CategoryId,
                     ShortDescription = p.ShortDescription,
+                    Unit = p.Unit,
                     Category = _context.Categories
                         .Where(c => c.Id == p.CategoryId)
                         .Select(c => c.Name)
@@ -46,10 +48,17 @@ namespace MultiVendorAPI.Services
             CreateProductDto dto)
 
         {
-            if (!Validations.ValidateProductDto(dto))
+            try
             {
-                return ServiceResponse<ProductDto>
-                    .FailureResponse("Invalid product data", 400);
+                if (!Validations.ValidateProductDto(dto))
+                {
+                    return ServiceResponse<ProductDto>
+                        .FailureResponse("Invalid product data", 400);
+                }
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<ProductDto>.FailureResponse(ex.Message, 400);
             }
 
             var category = await _context.Categories
@@ -65,6 +74,7 @@ namespace MultiVendorAPI.Services
 
             var product = new Product
             {
+                VendorId = dto.VendorId,
                 CategoryId = category.Id,
                 Name = dto.Name,
                 Slug = dto.Slug,
@@ -76,6 +86,7 @@ namespace MultiVendorAPI.Services
                 Thumbnail = dto.Thumbnail,
                 InStock = dto.InStock,
                 Quantity = dto.Quantity,
+                Unit = dto.Unit,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -85,6 +96,7 @@ namespace MultiVendorAPI.Services
 
             var productDto = new ProductDto
             {
+                Id = product.Id,
                 Name = product.Name,
                 Price = product.Price,
                 DiscountPrice = product.DiscountPrice,
@@ -101,21 +113,20 @@ namespace MultiVendorAPI.Services
                     201);
         }
 
-        public async Task<ServiceResponse<GetDetailedProductDto>> GetProductByNameAsync(string name)
+        public async Task<ServiceResponse<GetDetailedProductDto>> GetProductByIdAsync(long id)
         {
-            if (string.IsNullOrWhiteSpace(name))
+            if (id <= 0)
             {
                 return ServiceResponse<GetDetailedProductDto>
-                    .FailureResponse("Product name is required", 400);
+                    .FailureResponse("Product ID must be greater than zero", 400);
             }
-
-            var normalizedName = name.Trim().ToLower();
 
             var product = await _context.Products
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p =>
-                    p.Name != null &&
-                    p.Name.ToLower() == normalizedName);
+                    p.Id == id &&
+                    p.Status != "inactive" &&
+                    p.Status != "deleted");
 
             if (product == null)
             {
@@ -158,6 +169,7 @@ namespace MultiVendorAPI.Services
                 Status = product.Status,
                 InStock = product.InStock,
                 Quantity = product.Quantity,
+                Unit = product.Unit,
                 CreatedAt = product.CreatedAt,
                 UpdatedAt = product.UpdatedAt,
                 Images = string.IsNullOrWhiteSpace(product.Thumbnail)
@@ -176,11 +188,13 @@ namespace MultiVendorAPI.Services
         }
 
         public async Task<ServiceResponse<ProductDto>> UpdateProductAsync(
-    string name,
-    UpdateProductDto dto)
+            long id,
+            UpdateProductDto dto,
+            long? vendorId,
+            string userRole)
         {
             var product = await _context.Products
-                .FirstOrDefaultAsync(p => p.Name == name);
+                .FirstOrDefaultAsync(p => p.Id == id);
 
             if (product == null)
             {
@@ -188,6 +202,14 @@ namespace MultiVendorAPI.Services
                     .FailureResponse(
                         "Product not found",
                         404);
+            }
+
+            if (userRole != "admin" && product.VendorId != vendorId)
+            {
+                return ServiceResponse<ProductDto>
+                    .FailureResponse(
+                        "Access denied to update this product",
+                        403);
             }
 
             // Category update
@@ -209,10 +231,17 @@ namespace MultiVendorAPI.Services
 
             // Update allowed fields
 
-            if (!Validations.ValidateProductDto(dto))
+            try
             {
-                return ServiceResponse<ProductDto>
-                   .FailureResponse("Invalid product data", 400);
+                if (!Validations.ValidateProductDto(dto))
+                {
+                    return ServiceResponse<ProductDto>
+                       .FailureResponse("Invalid product data", 400);
+                }
+            }
+            catch (Exception ex)
+            {
+                return ServiceResponse<ProductDto>.FailureResponse(ex.Message, 400);
             }
 
             product.Name = dto.Name;
@@ -236,6 +265,8 @@ namespace MultiVendorAPI.Services
             product.InStock = dto.InStock;
 
             product.Quantity = dto.Quantity;
+
+            product.Unit = dto.Unit;
 
             // updated_at
             product.UpdatedAt = DateTime.UtcNow;
@@ -263,13 +294,12 @@ namespace MultiVendorAPI.Services
         }
 
         public async Task<ServiceResponse<string>> DeleteProductAsync(
-    string productName)
+            long id,
+            long? vendorId,
+            string userRole)
         {
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
             var product = await _context.Products
-                .FirstOrDefaultAsync(
-                    p => p.Name.Equals(productName, StringComparison.CurrentCultureIgnoreCase));
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
+                .FirstOrDefaultAsync(p => p.Id == id);
 
             if (product == null)
             {
@@ -279,7 +309,16 @@ namespace MultiVendorAPI.Services
                         404);
             }
 
-            _context.Products.Remove(product);
+            if (userRole != "admin" && product.VendorId != vendorId)
+            {
+                return ServiceResponse<string>
+                    .FailureResponse(
+                        "Access denied to delete this product",
+                        403);
+            }
+
+            product.Status = "deleted";
+            product.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
 
@@ -309,7 +348,7 @@ namespace MultiVendorAPI.Services
         {
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
             var products = await _context.Products
-                .Where(p => p.Name.Contains(searchTerm))
+                .Where(p => p.Name.Contains(searchTerm) && p.Status != "inactive" && p.Status != "deleted")
                 .Select(p => new ProductDto
                 {
                     Name = p.Name,
@@ -318,6 +357,7 @@ namespace MultiVendorAPI.Services
                     Thumbnail = p.Thumbnail,
                     CategoryId = p.CategoryId,
                     ShortDescription = p.ShortDescription,
+                    Unit = p.Unit,
                     Category = _context.Categories
                         .Where(c => c.Id == p.CategoryId)
                         .Select(c => c.Name)
@@ -333,12 +373,44 @@ namespace MultiVendorAPI.Services
                     200);
         }
 
+        public async Task<ServiceResponse<bool>> BlockProductByIdAsync(long id)
+        {
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == id);
+            if (product == null)
+            {
+                return ServiceResponse<bool>.FailureResponse("Product not found", 404);
+            }
+
+            product.Status = "inactive";
+            product.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return ServiceResponse<bool>.SuccessResponse(true, "Product blocked successfully", 200);
+        }
+
+        public async Task<ServiceResponse<List<ProductDto>>> GetBlockedProductsAsync()
+        {
+            var products = await _context.Products
+                .Where(p => p.Status == "inactive")
+                .Select(p => new ProductDto
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    Price = p.Price,
+                    DiscountPrice = p.DiscountPrice,
+                    Thumbnail = p.Thumbnail,
+                    CategoryId = p.CategoryId,
+                    ShortDescription = p.ShortDescription,
+                    Unit = p.Unit,
+                    Category = _context.Categories
+                        .Where(c => c.Id == p.CategoryId)
+                        .Select(c => c.Name)
+                        .FirstOrDefault()
+                })
+                .ToListAsync();
+
+            return ServiceResponse<List<ProductDto>>.SuccessResponse(products, "Blocked products retrieved successfully", 200);
+        }
     }
-
-
-
-
-
-
-
 }

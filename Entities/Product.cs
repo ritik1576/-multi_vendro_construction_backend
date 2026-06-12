@@ -1,4 +1,5 @@
 
+using InframartAPI_New.Models;
 
 namespace MultiVendorAPI.Models
 {
@@ -33,6 +34,8 @@ namespace MultiVendorAPI.Models
         public bool? InStock { get; set; }
 
         public int? Quantity { get; set; }
+
+        public string? Unit { get; set; }
 
         public DateTime? CreatedAt { get; set; }
 

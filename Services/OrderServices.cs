@@ -1,6 +1,8 @@
 using MultiVendorAPI.Common;
 using MultiVendorAPI.Models;
 using MultiVendorAPI.Repositories.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using System.Linq;
 
 public class OrderServices : IOrderService
 {
@@ -9,11 +11,19 @@ public class OrderServices : IOrderService
 
     private readonly IOrderRepository _orderRepository;
     private readonly ICartRepository _cartRepository;
+    private readonly InframartAPI_New.Data.AppDbContext _appDbContext;
+    private readonly MultiVendorAPI.Data.ApplicationDbContext _applicationDbContext;
 
-    public OrderServices(IOrderRepository orderRepository, ICartRepository cartRepository)
+    public OrderServices(
+        IOrderRepository orderRepository,
+        ICartRepository cartRepository,
+        InframartAPI_New.Data.AppDbContext appDbContext,
+        MultiVendorAPI.Data.ApplicationDbContext applicationDbContext)
     {
         _orderRepository = orderRepository;
         _cartRepository = cartRepository;
+        _appDbContext = appDbContext;
+        _applicationDbContext = applicationDbContext;
     }
 
     public async Task<ServiceResponse<PlaceOrderResponseDto>>
@@ -64,6 +74,17 @@ public class OrderServices : IOrderService
                     .FailureResponse($"Product {cartItem.ProductId} not found", 404);
             }
 
+            // ── Stock check ────────────────────────────────────────────────
+            var availableStock = product.Quantity ?? 0;
+            if (availableStock < item.Quantity)
+            {
+                return ServiceResponse<PlaceOrderResponseDto>
+                    .FailureResponse(
+                        $"Insufficient stock for '{product.Name}'. " +
+                        $"Available: {availableStock}, Requested: {item.Quantity}",
+                        400);
+            }
+
             subtotal += product.Price.GetValueOrDefault() * item.Quantity;
             products.Add(product);
         }
@@ -104,6 +125,14 @@ public class OrderServices : IOrderService
                 TotalPrice = price * item.Quantity,
                 CreatedAt = now
             });
+
+            // ── Deduct stock ───────────────────────────────────────────────
+            product.Quantity = (product.Quantity ?? 0) - item.Quantity;
+            if (product.Quantity <= 0)
+            {
+                product.Quantity = 0;
+                product.InStock = false;
+            }
         }
 
         await _orderRepository.SaveChangesAsync();
@@ -142,7 +171,7 @@ public class OrderServices : IOrderService
             .SuccessResponse(result, "Orders retrieved successfully");
     }
 
-    public async Task<ServiceResponse<OrderDetailsDto>> GetOrderDetailsAsync(long orderId)
+    public async Task<ServiceResponse<OrderDetailsDto>> GetOrderDetailsAsync(long orderId, long currentUserId, string userRole)
     {
         var order = await _orderRepository.GetOrderByIdWithItemsAsync(orderId);
 
@@ -152,11 +181,17 @@ public class OrderServices : IOrderService
                 .FailureResponse("Order not found", 404);
         }
 
+        if (userRole != "admin" && order.UserId != currentUserId)
+        {
+            return ServiceResponse<OrderDetailsDto>
+                .FailureResponse("Access denied to this order", 403);
+        }
+
         return ServiceResponse<OrderDetailsDto>
             .SuccessResponse(MapToDetails(order), "Order details retrieved successfully");
     }
 
-    public async Task<ServiceResponse<OrderDetailsDto>> CancelOrderAsync(long orderId)
+    public async Task<ServiceResponse<OrderDetailsDto>> CancelOrderAsync(long orderId, long currentUserId, string userRole)
     {
         var order = await _orderRepository.GetOrderByIdWithItemsAsync(orderId);
 
@@ -164,6 +199,12 @@ public class OrderServices : IOrderService
         {
             return ServiceResponse<OrderDetailsDto>
                 .FailureResponse("Order not found", 404);
+        }
+
+        if (userRole != "admin" && order.UserId != currentUserId)
+        {
+            return ServiceResponse<OrderDetailsDto>
+                .FailureResponse("Access denied to cancel this order", 403);
         }
 
         if (order.OrderStatus == "delivered")
@@ -186,7 +227,7 @@ public class OrderServices : IOrderService
             .SuccessResponse(MapToDetails(order), "Order cancelled successfully");
     }
 
-    public async Task<ServiceResponse<OrderTrackingDto>> GetOrderTrackingAsync(long orderId)
+    public async Task<ServiceResponse<OrderTrackingDto>> GetOrderTrackingAsync(long orderId, long currentUserId, string userRole)
     {
         var order = await _orderRepository.GetOrderByIdWithItemsAsync(orderId);
 
@@ -194,6 +235,12 @@ public class OrderServices : IOrderService
         {
             return ServiceResponse<OrderTrackingDto>
                 .FailureResponse("Order not found", 404);
+        }
+
+        if (userRole != "admin" && order.UserId != currentUserId)
+        {
+            return ServiceResponse<OrderTrackingDto>
+                .FailureResponse("Access denied to this order tracking", 403);
         }
 
         return ServiceResponse<OrderTrackingDto>
@@ -366,5 +413,75 @@ public class OrderServices : IOrderService
         }
 
         return "piece";
+    }
+
+    public async Task<ServiceResponse<List<OrderWithItemsDto>>> GetAllOrdersWithItemsAsync()
+    {
+        var orders = await _orderRepository.GetOrdersAsync(null);
+
+        var customerIds = orders.Select(o => o.UserId).Distinct().ToList();
+        var productIds = orders.SelectMany(o => o.OrderItems).Select(oi => oi.ProductId).Distinct().ToList();
+
+        var customers = await _appDbContext.Users
+            .Where(u => customerIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id);
+
+        var products = await _applicationDbContext.Products
+            .Where(p => productIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id);
+
+        var vendorIds = products.Values.Where(p => p.VendorId.HasValue).Select(p => p.VendorId!.Value).Distinct().ToList();
+        
+        var vendors = await _appDbContext.Vendors
+            .Where(v => vendorIds.Contains(v.Id))
+            .ToDictionaryAsync(v => v.Id);
+
+        var result = orders.Select(order =>
+        {
+            customers.TryGetValue(order.UserId, out var customer);
+
+            return new OrderWithItemsDto
+            {
+                OrderId = order.Id,
+                OrderNumber = GetOrderNumber(order),
+                Subtotal = order.Subtotal,
+                TotalAmount = order.TotalAmount,
+                DiscountAmount = order.DiscountAmount,
+                ShippingCharge = order.ShippingCharge,
+                PaymentStatus = order.PaymentStatus,
+                OrderStatus = order.OrderStatus,
+                PlacedAt = order.PlacedAt == default ? order.CreatedAt : order.PlacedAt,
+                CreatedAt = order.CreatedAt,
+                CustomerId = order.UserId,
+                CustomerName = customer?.FullName,
+                CustomerEmail = customer?.Email,
+                CustomerPhone = customer?.Phone,
+                OrderItems = order.OrderItems.Select(item =>
+                {
+                    products.TryGetValue(item.ProductId, out var product);
+                    global::Vendor? vendor = null;
+                    if (product != null && product.VendorId.HasValue)
+                    {
+                        vendors.TryGetValue(product.VendorId.Value, out vendor);
+                    }
+
+                    return new OrderItemWithVendorDto
+                    {
+                        Id = item.Id,
+                        ProductId = item.ProductId,
+                        ProductName = item.ProductName,
+                        Quantity = item.Quantity,
+                        Price = item.Price,
+                        TotalPrice = item.TotalPrice,
+                        VendorId = product?.VendorId,
+                        VendorName = vendor?.ShopName,
+                        VendorStatus = vendor?.Status
+                    };
+                }).ToList()
+            };
+        }).ToList();
+
+        return ServiceResponse<List<OrderWithItemsDto>>
+            .SuccessResponse(result, "All orders with items retrieved successfully");
     }
 }

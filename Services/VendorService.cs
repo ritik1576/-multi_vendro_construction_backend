@@ -47,6 +47,7 @@ namespace InframartAPI_New.Services
                 Phone = dto.Phone,
                 Password = PasswordHelper.HashPassword(dto.Password),
                 Role = "vendor",
+                Status = "active"
             };
 
             await _vendorRepository.AddUserAsync(user);
@@ -67,9 +68,11 @@ namespace InframartAPI_New.Services
 
             var claims = new[]
             {
-            new Claim(ClaimTypes.Name,user.Email!),
-            new Claim(ClaimTypes.Role,user.Role!)
-        };
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Name, user.Email!),
+                new Claim(ClaimTypes.Role, user.Role!),
+                new Claim("vendorId", vendor.Id.ToString())
+            };
 
             var key = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(
@@ -114,8 +117,7 @@ namespace InframartAPI_New.Services
             var (user, vendor) = await _vendorRepository
                 .GetVendorUserByEmailAsync(dto.Email);
 
-            if (user == null || string.IsNullOrEmpty(user.Password) ||
-                !PasswordHelper.VerifyPassword(dto.Password, user.Password))
+            if (user == null)
             {
                 return new AuthResponseDto
                 {
@@ -124,12 +126,40 @@ namespace InframartAPI_New.Services
                 };
             }
 
-            if (user.Status == "inactive" || user.Status == "banned")
+            if (!string.Equals(user.Status ?? "active", "active", StringComparison.OrdinalIgnoreCase))
             {
                 return new AuthResponseDto
                 {
                     Success = false,
-                    Message = "Your account has been suspended. Please contact support."
+                    Message = "Your account is not active. Please contact support."
+                };
+            }
+
+            if (vendor == null)
+            {
+                return new AuthResponseDto
+                {
+                    Success = false,
+                    Message = "Vendor profile not found for this user."
+                };
+            }
+
+            if (!string.Equals(vendor.Status, "approved", StringComparison.OrdinalIgnoreCase))
+            {
+                return new AuthResponseDto
+                {
+                    Success = false,
+                    Message = $"Your vendor account is not approved. Current status: {vendor.Status ?? "pending"}"
+                };
+            }
+
+            if (string.IsNullOrEmpty(user.Password) ||
+                !PasswordHelper.VerifyPassword(dto.Password, user.Password))
+            {
+                return new AuthResponseDto
+                {
+                    Success = false,
+                    Message = "Invalid email or password"
                 };
             }
 

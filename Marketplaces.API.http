@@ -3,4 +3,14 @@
 GET {{Marketplaces.API_HostAddress}}/weatherforecast/
 Accept: application/json
 
-###
+### Upload Product Image
+POST {{Marketplaces.API_HostAddress}}/upload/product-image
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="test_image.png"
+Content-Type: image/png
+
+< ./uploads/test_image.png
+--WebAppBoundary--
+

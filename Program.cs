@@ -57,6 +57,9 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<IOrderService, OrderServices>();
 builder.Services.AddScoped<IAddressService, AddressService>();
+builder.Services.AddScoped<IVendorOrderService, VendorOrderService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IFileUploadService, FileUploadService>();
 builder.Services.AddSwaggerGen(options =>
 {
     // Repositories
@@ -132,6 +135,25 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("CustomerOnly", policy => policy.RequireRole("customer"));
 });
 
+// ================= CORS =================
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendPolicy", policy =>
+    {
+        policy.WithOrigins(
+                "http://localhost:5173",
+                "http://192.168.10.177:5173",
+                "http://192.168.137.1:5173",
+                "http://192.168.10.131:5173",
+                "https://multi-vendro-construction-frontend.vercel.app"
+            )
+            .AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+
+    });
+});
+
 var app = builder.Build();
 
 // Swagger
@@ -142,9 +164,16 @@ if (app.Environment.IsDevelopment())
 }
 
 // Middleware
+app.UseMiddleware<InframartAPI_New.Middlewares.GlobalExceptionMiddleware>();
+
 app.UseHttpsRedirection();
 
+// CORS must be before Authentication and Authorization
+app.UseCors("FrontendPolicy");
+
 app.UseAuthentication();
+
+app.UseAuthorization();
 
 app.MapControllers();
 

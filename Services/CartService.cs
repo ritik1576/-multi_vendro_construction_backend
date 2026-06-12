@@ -141,7 +141,7 @@ namespace MultiVendorAPI.Services
                 .SuccessResponse(MapToDto(updatedCart), "Cart item updated");
         }
 
-        public async Task<ServiceResponse<string>> RemoveFromCartAsync(long cartItemId)
+        public async Task<ServiceResponse<string>> RemoveFromCartAsync(long cartItemId, long userId)
         {
             var cartItem = await _cartRepository.GetCartItemByIdAsync(cartItemId);
 
@@ -150,6 +150,13 @@ namespace MultiVendorAPI.Services
                 return ServiceResponse<string>.FailureResponse(
                     "Cart item not found",
                     404);
+            }
+
+            if (cartItem.Cart != null && cartItem.Cart.UserId != userId)
+            {
+                return ServiceResponse<string>.FailureResponse(
+                    "Access denied to this cart item",
+                    403);
             }
 
             await _cartRepository.RemoveCartItemAsync(cartItem);

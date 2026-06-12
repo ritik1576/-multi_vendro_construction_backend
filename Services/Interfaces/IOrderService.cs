@@ -9,11 +9,13 @@ public interface IOrderService
         GetOrdersAsync(long? userId);
 
     Task<ServiceResponse<OrderDetailsDto>>
-        GetOrderDetailsAsync(long orderId);
+        GetOrderDetailsAsync(long orderId, long currentUserId, string userRole);
 
     Task<ServiceResponse<OrderDetailsDto>>
-        CancelOrderAsync(long orderId);
+        CancelOrderAsync(long orderId, long currentUserId, string userRole);
 
     Task<ServiceResponse<OrderTrackingDto>>
-        GetOrderTrackingAsync(long orderId);
+        GetOrderTrackingAsync(long orderId, long currentUserId, string userRole);
+
+    Task<ServiceResponse<List<OrderWithItemsDto>>> GetAllOrdersWithItemsAsync();
 }

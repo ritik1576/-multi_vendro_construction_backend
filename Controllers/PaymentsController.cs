@@ -2,17 +2,21 @@ using InframartAPI_New.Models;
 using DbPayment = InframartAPI_New.Models.Payment;
 using InframartAPI_New.Data;
 using InframartAPI_New.DTOs;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Razorpay.Api;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using InframartAPI_New.Middlewares;
 
 namespace InframartAPI_New.Controllers
 {
     [ApiController]
     [Route("payments")]
+    [Authorize]
     public class PaymentsController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -26,15 +30,29 @@ namespace InframartAPI_New.Controllers
             _razorpay = razorpay.Value;
         }
 
+        private long GetCurrentUserId()
+        {
+            var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(claim) || !long.TryParse(claim, out var userId))
+                throw new UnauthorizedAccessException();
+            return userId;
+        }
+
         // ================= CREATE PAYMENT =================
         [HttpPost]
+        [Authorize(Roles = "customer")]
         public async Task<IActionResult> CreatePayment([FromBody] CreatePaymentDto request)
         {
             var order = await _context.Orders
                 .FirstOrDefaultAsync(x => x.Id == request.Order_Id);
 
             if (order == null)
-                return NotFound("Order not found");
+                throw new NotFoundException("Order not found");
+
+            if (order.UserId != GetCurrentUserId())
+            {
+                throw new ForbiddenException("Cannot make payment for another user's order.");
+            }
 
             decimal total_amount = order.TotalAmount;
 
@@ -74,13 +92,24 @@ namespace InframartAPI_New.Controllers
 
         // ================= VERIFY PAYMENT =================
         [HttpPost("verify")]
+        [Authorize(Roles = "customer")]
         public async Task<IActionResult> VerifyPayment([FromBody] VerifyPaymentDto request)
         {
             if (string.IsNullOrEmpty(request.RazorpayPayment_Id))
                 return BadRequest("Payment Id missing");
 
-            var client = new RazorpayClient(_razorpay.KeyId, _razorpay.KeySecret);
+            var order = await _context.Orders
+                .FirstOrDefaultAsync(x => x.Id == request.Order_Id);
 
+            if (order == null)
+                throw new NotFoundException("Order not found");
+
+            if (order.UserId != GetCurrentUserId())
+            {
+                throw new ForbiddenException("Cannot verify payment for another user's order.");
+            }
+
+            var client = new RazorpayClient(_razorpay.KeyId, _razorpay.KeySecret);
             object paymentResponse;
 
             try
@@ -99,16 +128,13 @@ namespace InframartAPI_New.Controllers
                 .FirstOrDefaultAsync(x => x.Razorpay_Order_Id == request.RazorpayOrder_Id);
 
             if (dbPayment == null)
-                return NotFound("Payment not found");
+                throw new NotFoundException("Payment record not found");
 
             dbPayment.Razorpay_Payment_Id = request.RazorpayPayment_Id;
             dbPayment.Status = "paid";
             dbPayment.Paid_At = DateTime.UtcNow;
 
-            var order = await _context.Orders.FindAsync(request.Order_Id);
-
-            if (order != null)
-                order.PaymentStatus = "paid";
+            order.PaymentStatus = "paid";
 
             await _context.SaveChangesAsync();
 
@@ -121,6 +147,7 @@ namespace InframartAPI_New.Controllers
 
         // ================= PAYMENT HISTORY =================
         [HttpGet("history")]
+        [Authorize(Roles = "admin")]
         public async Task<IActionResult> PaymentHistory()
         {
             var payments = await _context.Payments
@@ -132,6 +159,7 @@ namespace InframartAPI_New.Controllers
 
         // ================= REFUND PAYMENT =================
         [HttpPost("refund")]
+        [Authorize(Roles = "admin")]
         public async Task<IActionResult> RefundPayment([FromBody] RefundDto request)
         {
             var client = new RazorpayClient(_razorpay.KeyId, _razorpay.KeySecret);
@@ -140,7 +168,7 @@ namespace InframartAPI_New.Controllers
                 .FirstOrDefaultAsync(x => x.Razorpay_Payment_Id == request.RazorpayPaymentId);
 
             if (dbPayment == null)
-                return NotFound("Payment not found");
+                throw new NotFoundException("Payment record not found");
 
             if (dbPayment.Status == "refunded")
                 return BadRequest("Already refunded");
@@ -184,4 +212,3 @@ namespace InframartAPI_New.Controllers
         }
     }
 }
-

@@ -2,6 +2,7 @@ namespace MultiVendorAPI.DTOs
 {
     public class ProductDto
     {
+        public long Id { get; set; }
 
         public string? Name { get; set; }
 
@@ -15,8 +16,8 @@ namespace MultiVendorAPI.DTOs
 
         public string? ShortDescription { get; set; }
 
-        public String? Category { get; set; }
+        public string? Unit { get; set; }
 
-
+        public string? Category { get; set; }
     }
 }
