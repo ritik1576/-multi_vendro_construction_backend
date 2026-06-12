@@ -172,7 +172,8 @@ namespace InframartAPI_New.Middlewares
                         BucketName = _r2Settings.BucketName,
                         Key = storageKey,
                         InputStream = stream,
-                        ContentType = file.ContentType
+                        ContentType = file.ContentType,
+                        DisablePayloadSigning = true
                     };
 
                     await _s3Client.PutObjectAsync(putRequest);
