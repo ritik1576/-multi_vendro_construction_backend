@@ -15,11 +15,13 @@ namespace InframartAPI_New.Middlewares
         private readonly RequestDelegate _next;
         private readonly CloudflareR2Settings _r2Settings;
         private readonly IAmazonS3 _s3Client;
+        private readonly IConfiguration _configuration;
 
-        public ImageProxyMiddleware(RequestDelegate next, IOptions<CloudflareR2Settings> r2Settings)
+        public ImageProxyMiddleware(RequestDelegate next, IOptions<CloudflareR2Settings> r2Settings, IConfiguration configuration)
         {
             _next = next;
             _r2Settings = r2Settings.Value;
+            _configuration = configuration;
 
             var config = new AmazonS3Config
             {
@@ -32,6 +34,50 @@ namespace InframartAPI_New.Middlewares
         public async Task InvokeAsync(HttpContext context)
         {
             var path = context.Request.Path.Value ?? string.Empty;
+
+            // Try manual token extraction if context is not authenticated (handles lowercase "bearer" scheme)
+            if (context.User.Identity?.IsAuthenticated != true)
+            {
+                var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+                if (!string.IsNullOrEmpty(authHeader))
+                {
+                    string token = string.Empty;
+                    if (authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                    {
+                        token = authHeader.Substring("Bearer ".Length).Trim();
+                    }
+                    else if (authHeader.StartsWith("bearer ", StringComparison.OrdinalIgnoreCase))
+                    {
+                        token = authHeader.Substring("bearer ".Length).Trim();
+                    }
+
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        try
+                        {
+                            var tokenHandler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
+                            var key = System.Text.Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!);
+                            tokenHandler.ValidateToken(token, new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+                            {
+                                ValidateIssuer = false,
+                                ValidateAudience = false,
+                                ValidateLifetime = true,
+                                ValidateIssuerSigningKey = true,
+                                IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(key),
+                                ClockSkew = TimeSpan.Zero
+                            }, out Microsoft.IdentityModel.Tokens.SecurityToken validatedToken);
+
+                            var jwtToken = (System.IdentityModel.Tokens.Jwt.JwtSecurityToken)validatedToken;
+                            var identity = new ClaimsIdentity(jwtToken.Claims, "ManualJwt");
+                            context.User = new ClaimsPrincipal(identity);
+                        }
+                        catch
+                        {
+                            // Keep unauthenticated if validation fails
+                        }
+                    }
+                }
+            }
 
             if (path.Equals("/sys/upload", StringComparison.OrdinalIgnoreCase))
             {
