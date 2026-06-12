@@ -29,7 +29,8 @@ namespace InframartAPI_New.Middlewares
             var config = new AmazonS3Config
             {
                 ServiceURL = $"https://{_r2Settings.AccountId}.r2.cloudflarestorage.com",
-                DisableDefaultChecksumValidation = true
+                ForcePathStyle = true,
+                AuthenticationRegion = "auto"
             };
 
             _s3Client = new AmazonS3Client(_r2Settings.AccessKeyId, _r2Settings.SecretAccessKey, config);
@@ -179,7 +180,8 @@ namespace InframartAPI_New.Middlewares
                         Key = storageKey,
                         InputStream = stream,
                         ContentType = file.ContentType,
-                        DisablePayloadSigning = true // CRITICAL COMPATIBILITY FLAG FOR R2
+                        DisablePayloadSigning = true, // CRITICAL COMPATIBILITY FLAG FOR R2
+                        DisableDefaultChecksumValidation = true
                     };
 
                     await _s3Client.PutObjectAsync(putRequest);
