@@ -20,6 +20,7 @@ namespace MultiVendorAPI.Data
 
         public DbSet<OrderItem> OrderItems { get; set; }
         public DbSet<Address> Addresses { get; set; }
+        public DbSet<ImageFile> ImageFiles { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
