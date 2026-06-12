@@ -164,6 +164,8 @@ if (app.Environment.IsDevelopment())
 }
 
 // Middleware
+app.UseMiddleware<InframartAPI_New.Middlewares.GlobalExceptionMiddleware>();
+
 app.UseHttpsRedirection();
 
 // CORS must be before Authentication and Authorization

@@ -63,6 +63,7 @@ namespace MultiVendorAPI.Repositories
         public async Task<CartItem?> GetCartItemByIdAsync(long cartItemId)
         {
             return await _context.CartItems
+                .Include(ci => ci.Cart)
                 .FirstOrDefaultAsync(ci => ci.Id == cartItemId);
         }
     }

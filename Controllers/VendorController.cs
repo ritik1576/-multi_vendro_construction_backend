@@ -1,12 +1,15 @@
 using InframartAPI_New.DTOs.VendorDTOs;
 using InframartAPI_New.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
+using InframartAPI_New.Middlewares;
 
 namespace InframartAPI_New.Controllers
 {
     [Route("vendor")]
     [ApiController]
-    // [Authorize(Roles = "vendor")] // Temporarily disabled for simple testing
+    [Authorize(Roles = "vendor")]
     public class VendorController : ControllerBase
     {
         private readonly IVendorOrderService _vendorOrderService;
@@ -18,12 +21,32 @@ namespace InframartAPI_New.Controllers
             _vendorService = vendorService;
         }
 
+        private void ValidateVendorAccess(long vendorId)
+        {
+            var vendorIdClaim = User.FindFirst("vendorId")?.Value;
+            if (string.IsNullOrEmpty(vendorIdClaim) || !long.TryParse(vendorIdClaim, out var claimVendorId) || claimVendorId != vendorId)
+            {
+                throw new ForbiddenException("Access denied to this vendor's resources.");
+            }
+        }
+
+        private void ValidateUserAccess(long userId)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !long.TryParse(userIdClaim, out var claimUserId) || claimUserId != userId)
+            {
+                throw new ForbiddenException("Access denied to this user's resources.");
+            }
+        }
+
         // ─────────────────────────────────────────────────────────────────────
         // GET /vendor/products/{vendorId}
         // ─────────────────────────────────────────────────────────────────────
         [HttpGet("products/{vendorId:long}")]
         public async Task<IActionResult> GetProducts(long vendorId)
         {
+            ValidateVendorAccess(vendorId);
+
             var (success, error, data) = await _vendorOrderService.GetVendorProductsAsync(vendorId);
             if (!success)
                 return BadRequest(new { message = error });
@@ -42,10 +65,8 @@ namespace InframartAPI_New.Controllers
         [HttpGet("status/{vendorId:long}")]
         public async Task<IActionResult> GetStatus(long vendorId)
         {
-            // Note: We are using a new method GetVendorStatusByVendorIdAsync or we can reuse the existing one if we pass userId. 
-            // For simplicity, we will assume GetVendorStatusByVendorIdAsync is added to the service.
-            // But since GetVendorStatusAsync takes userId currently, we need to modify the service too.
-            // Let's call a new method that we will add.
+            ValidateVendorAccess(vendorId);
+
             var (success, error, data) = await _vendorOrderService.GetVendorStatusByVendorIdAsync(vendorId);
             if (!success)
                 return NotFound(new { message = error });
@@ -59,6 +80,8 @@ namespace InframartAPI_New.Controllers
         [HttpGet("orders/{vendorId:long}")]
         public async Task<IActionResult> GetOrders(long vendorId)
         {
+            ValidateVendorAccess(vendorId);
+
             var (success, error, data) = await _vendorOrderService.GetVendorOrdersAsync(vendorId);
             if (!success)
                 return BadRequest(new { message = error });
@@ -77,6 +100,8 @@ namespace InframartAPI_New.Controllers
         [HttpGet("{vendorId:long}/orders/{orderId:long}")]
         public async Task<IActionResult> GetOrderDetail(long vendorId, long orderId)
         {
+            ValidateVendorAccess(vendorId);
+
             var (success, error, data) = await _vendorOrderService.GetVendorOrderDetailAsync(vendorId, orderId);
             if (!success)
                 return NotFound(new { message = error });
@@ -91,6 +116,8 @@ namespace InframartAPI_New.Controllers
         [HttpPut("{vendorId:long}/orders/{orderId:long}/status")]
         public async Task<IActionResult> UpdateOrderStatus(long vendorId, long orderId, [FromBody] UpdateOrderStatusDto dto)
         {
+            ValidateVendorAccess(vendorId);
+
             if (dto == null || string.IsNullOrWhiteSpace(dto.Status))
                 return BadRequest(new { message = "status is required" });
 
@@ -104,13 +131,11 @@ namespace InframartAPI_New.Controllers
         // ─────────────────────────────────────────────────────────────────────
         // PUT /vendor/orders/{orderId}/status
         // Body: { "status": "shipped" }
-        // Note: Assumes JWT auth will provide vendor ID in a real scenario, but for now we require vendorId in query string or we just update it.
-        // Let's add a simplified route that bypasses vendorId check for simplicity if requested explicitly.
         // ─────────────────────────────────────────────────────────────────────
         [HttpPut("orders/{orderId:long}/status")]
         public async Task<IActionResult> UpdateOrderStatusSlim(long orderId, [FromQuery] long vendorId, [FromBody] UpdateOrderStatusDto dto)
         {
-            if (vendorId <= 0) return BadRequest(new { message = "vendorId query parameter is required" });
+            ValidateVendorAccess(vendorId);
             return await UpdateOrderStatus(vendorId, orderId, dto);
         }
 
@@ -120,6 +145,8 @@ namespace InframartAPI_New.Controllers
         [HttpDelete("{vendorId:long}/orders/{orderId:long}")]
         public async Task<IActionResult> DeleteOrder(long vendorId, long orderId)
         {
+            ValidateVendorAccess(vendorId);
+
             var (success, error) = await _vendorOrderService.DeleteOrderAsync(vendorId, orderId);
             if (!success)
                 return NotFound(new { message = error });
@@ -133,6 +160,8 @@ namespace InframartAPI_New.Controllers
         [HttpGet("{userId:long}/orders")]
         public async Task<IActionResult> GetOrdersByUserId(long userId)
         {
+            ValidateUserAccess(userId);
+
             var (success, error, data) = await _vendorOrderService.GetVendorOrdersByUserIdAsync(userId);
             if (!success)
                 return BadRequest(new { message = error });
@@ -151,6 +180,8 @@ namespace InframartAPI_New.Controllers
         [HttpGet("{userId:long}/dashboard")]
         public async Task<IActionResult> GetVendorDashboard(long userId)
         {
+            ValidateUserAccess(userId);
+
             var (statusSuccess, statusError, statusData) = await _vendorOrderService.GetVendorStatusAsync(userId);
             if (!statusSuccess || statusData == null)
                 return BadRequest(new { message = "Vendor not found for this user" });

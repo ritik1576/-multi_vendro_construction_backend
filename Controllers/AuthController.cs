@@ -106,9 +106,10 @@ namespace InframartAPI_New.Controllers
 
             var claims = new List<Claim>
             {
-        new Claim(ClaimTypes.Name, user.Email!),
-        new Claim(ClaimTypes.Role, user.Role!)
-    };
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Name, user.Email!),
+                new Claim(ClaimTypes.Role, user.Role!)
+            };
 
             var key = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!)
@@ -215,6 +216,7 @@ namespace InframartAPI_New.Controllers
 
             var claims = new List<Claim>
             {
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Name, user.Email!),
                 new Claim(ClaimTypes.Role, user.Role!)
             };

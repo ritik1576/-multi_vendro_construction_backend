@@ -1,5 +1,6 @@
 using InframartAPI_New.DTOs;
 using InframartAPI_New.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -9,6 +10,7 @@ namespace InframartAPI_New.Controllers
 {
     [ApiController]
     [Route("upload")]
+    [Authorize(Roles = "vendor,admin")]
     public class UploadController : ControllerBase
     {
         private readonly IFileUploadService _fileUploadService;

@@ -188,8 +188,10 @@ namespace MultiVendorAPI.Services
         }
 
         public async Task<ServiceResponse<ProductDto>> UpdateProductAsync(
-    long id,
-    UpdateProductDto dto)
+            long id,
+            UpdateProductDto dto,
+            long? vendorId,
+            string userRole)
         {
             var product = await _context.Products
                 .FirstOrDefaultAsync(p => p.Id == id);
@@ -200,6 +202,14 @@ namespace MultiVendorAPI.Services
                     .FailureResponse(
                         "Product not found",
                         404);
+            }
+
+            if (userRole != "admin" && product.VendorId != vendorId)
+            {
+                return ServiceResponse<ProductDto>
+                    .FailureResponse(
+                        "Access denied to update this product",
+                        403);
             }
 
             // Category update
@@ -284,7 +294,9 @@ namespace MultiVendorAPI.Services
         }
 
         public async Task<ServiceResponse<string>> DeleteProductAsync(
-    long id)
+            long id,
+            long? vendorId,
+            string userRole)
         {
             var product = await _context.Products
                 .FirstOrDefaultAsync(p => p.Id == id);
@@ -295,6 +307,14 @@ namespace MultiVendorAPI.Services
                     .FailureResponse(
                         "Product not found",
                         404);
+            }
+
+            if (userRole != "admin" && product.VendorId != vendorId)
+            {
+                return ServiceResponse<string>
+                    .FailureResponse(
+                        "Access denied to delete this product",
+                        403);
             }
 
             product.Status = "deleted";

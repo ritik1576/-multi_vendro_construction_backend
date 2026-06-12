@@ -13,6 +13,7 @@ namespace InframartAPI_New.Controllers
 
     [Route("admin")]
     [ApiController]
+    [Authorize(Roles = "admin")]
     public class AdminController : ControllerBase
     {
         private readonly IAdminService _adminService;
@@ -23,6 +24,7 @@ namespace InframartAPI_New.Controllers
         }
 
         [HttpPost("login")]
+        [AllowAnonymous]
         public async Task<IActionResult> LoginAdmin([FromBody] LoginDto request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
@@ -39,14 +41,12 @@ namespace InframartAPI_New.Controllers
             return Ok(data);
         }
 
-        // [Authorize(Roles = "admin")]
         [HttpGet("dashboard")]
         public IActionResult Dashboard()
         {
             return Ok("Admin Dashboard Access Granted");
         }
 
-        // [Authorize(Roles = "admin")]
         [HttpGet("users")]
         public async Task<IActionResult> GetAllUsers()
         {
@@ -62,7 +62,6 @@ namespace InframartAPI_New.Controllers
             });
         }
 
-        // [Authorize(Roles = "admin")]
         [HttpGet("users/{id:long}")]
         public async Task<IActionResult> GetUserDetails(long id)
         {
@@ -73,7 +72,6 @@ namespace InframartAPI_New.Controllers
             return Ok(new { success = true, data });
         }
 
-        // [Authorize(Roles = "admin")]
         [HttpPut("users/suspend/{id:long}")]
         public async Task<IActionResult> SuspendUser(long id, [FromBody] UpdateUserStatusDto? dto)
         {
@@ -85,7 +83,6 @@ namespace InframartAPI_New.Controllers
             return Ok(new { success = true, message = $"User status updated successfully", userId = id });
         }
 
-        // [Authorize(Roles = "admin")]
         [HttpGet("vendors/{id:long}")]
         public async Task<IActionResult> GetVendorDetails(long id)
         {
@@ -96,7 +93,6 @@ namespace InframartAPI_New.Controllers
             return Ok(new { success = true, data });
         }
 
-        // [Authorize(Roles = "admin")]
         [HttpPut("vendors/{id:long}/approve")]
         public async Task<IActionResult> ApproveVendor(long id)
         {
@@ -107,7 +103,6 @@ namespace InframartAPI_New.Controllers
             return Ok(new { success = true, message = "Vendor approved successfully", vendorId = id });
         }
 
-        // [Authorize(Roles = "admin")]
         [HttpPut("vendors/{id:long}/reject")]
         public async Task<IActionResult> RejectVendor(long id)
         {
@@ -118,7 +113,6 @@ namespace InframartAPI_New.Controllers
             return Ok(new { success = true, message = "Vendor rejected successfully", vendorId = id });
         }
 
-        // [Authorize(Roles = "admin")]
         [HttpPut("vendors/{id:long}/block")]
         public async Task<IActionResult> BlockVendor(long id)
         {
@@ -129,7 +123,6 @@ namespace InframartAPI_New.Controllers
             return Ok(new { success = true, message = "Vendor blocked successfully", vendorId = id });
         }
 
-        // [Authorize(Roles = "admin")]
         [HttpGet("orders")]
         public async Task<IActionResult> GetAllOrders()
         {
@@ -145,11 +138,6 @@ namespace InframartAPI_New.Controllers
             });
         }
 
-
-        // ─────────────────────────────────────────────────────────────────────
-        // GET /admin/vendors
-        // ─────────────────────────────────────────────────────────────────────
-        // [Authorize(Roles = "admin")]
         [HttpGet("vendors")]
         public async Task<IActionResult> GetAllVendors()
         {
@@ -165,11 +153,6 @@ namespace InframartAPI_New.Controllers
             });
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        // PUT /admin/vendors/{vendorId}/status
-        // Body: { "status": "active" }
-        // ─────────────────────────────────────────────────────────────────────
-        // [Authorize(Roles = "admin")]
         [HttpPut("vendors/{vendorId:long}/status")]
         public async Task<IActionResult> UpdateVendorStatus(long vendorId, [FromBody] UpdateVendorStatusDto dto)
         {

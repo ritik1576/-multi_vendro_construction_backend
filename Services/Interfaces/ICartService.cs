@@ -11,7 +11,7 @@ namespace MultiVendorAPI.Services.Interfaces
 
         Task<ServiceResponse<CartDto>> UpdateCartItemAsync(UpdateCartItemDto dto);
 
-        Task<ServiceResponse<string>> RemoveFromCartAsync(long cartItemId);
+        Task<ServiceResponse<string>> RemoveFromCartAsync(long cartItemId, long userId);
 
         Task<ServiceResponse<string>> ClearCartAsync(long userId);
     }

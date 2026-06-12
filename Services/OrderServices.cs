@@ -171,7 +171,7 @@ public class OrderServices : IOrderService
             .SuccessResponse(result, "Orders retrieved successfully");
     }
 
-    public async Task<ServiceResponse<OrderDetailsDto>> GetOrderDetailsAsync(long orderId)
+    public async Task<ServiceResponse<OrderDetailsDto>> GetOrderDetailsAsync(long orderId, long currentUserId, string userRole)
     {
         var order = await _orderRepository.GetOrderByIdWithItemsAsync(orderId);
 
@@ -181,11 +181,17 @@ public class OrderServices : IOrderService
                 .FailureResponse("Order not found", 404);
         }
 
+        if (userRole != "admin" && order.UserId != currentUserId)
+        {
+            return ServiceResponse<OrderDetailsDto>
+                .FailureResponse("Access denied to this order", 403);
+        }
+
         return ServiceResponse<OrderDetailsDto>
             .SuccessResponse(MapToDetails(order), "Order details retrieved successfully");
     }
 
-    public async Task<ServiceResponse<OrderDetailsDto>> CancelOrderAsync(long orderId)
+    public async Task<ServiceResponse<OrderDetailsDto>> CancelOrderAsync(long orderId, long currentUserId, string userRole)
     {
         var order = await _orderRepository.GetOrderByIdWithItemsAsync(orderId);
 
@@ -193,6 +199,12 @@ public class OrderServices : IOrderService
         {
             return ServiceResponse<OrderDetailsDto>
                 .FailureResponse("Order not found", 404);
+        }
+
+        if (userRole != "admin" && order.UserId != currentUserId)
+        {
+            return ServiceResponse<OrderDetailsDto>
+                .FailureResponse("Access denied to cancel this order", 403);
         }
 
         if (order.OrderStatus == "delivered")
@@ -215,7 +227,7 @@ public class OrderServices : IOrderService
             .SuccessResponse(MapToDetails(order), "Order cancelled successfully");
     }
 
-    public async Task<ServiceResponse<OrderTrackingDto>> GetOrderTrackingAsync(long orderId)
+    public async Task<ServiceResponse<OrderTrackingDto>> GetOrderTrackingAsync(long orderId, long currentUserId, string userRole)
     {
         var order = await _orderRepository.GetOrderByIdWithItemsAsync(orderId);
 
@@ -223,6 +235,12 @@ public class OrderServices : IOrderService
         {
             return ServiceResponse<OrderTrackingDto>
                 .FailureResponse("Order not found", 404);
+        }
+
+        if (userRole != "admin" && order.UserId != currentUserId)
+        {
+            return ServiceResponse<OrderTrackingDto>
+                .FailureResponse("Access denied to this order tracking", 403);
         }
 
         return ServiceResponse<OrderTrackingDto>
