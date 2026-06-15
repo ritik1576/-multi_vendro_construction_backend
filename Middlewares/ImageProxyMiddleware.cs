@@ -211,8 +211,23 @@ namespace InframartAPI_New.Middlewares
             }
             catch (AmazonS3Exception ex)
             {
+                Console.WriteLine("=== R2 UPLOAD FAILURE DEBUG ===");
+                Console.WriteLine($"Error Message: {ex.Message}");
+                Console.WriteLine($"Error Code: {ex.ErrorCode}");
+                Console.WriteLine($"HTTP Status: {ex.StatusCode}");
+                Console.WriteLine($"Request ID: {ex.RequestId}");
+                Console.WriteLine($"Bucket: {_r2Settings.BucketName}");
+                Console.WriteLine($"AccountId: {_r2Settings.AccountId}");
+                Console.WriteLine($"AccessKeyId: {_r2Settings.AccessKeyId}");
+                Console.WriteLine($"SecretAccessKey (first 6 chars): {(_r2Settings.SecretAccessKey.Length > 6 ? _r2Settings.SecretAccessKey.Substring(0, 6) : "")}...");
+                Console.WriteLine("================================");
+
                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                await context.Response.WriteAsJsonAsync(new { success = false, message = $"Cloudflare S3 Error: {ex.Message}" });
+                await context.Response.WriteAsJsonAsync(new 
+                { 
+                    success = false, 
+                    message = $"Cloudflare S3 Error: {ex.Message} (Code: {ex.ErrorCode}, Bucket: {_r2Settings.BucketName})" 
+                });
             }
             catch (Exception ex)
             {

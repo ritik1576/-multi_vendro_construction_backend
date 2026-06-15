@@ -15,6 +15,7 @@ namespace InframartAPI_New.Data
         public DbSet<Order> Orders { get; set; }
         public DbSet<Payment> Payments { get; set; }
         public DbSet<MultiVendorAPI.Models.ImageFile> ImageFiles { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -26,6 +27,12 @@ namespace InframartAPI_New.Data
                .WithOne()
                .HasForeignKey<Vendor>(v => v.UserId)
                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<Notification>()
+               .HasOne(n => n.User)
+               .WithMany()
+               .HasForeignKey(n => n.UserId)
+               .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

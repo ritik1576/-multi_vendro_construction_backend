@@ -13,17 +13,20 @@ public class OrderServices : IOrderService
     private readonly ICartRepository _cartRepository;
     private readonly InframartAPI_New.Data.AppDbContext _appDbContext;
     private readonly MultiVendorAPI.Data.ApplicationDbContext _applicationDbContext;
+    private readonly InframartAPI_New.Services.Interfaces.INotificationService _notificationService;
 
     public OrderServices(
         IOrderRepository orderRepository,
         ICartRepository cartRepository,
         InframartAPI_New.Data.AppDbContext appDbContext,
-        MultiVendorAPI.Data.ApplicationDbContext applicationDbContext)
+        MultiVendorAPI.Data.ApplicationDbContext applicationDbContext,
+        InframartAPI_New.Services.Interfaces.INotificationService notificationService)
     {
         _orderRepository = orderRepository;
         _cartRepository = cartRepository;
         _appDbContext = appDbContext;
         _applicationDbContext = applicationDbContext;
+        _notificationService = notificationService;
     }
 
     public async Task<ServiceResponse<PlaceOrderResponseDto>>
@@ -137,6 +140,44 @@ public class OrderServices : IOrderService
 
         await _orderRepository.SaveChangesAsync();
 
+        // Trigger notifications
+        try
+        {
+            // Customer notification
+            await _notificationService.CreateNotificationAsync(order.UserId, "Order Placed", $"Your order {order.OrderNumber} has been placed successfully.", "order");
+
+            // Vendors notification
+            var vendorIds = products.Where(p => p.VendorId.HasValue).Select(p => p.VendorId!.Value).Distinct().ToList();
+            if (vendorIds.Count > 0)
+            {
+                var vendorUserIds = await _appDbContext.Vendors
+                    .Where(v => vendorIds.Contains(v.Id) && v.UserId.HasValue)
+                    .Select(v => v.UserId!.Value)
+                    .ToListAsync();
+
+                foreach (var vendorUserId in vendorUserIds)
+                {
+                    await _notificationService.CreateNotificationAsync(vendorUserId, "New Order Received", $"You have received a new order {order.OrderNumber}.", "order");
+                }
+            }
+
+            // Admins notification
+            var adminUserIds = await _appDbContext.Users
+                .Where(u => u.Role == "admin")
+                .Select(u => u.Id)
+                .ToListAsync();
+
+            foreach (var adminUserId in adminUserIds)
+            {
+                await _notificationService.CreateNotificationAsync(adminUserId, "New Order Placed", $"A new order {order.OrderNumber} has been placed.", "order");
+            }
+        }
+        catch (Exception ex)
+        {
+            // We shouldn't fail the order if notifications fail
+            Console.WriteLine($"Notification trigger failed for order placement: {ex.Message}");
+        }
+
         var response = new PlaceOrderResponseDto
         {
             Id = order.Id,
@@ -221,6 +262,15 @@ public class OrderServices : IOrderService
                 : order.PaymentStatus;
 
             await _orderRepository.SaveChangesAsync();
+
+            try
+            {
+                await _notificationService.CreateNotificationAsync(order.UserId, "Order Cancelled", $"Your order {GetOrderNumber(order)} has been cancelled.", "order");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Notification failed on order cancellation: {ex.Message}");
+            }
         }
 
         return ServiceResponse<OrderDetailsDto>

@@ -165,5 +165,18 @@ namespace InframartAPI_New.Controllers
 
             return Ok(new { success = true, message = "Vendor status updated successfully", vendorId, newStatus = dto.Status });
         }
+
+        [HttpPost("announcement")]
+        public async Task<IActionResult> CreateAnnouncement([FromBody] CreateAnnouncementDto dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Title) || string.IsNullOrWhiteSpace(dto.Message))
+                return BadRequest(new { message = "Title and Message are required." });
+
+            var (success, error) = await _adminService.CreateAnnouncementAsync(dto.Title, dto.Message);
+            if (!success)
+                return BadRequest(new { message = error });
+
+            return Ok(new { success = true, message = "Announcement created successfully." });
+        }
     }
 }

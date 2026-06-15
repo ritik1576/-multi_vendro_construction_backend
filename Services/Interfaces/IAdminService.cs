@@ -14,5 +14,6 @@ namespace InframartAPI_New.Services.Interfaces
         Task<(bool success, string? error, AdminVendorDetailsDto? data)> GetVendorDetailsAsync(long vendorId);
         Task<(bool success, string? error, List<AdminOrderResponseDto>? data)> GetAllOrdersAsync();
         Task<(bool success, string? error, AuthResponseDto? data)> LoginAdminAsync(LoginDto dto);
+        Task<(bool success, string? error)> CreateAnnouncementAsync(string title, string message);
     }
 }

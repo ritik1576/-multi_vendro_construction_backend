@@ -56,6 +56,7 @@ builder.Services.AddScoped<IVendorRepository, VendorRepository>();
 builder.Services.AddScoped<ICartRepository, CartRepository>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IAddressRepository, AddressRepository>();
+builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 
 // Services
 builder.Services.AddScoped<IEmailService, EmailService>();
@@ -66,6 +67,8 @@ builder.Services.AddScoped<IAddressService, AddressService>();
 builder.Services.AddScoped<IVendorOrderService, VendorOrderService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IFileUploadService, FileUploadService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddSwaggerGen(options =>
 {
     // Repositories
@@ -186,6 +189,30 @@ app.UseMiddleware<InframartAPI_New.Middlewares.ImageProxyMiddleware>();
 app.MapControllers();
 
 
+
+// Auto-create image_files table if not exists
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        var db = scope.ServiceProvider.GetRequiredService<MultiVendorAPI.Data.ApplicationDbContext>();
+        await db.Database.ExecuteSqlRawAsync(@"
+            CREATE TABLE IF NOT EXISTS `image_files` (
+                `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+                `storage_key` VARCHAR(500) NOT NULL,
+                `file_name` VARCHAR(255) NOT NULL,
+                `content_type` VARCHAR(100) NOT NULL,
+                `vendor_id` BIGINT NOT NULL,
+                `created_at` DATETIME NOT NULL
+            );
+        ");
+        Console.WriteLine("Successfully ensured `image_files` table exists.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error checking/creating `image_files` table: {ex.Message}");
+    }
+}
 
 app.Run();
 
