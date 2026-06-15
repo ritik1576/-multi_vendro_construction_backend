@@ -43,13 +43,11 @@ namespace InframartAPI_New.Services
             var secretKey = _configuration["CloudflareR2:SecretKey"];
             var endpoint = _configuration["CloudflareR2:Endpoint"];
             var bucketName = _configuration["CloudflareR2:BucketName"];
-            var publicUrl = _configuration["CloudflareR2:PublicUrl"];
 
             if (string.IsNullOrWhiteSpace(accessKey) ||
                 string.IsNullOrWhiteSpace(secretKey) ||
                 string.IsNullOrWhiteSpace(endpoint) ||
-                string.IsNullOrWhiteSpace(bucketName) ||
-                string.IsNullOrWhiteSpace(publicUrl))
+                string.IsNullOrWhiteSpace(bucketName))
             {
                 throw new InvalidOperationException("Cloudflare R2 configuration is incomplete or missing.");
             }
@@ -85,9 +83,8 @@ namespace InframartAPI_New.Services
                 throw new Exception($"Failed to upload image to Cloudflare R2. S3 Response status: {response.HttpStatusCode}");
             }
 
-            // Construct return URL
-            var baseUrl = publicUrl.TrimEnd('/');
-            return $"{baseUrl}/{uniqueFileName}";
+            // Construct return URL using the proxy stream path
+            return $"/sys/stream/{uniqueFileName}";
         }
     }
 }

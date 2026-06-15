@@ -14,6 +14,7 @@ namespace InframartAPI_New.Data
         public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
         public DbSet<Order> Orders { get; set; }
         public DbSet<Payment> Payments { get; set; }
+        public DbSet<MultiVendorAPI.Models.ImageFile> ImageFiles { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

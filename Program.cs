@@ -24,12 +24,13 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 
 var serverVersion = ServerVersion.AutoDetect(connectionString);
 
-// Database Contexts
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(connectionString, serverVersion));
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseMySql(connectionString, serverVersion));
+
+builder.Services.AddHttpContextAccessor();
 // ================= SERVICES =================
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IVendorService, VendorService>();
@@ -37,6 +38,11 @@ builder.Services.AddScoped<IVendorService, VendorService>();
 // ================= RAZORPAY CONFIG =================
 builder.Services.Configure<RazorpaySettings>(
     builder.Configuration.GetSection("Razorpay")
+);
+
+// ================= CLOUDFLARE R2 CONFIG =================
+builder.Services.Configure<InframartAPI_New.Models.CloudflareR2Settings>(
+    builder.Configuration.GetSection("CloudflareR2")
 );
 
 // Controllers
@@ -174,6 +180,8 @@ app.UseCors("FrontendPolicy");
 app.UseAuthentication();
 
 app.UseAuthorization();
+
+app.UseMiddleware<InframartAPI_New.Middlewares.ImageProxyMiddleware>();
 
 app.MapControllers();
 

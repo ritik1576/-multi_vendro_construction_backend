@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using MultiVendorAPI.Data;
 using MultiVendorAPI.DTOs;
@@ -10,10 +11,34 @@ namespace MultiVendorAPI.Services
     public class ProductService : IProductService
     {
         private readonly ApplicationDbContext _context;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public ProductService(ApplicationDbContext context)
+        public ProductService(ApplicationDbContext context, IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
+            _httpContextAccessor = httpContextAccessor;
+        }
+
+        private string? FormatThumbnailUrl(string? thumbnail)
+        {
+            if (string.IsNullOrEmpty(thumbnail))
+                return thumbnail;
+
+            if (thumbnail.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || 
+                thumbnail.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                return thumbnail;
+            }
+
+            var request = _httpContextAccessor.HttpContext?.Request;
+            if (request == null)
+            {
+                return $"/sys/stream/{thumbnail}";
+            }
+
+            var scheme = request.Scheme;
+            var host = request.Host;
+            return $"{scheme}://{host}/sys/stream/{thumbnail}";
         }
 
         public async Task<List<ProductDto>> GetProductsAsync()
@@ -38,6 +63,11 @@ namespace MultiVendorAPI.Services
                         .FirstOrDefault()
                 })
                 .ToListAsync();
+
+            foreach (var prod in products)
+            {
+                prod.Thumbnail = FormatThumbnailUrl(prod.Thumbnail);
+            }
 
             return products;
         }
@@ -100,7 +130,7 @@ namespace MultiVendorAPI.Services
                 Name = product.Name,
                 Price = product.Price,
                 DiscountPrice = product.DiscountPrice,
-                Thumbnail = product.Thumbnail,
+                Thumbnail = FormatThumbnailUrl(product.Thumbnail),
                 CategoryId = product.CategoryId,
                 ShortDescription = product.ShortDescription,
                 Category = category.Name
@@ -152,6 +182,7 @@ namespace MultiVendorAPI.Services
                     .FirstOrDefaultAsync()
                 : null;
 
+            var formattedThumbnail = FormatThumbnailUrl(product.Thumbnail);
             var getDetailedProductDto = new GetDetailedProductDto
             {
                 Id = product.Id,
@@ -165,16 +196,16 @@ namespace MultiVendorAPI.Services
                 Price = product.Price,
                 DiscountPrice = product.DiscountPrice,
                 Sku = product.Sku,
-                Thumbnail = product.Thumbnail,
+                Thumbnail = formattedThumbnail,
                 Status = product.Status,
                 InStock = product.InStock,
                 Quantity = product.Quantity,
                 Unit = product.Unit,
                 CreatedAt = product.CreatedAt,
                 UpdatedAt = product.UpdatedAt,
-                Images = string.IsNullOrWhiteSpace(product.Thumbnail)
+                Images = string.IsNullOrWhiteSpace(formattedThumbnail)
                     ? new List<string>()
-                    : new List<string> { product.Thumbnail },
+                    : new List<string> { formattedThumbnail },
                 Category = categoryName,
                 VendorName = vendorName
             };
@@ -280,7 +311,7 @@ namespace MultiVendorAPI.Services
                         Name = product.Name,
                         Price = product.Price,
                         DiscountPrice = product.DiscountPrice,
-                        Thumbnail = product.Thumbnail,
+                        Thumbnail = FormatThumbnailUrl(product.Thumbnail),
                         CategoryId = product.CategoryId,
                         ShortDescription = product.ShortDescription,
                         Category = _context.Categories
@@ -346,7 +377,6 @@ namespace MultiVendorAPI.Services
         }
         public async Task<ServiceResponse<List<ProductDto>>> SearchProductsAsync(string searchTerm)
         {
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
             var products = await _context.Products
                 .Where(p => p.Name.Contains(searchTerm) && p.Status != "inactive" && p.Status != "deleted")
                 .Select(p => new ProductDto
@@ -364,6 +394,11 @@ namespace MultiVendorAPI.Services
                         .FirstOrDefault()
                 })
                 .ToListAsync();
+
+            foreach (var prod in products)
+            {
+                prod.Thumbnail = FormatThumbnailUrl(prod.Thumbnail);
+            }
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
 
             return ServiceResponse<List<ProductDto>>
@@ -409,6 +444,11 @@ namespace MultiVendorAPI.Services
                         .FirstOrDefault()
                 })
                 .ToListAsync();
+
+            foreach (var prod in products)
+            {
+                prod.Thumbnail = FormatThumbnailUrl(prod.Thumbnail);
+            }
 
             return ServiceResponse<List<ProductDto>>.SuccessResponse(products, "Blocked products retrieved successfully", 200);
         }
