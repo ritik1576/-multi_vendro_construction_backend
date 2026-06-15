@@ -88,7 +88,10 @@ public class OrderServices : IOrderService
                         400);
             }
 
-            subtotal += product.Price.GetValueOrDefault() * item.Quantity;
+            var price = product.DiscountPrice.HasValue && product.DiscountPrice.Value > 0
+                ? product.DiscountPrice.Value
+                : product.Price.GetValueOrDefault();
+            subtotal += price * item.Quantity;
             products.Add(product);
         }
 
@@ -116,7 +119,9 @@ public class OrderServices : IOrderService
         {
             var item = dto.Items[i];
             var product = products[i];
-            var price = product.Price.GetValueOrDefault();
+            var price = product.DiscountPrice.HasValue && product.DiscountPrice.Value > 0
+                ? product.DiscountPrice.Value
+                : product.Price.GetValueOrDefault();
 
             await _orderRepository.CreateOrderItemAsync(new OrderItem
             {
