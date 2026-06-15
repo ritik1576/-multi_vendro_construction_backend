@@ -15,5 +15,6 @@ namespace InframartAPI_New.DTOs
         public string? Status { get; set; }
 
         public string? ShopName { get; set; }
+        public string? FullName { get; set; }
     }
 }

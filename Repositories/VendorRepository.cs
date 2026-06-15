@@ -46,4 +46,12 @@ public class VendorRepository : IVendorRepository
 
         return (user, vendor);
     }
+
+    public async Task<List<long>> GetAdminUserIdsAsync()
+    {
+        return await _context.Users
+            .Where(u => u.Role == "admin")
+            .Select(u => u.Id)
+            .ToListAsync();
+    }
 }

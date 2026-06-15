@@ -16,13 +16,16 @@ namespace InframartAPI_New.Services
     {
         private readonly IVendorRepository _vendorRepository;
         private readonly IConfiguration _configuration;
+        private readonly INotificationService _notificationService;
 
         public VendorService(
             IVendorRepository vendorRepository,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            INotificationService notificationService)
         {
             _vendorRepository = vendorRepository;
             _configuration = configuration;
+            _notificationService = notificationService;
         }
 
         public async Task<AuthResponseDto> RegisterVendorAsync(
@@ -65,6 +68,20 @@ namespace InframartAPI_New.Services
 
             await _vendorRepository.AddVendorAsync(vendor);
             await _vendorRepository.SaveChangesAsync();
+
+            // Trigger notification to admins
+            try
+            {
+                var adminUserIds = await _vendorRepository.GetAdminUserIdsAsync();
+                foreach (var adminId in adminUserIds)
+                {
+                    await _notificationService.CreateNotificationAsync(adminId, "New Vendor Registration", $"A new vendor '{vendor.ShopName}' has registered and is pending approval.", "vendor");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Notification failed for vendor registration: {ex.Message}");
+            }
 
             var claims = new[]
             {
@@ -193,6 +210,7 @@ namespace InframartAPI_New.Services
                 Role = user.Role,
                 Status = vendor?.Status,
                 ShopName = vendor?.ShopName,
+                FullName = user.FullName,
                 Token = new JwtSecurityTokenHandler().WriteToken(token)
             };
         }

@@ -10,11 +10,13 @@ namespace InframartAPI_New.Services
     {
         private readonly AppDbContext _authCtx;          // users, vendors (auth side)
         private readonly ApplicationDbContext _appCtx;   // orders, products, addresses
+        private readonly INotificationService _notificationService;
 
-        public VendorOrderService(AppDbContext authCtx, ApplicationDbContext appCtx)
+        public VendorOrderService(AppDbContext authCtx, ApplicationDbContext appCtx, INotificationService notificationService)
         {
             _authCtx = authCtx;
             _appCtx = appCtx;
+            _notificationService = notificationService;
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -313,7 +315,7 @@ namespace InframartAPI_New.Services
         public async Task<(bool success, string? error)>
             UpdateOrderStatusAsync(long vendorId, long orderId, UpdateOrderStatusDto dto)
         {
-            var allowed = new[] { "pending", "confirmed", "shipped", "delivered", "cancelled" };
+            var allowed = new[] { "pending", "confirmed", "packed", "shipped", "outfordelivery", "delivered", "cancelled" };
             var newStatus = dto.Status?.ToLower() ?? "";
             if (!allowed.Contains(newStatus))
                 return (false, $"Invalid status. Allowed: {string.Join(", ", allowed)}");
@@ -342,14 +344,60 @@ namespace InframartAPI_New.Services
             if (currentStatus == "pending" && newStatus != "confirmed" && newStatus != "cancelled")
                 return (false, "Pending orders can only be changed to confirmed or cancelled");
 
-            if (currentStatus == "confirmed" && newStatus != "shipped" && newStatus != "cancelled")
-                return (false, "Confirmed orders can only be changed to shipped or cancelled");
+            if (currentStatus == "confirmed" && newStatus != "packed" && newStatus != "shipped" && newStatus != "cancelled")
+                return (false, "Confirmed orders can only be changed to packed, shipped, or cancelled");
 
-            if (currentStatus == "shipped" && newStatus != "delivered" && newStatus != "cancelled")
-                return (false, "Shipped orders can only be changed to delivered or cancelled");
+            if (currentStatus == "packed" && newStatus != "shipped" && newStatus != "cancelled")
+                return (false, "Packed orders can only be changed to shipped or cancelled");
+
+            if (currentStatus == "shipped" && newStatus != "outfordelivery" && newStatus != "delivered" && newStatus != "cancelled")
+                return (false, "Shipped orders can only be changed to outfordelivery, delivered, or cancelled");
+
+            if (currentStatus == "outfordelivery" && newStatus != "delivered" && newStatus != "cancelled")
+                return (false, "Outfordelivery orders can only be changed to delivered or cancelled");
 
             order.OrderStatus = newStatus;
             await _appCtx.SaveChangesAsync();
+
+            // Trigger notification
+            try
+            {
+                if (newStatus == "confirmed")
+                {
+                    await _notificationService.CreateNotificationAsync(order.UserId, "Order Approved", $"Your order {order.OrderNumber} has been approved.", "order");
+                }
+                else if (newStatus == "cancelled")
+                {
+                    if (currentStatus == "pending")
+                    {
+                        await _notificationService.CreateNotificationAsync(order.UserId, "Order Rejected", $"Your order {order.OrderNumber} has been rejected.", "order");
+                    }
+                    else
+                    {
+                        await _notificationService.CreateNotificationAsync(order.UserId, "Order Cancelled", $"Your order {order.OrderNumber} has been cancelled.", "order");
+                    }
+                }
+                else if (newStatus == "packed")
+                {
+                    await _notificationService.CreateNotificationAsync(order.UserId, "Order Packed", $"Your order {order.OrderNumber} has been packed.", "tracking");
+                }
+                else if (newStatus == "shipped")
+                {
+                    await _notificationService.CreateNotificationAsync(order.UserId, "Order Shipped", $"Your order {order.OrderNumber} has been shipped.", "tracking");
+                }
+                else if (newStatus == "outfordelivery")
+                {
+                    await _notificationService.CreateNotificationAsync(order.UserId, "Out For Delivery", $"Your order {order.OrderNumber} is out for delivery.", "tracking");
+                }
+                else if (newStatus == "delivered")
+                {
+                    await _notificationService.CreateNotificationAsync(order.UserId, "Order Delivered", $"Your order {order.OrderNumber} has been delivered.", "tracking");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Notification trigger failed on vendor order status update: {ex.Message}");
+            }
 
             return (true, null);
         }

@@ -10,6 +10,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using InframartAPI_New.Services;
+using InframartAPI_New.Services.Interfaces;
 
 namespace InframartAPI_New.Controllers
 {
@@ -21,13 +22,14 @@ namespace InframartAPI_New.Controllers
         private readonly AppDbContext _context;
         private readonly IConfiguration _configuration;
         private readonly IVendorService _vendorService;
+        private readonly INotificationService _notificationService;
 
-        public AuthController(AppDbContext context, IConfiguration configuration, IVendorService vendorService)
+        public AuthController(AppDbContext context, IConfiguration configuration, IVendorService vendorService, INotificationService notificationService)
         {
             _context = context;
             _configuration = configuration;
             _vendorService = vendorService;
-
+            _notificationService = notificationService;
         }
 
         // ================= REGISTER =================
@@ -61,6 +63,9 @@ namespace InframartAPI_New.Controllers
 
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
+
+            // Trigger welcome notification
+            await _notificationService.CreateNotificationAsync(user.Id, "Welcome to InfraMart", "Welcome to InfraMart!", "customer");
 
             return Ok(new
             {
@@ -134,9 +139,11 @@ namespace InframartAPI_New.Controllers
             Console.WriteLine($"DB Email: {user.Email}");
             var response = new DTOs.AuthResponseDto
             {
+                Success = true,
                 Message = "Login successful",
                 UserId = user.Id,
                 Role = user.Role,
+                FullName = user.FullName,
                 Token = new JwtSecurityTokenHandler().WriteToken(token)
             };
 
@@ -240,15 +247,36 @@ namespace InframartAPI_New.Controllers
                 signingCredentials: creds
             );
 
-            var response = new DTOs.AuthResponseDto
-            {
-                Message = "Admin login successful",
-                UserId = user.Id,
-                Role = user.Role,
-                Token = new JwtSecurityTokenHandler().WriteToken(token)
-            };
+             var response = new DTOs.AuthResponseDto
+             {
+                 Success = true,
+                 Message = "Admin login successful",
+                 UserId = user.Id,
+                 Role = user.Role,
+                 FullName = user.FullName,
+                 Token = new JwtSecurityTokenHandler().WriteToken(token)
+             };
 
             return Ok(response);
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.NewPassword))
+                return BadRequest(new { message = "Email and New Password are required." });
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+            if (user == null)
+                return NotFound(new { message = "User not found." });
+
+            user.Password = Services.PasswordHelper.HashPassword(request.NewPassword);
+            await _context.SaveChangesAsync();
+
+            // Trigger password reset notification
+            await _notificationService.CreateNotificationAsync(user.Id, "Password Reset Successful", "Your password has been reset successfully.", "system");
+
+            return Ok(new { message = "Password reset successfully." });
         }
     }
 }

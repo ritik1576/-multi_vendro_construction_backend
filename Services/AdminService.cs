@@ -19,12 +19,14 @@ namespace InframartAPI_New.Services
         private readonly AppDbContext _context;
         private readonly ApplicationDbContext _appContext;
         private readonly IConfiguration _configuration;
+        private readonly INotificationService _notificationService;
 
-        public AdminService(AppDbContext context, ApplicationDbContext appContext, IConfiguration configuration)
+        public AdminService(AppDbContext context, ApplicationDbContext appContext, IConfiguration configuration, INotificationService notificationService)
         {
             _context = context;
             _appContext = appContext;
             _configuration = configuration;
+            _notificationService = notificationService;
         }
 
 
@@ -77,6 +79,19 @@ namespace InframartAPI_New.Services
 
             vendor.Status = newStatus;
             await _context.SaveChangesAsync();
+
+            // Trigger notification
+            if (vendor.UserId.HasValue)
+            {
+                if (newStatus == "approved")
+                {
+                    await _notificationService.CreateNotificationAsync(vendor.UserId.Value, "Vendor Approved", "Your vendor profile has been approved.", "vendor");
+                }
+                else if (newStatus == "rejected")
+                {
+                    await _notificationService.CreateNotificationAsync(vendor.UserId.Value, "Vendor Rejected", "Your vendor profile has been rejected.", "vendor");
+                }
+            }
 
             return (true, null);
         }
@@ -195,6 +210,11 @@ namespace InframartAPI_New.Services
 
             user.Status = targetStatus;
             await _context.SaveChangesAsync();
+
+            if (targetStatus == "active")
+            {
+                await _notificationService.CreateNotificationAsync(userId, "Account Activated", "Your account has been activated successfully.", "customer");
+            }
 
             return (true, null);
         }
@@ -332,6 +352,25 @@ namespace InframartAPI_New.Services
             };
 
             return (true, null, response);
+        }
+
+        public async Task<(bool success, string? error)> CreateAnnouncementAsync(string title, string message)
+        {
+            if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(message))
+            {
+                return (false, "Title and message are required.");
+            }
+
+            try
+            {
+                var userIds = await _context.Users.Select(u => u.Id).ToListAsync();
+                await _notificationService.CreateNotificationsBulkAsync(userIds, title, message, "announcement");
+                return (true, null);
+            }
+            catch (Exception ex)
+            {
+                return (false, $"An error occurred: {ex.Message}");
+            }
         }
     }
 }
