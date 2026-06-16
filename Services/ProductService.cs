@@ -117,7 +117,7 @@ namespace MultiVendorAPI.Services
                 InStock = dto.InStock,
                 Quantity = dto.Quantity,
                 Unit = dto.Unit,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.Now
             };
 
             _context.Products.Add(product);
@@ -300,7 +300,7 @@ namespace MultiVendorAPI.Services
             product.Unit = dto.Unit;
 
             // updated_at
-            product.UpdatedAt = DateTime.UtcNow;
+            product.UpdatedAt = DateTime.Now;
 
             await _context.SaveChangesAsync();
 
@@ -349,7 +349,7 @@ namespace MultiVendorAPI.Services
             }
 
             product.Status = "deleted";
-            product.UpdatedAt = DateTime.UtcNow;
+            product.UpdatedAt = DateTime.Now;
 
             await _context.SaveChangesAsync();
 
@@ -417,7 +417,7 @@ namespace MultiVendorAPI.Services
             }
 
             product.Status = "inactive";
-            product.UpdatedAt = DateTime.UtcNow;
+            product.UpdatedAt = DateTime.Now;
 
             await _context.SaveChangesAsync();
 

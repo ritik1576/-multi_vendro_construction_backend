@@ -56,7 +56,7 @@ namespace MultiVendorAPI.Services
                 PostalCode = dto.PostalCode,
                 AddressType = dto.AddressType,
                 IsDefault = isFirstAddress || dto.IsDefault,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.Now
             };
 
             if (address.IsDefault && !isFirstAddress)
