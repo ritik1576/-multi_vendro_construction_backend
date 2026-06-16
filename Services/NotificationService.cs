@@ -227,7 +227,7 @@ namespace InframartAPI_New.Services
                     Message = message,
                     Type = type.ToLower(),
                     IsRead = false,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now
                 };
 
                 await _notificationRepository.CreateNotificationAsync(notification);
@@ -253,7 +253,7 @@ namespace InframartAPI_New.Services
                     Message = message,
                     Type = type.ToLower(),
                     IsRead = false,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now
                 }).ToList();
 
                 await _notificationRepository.CreateNotificationsBulkAsync(notifications);

@@ -92,7 +92,7 @@ public class OrderServices : IOrderService
             products.Add(product);
         }
 
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var order = new Order
         {
             UserId = dto.UserId,

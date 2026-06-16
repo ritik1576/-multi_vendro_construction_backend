@@ -195,7 +195,7 @@ namespace InframartAPI_New.Middlewares
                     FileName = file.FileName,
                     ContentType = file.ContentType,
                     VendorId = vendorId,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now
                 };
 
                 db.ImageFiles.Add(imageFile);

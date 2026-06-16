@@ -67,7 +67,7 @@ namespace InframartAPI_New.Services
                     Amount = total_amount,
                     Status = "created",
                     Payment_Method = "razorpay",
-                    Created_At = DateTime.UtcNow,
+                    Created_At = DateTime.Now,
                     Razorpay_Order_Id = razorpayOrder["id"].ToString()
                 };
 
@@ -143,7 +143,7 @@ namespace InframartAPI_New.Services
 
                 dbPayment.Razorpay_Payment_Id = request.RazorpayPayment_Id;
                 dbPayment.Status = "paid";
-                dbPayment.Paid_At = DateTime.UtcNow;
+                dbPayment.Paid_At = DateTime.Now;
 
                 order.PaymentStatus = "paid";
 
