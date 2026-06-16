@@ -21,6 +21,8 @@ namespace MultiVendorAPI.Data
         public DbSet<OrderItem> OrderItems { get; set; }
         public DbSet<Address> Addresses { get; set; }
         public DbSet<ImageFile> ImageFiles { get; set; }
+        public DbSet<Review> Reviews { get; set; }
+        public DbSet<User> Users { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -159,6 +161,39 @@ namespace MultiVendorAPI.Data
                 entity.Property(a => a.AddressType).HasColumnName("address_type");
                 entity.Property(a => a.IsDefault).HasColumnName("is_default");
                 entity.Property(a => a.CreatedAt).HasColumnName("created_at");
+            });
+
+            modelBuilder.Entity<Review>(entity =>
+            {
+                entity.ToTable("reviews");
+                entity.HasKey(r => r.Id);
+                entity.Property(r => r.Id).HasColumnName("id");
+                entity.Property(r => r.UserId).HasColumnName("user_id");
+                entity.Property(r => r.ProductId).HasColumnName("product_id");
+                entity.Property(r => r.Rating).HasColumnName("rating");
+                entity.Property(r => r.ReviewText).HasColumnName("review");
+                entity.Property(r => r.CreatedAt).HasColumnName("created_at");
+
+                entity.HasOne(r => r.Product)
+                    .WithMany()
+                    .HasForeignKey(r => r.ProductId);
+
+                entity.HasOne(r => r.User)
+                    .WithMany()
+                    .HasForeignKey(r => r.UserId);
+            });
+
+            modelBuilder.Entity<User>(entity =>
+            {
+                entity.ToTable("users");
+                entity.HasKey(u => u.Id);
+                entity.Property(u => u.Id).HasColumnName("id");
+                entity.Property(u => u.FullName).HasColumnName("full_name");
+                entity.Property(u => u.Email).HasColumnName("email");
+                entity.Property(u => u.Password).HasColumnName("password");
+                entity.Property(u => u.Phone).HasColumnName("phone");
+                entity.Property(u => u.Role).HasColumnName("role");
+                entity.Property(u => u.Status).HasColumnName("status");
             });
         }
     }
