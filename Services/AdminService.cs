@@ -372,6 +372,38 @@ namespace InframartAPI_New.Services
                 return (false, $"An error occurred: {ex.Message}");
             }
         }
+
+        public async Task<(bool success, string? error, List<AdminReviewResponseDto>? data)> GetAllReviewsAsync()
+        {
+            try
+            {
+                var reviews = await _appContext.Reviews
+                    .Include(r => r.Product)
+                    .Include(r => r.User)
+                    .OrderByDescending(r => r.CreatedAt)
+                    .ToListAsync();
+
+                var reviewDtos = reviews.Select(r => new AdminReviewResponseDto
+                {
+                    Id = r.Id,
+                    UserId = r.UserId,
+                    CustomerName = r.User?.FullName,
+                    CustomerEmail = r.User?.Email,
+                    ProductId = r.ProductId,
+                    ProductName = r.Product?.Name,
+                    ProductThumbnail = r.Product?.Thumbnail,
+                    Rating = r.Rating,
+                    ReviewText = r.ReviewText,
+                    CreatedAt = r.CreatedAt
+                }).ToList();
+
+                return (true, null, reviewDtos);
+            }
+            catch (Exception ex)
+            {
+                return (false, $"An error occurred while fetching reviews: {ex.Message}", null);
+            }
+        }
     }
 }
 

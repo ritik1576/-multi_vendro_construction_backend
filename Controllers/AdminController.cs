@@ -178,5 +178,20 @@ namespace InframartAPI_New.Controllers
 
             return Ok(new { success = true, message = "Announcement created successfully." });
         }
+
+        [HttpGet("reviews")]
+        public async Task<IActionResult> GetAllReviews()
+        {
+            var (success, error, data) = await _adminService.GetAllReviewsAsync();
+            if (!success)
+                return BadRequest(new { message = error });
+
+            return Ok(new
+            {
+                success = true,
+                totalReviews = data!.Count,
+                data
+            });
+        }
     }
 }
