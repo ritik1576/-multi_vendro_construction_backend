@@ -3,6 +3,7 @@ using MultiVendorAPI.Models;
 using MultiVendorAPI.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
+using MultiVendorAPI.Services.Interfaces;
 
 public class OrderServices : IOrderService
 {
@@ -14,19 +15,22 @@ public class OrderServices : IOrderService
     private readonly InframartAPI_New.Data.AppDbContext _appDbContext;
     private readonly MultiVendorAPI.Data.ApplicationDbContext _applicationDbContext;
     private readonly InframartAPI_New.Services.Interfaces.INotificationService _notificationService;
+    private readonly ICouponService _couponService;
 
     public OrderServices(
         IOrderRepository orderRepository,
         ICartRepository cartRepository,
         InframartAPI_New.Data.AppDbContext appDbContext,
         MultiVendorAPI.Data.ApplicationDbContext applicationDbContext,
-        InframartAPI_New.Services.Interfaces.INotificationService notificationService)
+        InframartAPI_New.Services.Interfaces.INotificationService notificationService,
+        ICouponService couponService)
     {
         _orderRepository = orderRepository;
         _cartRepository = cartRepository;
         _appDbContext = appDbContext;
         _applicationDbContext = applicationDbContext;
         _notificationService = notificationService;
+        _couponService = couponService;
     }
 
     public async Task<ServiceResponse<PlaceOrderResponseDto>>
@@ -93,14 +97,31 @@ public class OrderServices : IOrderService
         }
 
         var now = DateTime.Now;
+        decimal discountAmount = 0;
+        long? couponId = null;
+
+        if (!string.IsNullOrWhiteSpace(dto.CouponCode))
+        {
+            var couponValidation = await _couponService.ValidateCouponAsync(dto.CouponCode, dto.UserId);
+            if (!couponValidation.Valid || couponValidation.Coupon == null)
+            {
+                return ServiceResponse<PlaceOrderResponseDto>
+                    .FailureResponse(couponValidation.Message ?? "Invalid coupon", 400);
+            }
+            couponId = couponValidation.Coupon.Id;
+            discountAmount = await _couponService.CalculateDiscountAsync(couponValidation.Coupon, subtotal);
+        }
+
         var order = new Order
         {
             UserId = dto.UserId,
             AddressId = dto.AddressId,
             Subtotal = subtotal,
-            DiscountAmount = 0,
+            DiscountAmount = discountAmount,
             ShippingCharge = DeliveryCharge,
-            TotalAmount = subtotal + DeliveryCharge,
+            TotalAmount = subtotal - discountAmount + DeliveryCharge,
+            CouponId = couponId,
+            CouponCode = dto.CouponCode,
             PaymentStatus = "pending",
             OrderStatus = "pending",
             PlacedAt = now,
@@ -137,6 +158,23 @@ public class OrderServices : IOrderService
                 product.InStock = false;
             }
         }
+
+        if (couponId.HasValue)
+        {
+            var couponUsage = new CouponUsage
+            {
+                CouponId = couponId.Value,
+                UserId = dto.UserId,
+                OrderId = order.Id,
+                DiscountAmount = discountAmount,
+                UsedAt = now
+            };
+            await _applicationDbContext.CouponUsages.AddAsync(couponUsage);
+        }
+
+        // Clear cart items
+        var cartItems = cart.CartItems.ToList();
+        await _cartRepository.RemoveCartItemsAsync(cartItems);
 
         await _orderRepository.SaveChangesAsync();
 
