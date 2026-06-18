@@ -9,6 +9,7 @@ namespace MultiVendorAPI.Models
         public string? Code { get; set; }
         public string? DiscountType { get; set; } // 'percentage' or 'fixed'
         public decimal? DiscountValue { get; set; }
+        public decimal? MaxDiscount { get; set; }
         public decimal? MinimumOrderAmount { get; set; }
         public int? UsageLimit { get; set; }
         public int? UsedCount { get; set; }

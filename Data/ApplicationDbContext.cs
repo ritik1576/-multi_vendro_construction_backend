@@ -140,6 +140,7 @@ namespace MultiVendorAPI.Data
                 entity.Property(c => c.Code).HasColumnName("code");
                 entity.Property(c => c.DiscountType).HasColumnName("discount_type");
                 entity.Property(c => c.DiscountValue).HasColumnName("discount_value");
+                entity.Property(c => c.MaxDiscount).HasColumnName("max_discount");
                 entity.Property(c => c.MinimumOrderAmount).HasColumnName("minimum_order_amount");
                 entity.Property(c => c.UsageLimit).HasColumnName("usage_limit");
                 entity.Property(c => c.UsedCount).HasColumnName("used_count");

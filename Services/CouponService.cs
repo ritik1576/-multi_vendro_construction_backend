@@ -134,11 +134,9 @@ namespace MultiVendorAPI.Services
             else if (string.Equals(coupon.DiscountType, "percentage", StringComparison.OrdinalIgnoreCase))
             {
                 discount = cartTotal * (val / 100m);
-                // The table does not have a max_discount column, but standard validation constraints:
-                // If coupon is SAVE10 (10% OFF, Maximum Discount ₹500), let's hardcode it if code is SAVE10.
-                if (string.Equals(coupon.Code, "SAVE10", StringComparison.OrdinalIgnoreCase) && discount > 500m)
+                if (coupon.MaxDiscount.HasValue && discount > coupon.MaxDiscount.Value)
                 {
-                    discount = 500m;
+                    discount = coupon.MaxDiscount.Value;
                 }
             }
 
@@ -179,6 +177,7 @@ namespace MultiVendorAPI.Services
                 Code = dto.Code.Trim().ToUpper(),
                 DiscountType = dto.DiscountType.ToLower() == "percentage" ? "percentage" : "fixed",
                 DiscountValue = dto.DiscountValue,
+                MaxDiscount = dto.MaxDiscount,
                 MinimumOrderAmount = dto.MinimumAmount,
                 UsageLimit = dto.UsageLimit,
                 StartDate = dto.StartDate,
