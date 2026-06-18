@@ -221,6 +221,12 @@ namespace MultiVendorAPI.Services
                 return false;
             }
 
+            var usages = await _context.CouponUsages.Where(cu => cu.CouponId == id).ToListAsync();
+            if (usages.Any())
+            {
+                _context.CouponUsages.RemoveRange(usages);
+            }
+
             _context.Coupons.Remove(coupon);
             await _context.SaveChangesAsync();
             return true;
