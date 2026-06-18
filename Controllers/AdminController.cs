@@ -178,5 +178,38 @@ namespace InframartAPI_New.Controllers
 
             return Ok(new { success = true, message = "Announcement created successfully." });
         }
+
+        [HttpGet("reviews")]
+        public async Task<IActionResult> GetAllReviews()
+        {
+            var (success, error, data) = await _adminService.GetAllReviewsAsync();
+            if (!success)
+                return BadRequest(new { message = error });
+
+            return Ok(new
+            {
+                success = true,
+                totalReviews = data!.TotalReviews,
+                averageRating = data.AverageRating,
+                fiveStarReviews = data.FiveStarReviews,
+                lowRatingReviews = data.LowRatingReviews,
+                reviews = data.Reviews,
+                data = data.Reviews
+            });
+        }
+
+        [HttpDelete("reviews/{id:long}")]
+        public async Task<IActionResult> DeleteReview(long id)
+        {
+            var (success, error) = await _adminService.DeleteReviewAsync(id);
+            if (!success)
+                return BadRequest(new { message = error });
+
+            return Ok(new
+            {
+                success = true,
+                message = "Review deleted successfully"
+            });
+        }
     }
 }

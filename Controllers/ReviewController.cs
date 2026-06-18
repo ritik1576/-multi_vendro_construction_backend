@@ -40,7 +40,7 @@ namespace MultiVendorAPI.Controllers
         }
 
         [HttpPost]
-        [Authorize]
+        [Authorize(Roles = "customer")]
         public async Task<IActionResult> CreateReview([FromBody] CreateReviewDto dto)
         {
             if (!ModelState.IsValid)
@@ -61,7 +61,7 @@ namespace MultiVendorAPI.Controllers
         }
 
         [HttpDelete("{id:long}")]
-        [Authorize(Roles = "admin,vendor")]
+        [Authorize(Roles = "admin")]
         public async Task<IActionResult> DeleteReview(long id)
         {
             var userId = GetCurrentUserId();

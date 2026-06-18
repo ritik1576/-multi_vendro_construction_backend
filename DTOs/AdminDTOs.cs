@@ -78,4 +78,29 @@ namespace InframartAPI_New.DTOs
         public string? VendorEmail { get; set; }
         public string? VendorPhone { get; set; }
     }
+
+    public class AdminReviewResponseDto
+    {
+        public long Id { get; set; }
+        public long UserId { get; set; }
+        public string? CustomerName { get; set; }
+        public string? CustomerEmail { get; set; }
+        public long ProductId { get; set; }
+        public string? ProductName { get; set; }
+        public string? ProductThumbnail { get; set; }
+        public int Rating { get; set; }
+        public string ReviewText { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+        public long? VendorId { get; set; }
+        public string? VendorShopName { get; set; }
+    }
+
+    public class AdminReviewListDto
+    {
+        public int TotalReviews { get; set; }
+        public double AverageRating { get; set; }
+        public int FiveStarReviews { get; set; }
+        public int LowRatingReviews { get; set; }
+        public List<AdminReviewResponseDto> Reviews { get; set; } = new();
+    }
 }
