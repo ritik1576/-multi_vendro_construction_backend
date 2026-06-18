@@ -18,8 +18,8 @@ public class Order
     public decimal TotalAmount { get; set; }
     public decimal DiscountAmount { get; set; }
     public decimal ShippingCharge { get; set; }
-    public string PaymentStatus { get; set; } = "Pending";
-    public string OrderStatus { get; set; } = "Pending";
+    public string PaymentStatus { get; set; } = "pending";
+    public string OrderStatus { get; set; } = "pending";
     public DateTime PlacedAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public long UserId { get; set; }
