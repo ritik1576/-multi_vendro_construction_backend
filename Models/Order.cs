@@ -1,4 +1,5 @@
 using MultiVendorAPI.Models;
+using System.ComponentModel.DataAnnotations.Schema;
 
 public class Order
 {
@@ -9,6 +10,8 @@ public class Order
 
     public List<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
     public long? CouponId { get; set; }
+
+    [NotMapped]
     public string? CouponCode { get; set; }
     public string? OrderNumber { get; set; }
     public decimal Subtotal { get; set; }

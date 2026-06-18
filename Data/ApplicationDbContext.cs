@@ -116,7 +116,6 @@ namespace MultiVendorAPI.Data
                 entity.Property(o => o.UserId).HasColumnName("user_id");
                 entity.Property(o => o.AddressId).HasColumnName("address_id");
                 entity.Property(o => o.CouponId).HasColumnName("coupon_id");
-                entity.Property(o => o.CouponCode).HasColumnName("coupon_code");
                 entity.Property(o => o.OrderNumber).HasColumnName("order_number");
                 entity.Property(o => o.Subtotal).HasColumnName("subtotal");
                 entity.Property(o => o.DiscountAmount).HasColumnName("discount_amount");
