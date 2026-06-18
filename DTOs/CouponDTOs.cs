@@ -47,4 +47,20 @@ namespace MultiVendorAPI.DTOs
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
     }
+
+    public class AdminCouponDto
+    {
+        public long Id { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string DiscountType { get; set; } = string.Empty;
+        public decimal DiscountValue { get; set; }
+        public decimal? MaxDiscount { get; set; }
+        public decimal? MinimumOrderAmount { get; set; }
+        public int? UsageLimit { get; set; }
+        public int UsedCount { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+    }
 }

@@ -35,6 +35,12 @@ namespace MultiVendorAPI.Controllers
         [AllowAnonymous] // Available coupons can be requested without login or customer role depending on swagger requirements, but only active ones.
         public async Task<IActionResult> GetAvailableCoupons()
         {
+            if (User.Identity?.IsAuthenticated == true && User.IsInRole("admin"))
+            {
+                var allCoupons = await _couponService.GetAllCouponsForAdminAsync();
+                return Ok(allCoupons);
+            }
+
             var coupons = await _couponService.GetAvailableCouponsAsync();
             return Ok(coupons);
         }

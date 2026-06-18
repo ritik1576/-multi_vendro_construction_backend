@@ -225,5 +225,25 @@ namespace MultiVendorAPI.Services
             await _context.SaveChangesAsync();
             return true;
         }
+
+        public async Task<List<AdminCouponDto>> GetAllCouponsForAdminAsync()
+        {
+            var coupons = await _context.Coupons.ToListAsync();
+            return coupons.Select(c => new AdminCouponDto
+            {
+                Id = c.Id,
+                Code = c.Code ?? string.Empty,
+                DiscountType = string.Equals(c.DiscountType, "percentage", StringComparison.OrdinalIgnoreCase) ? "Percentage" : "Fixed",
+                DiscountValue = c.DiscountValue ?? 0,
+                MaxDiscount = c.MaxDiscount,
+                MinimumOrderAmount = c.MinimumOrderAmount,
+                UsageLimit = c.UsageLimit,
+                UsedCount = c.UsedCount ?? 0,
+                StartDate = c.StartDate,
+                EndDate = c.EndDate,
+                Status = c.Status ?? "inactive",
+                CreatedAt = c.CreatedAt
+            }).ToList();
+        }
     }
 }

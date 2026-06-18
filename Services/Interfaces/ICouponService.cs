@@ -14,5 +14,6 @@ namespace MultiVendorAPI.Services.Interfaces
         Task<Coupon> CreateCouponAsync(CreateCouponDto dto);
         Task<Coupon?> UpdateCouponAsync(long id, CreateCouponDto dto);
         Task<bool> DeleteCouponAsync(long id);
+        Task<List<AdminCouponDto>> GetAllCouponsForAdminAsync();
     }
 }
