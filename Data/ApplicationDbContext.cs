@@ -23,6 +23,8 @@ namespace MultiVendorAPI.Data
         public DbSet<ImageFile> ImageFiles { get; set; }
         public DbSet<Review> Reviews { get; set; }
         public DbSet<User> Users { get; set; }
+        public DbSet<Coupon> Coupons { get; set; }
+        public DbSet<CouponUsage> CouponUsages { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -114,6 +116,7 @@ namespace MultiVendorAPI.Data
                 entity.Property(o => o.UserId).HasColumnName("user_id");
                 entity.Property(o => o.AddressId).HasColumnName("address_id");
                 entity.Property(o => o.CouponId).HasColumnName("coupon_id");
+                entity.Property(o => o.CouponCode).HasColumnName("coupon_code");
                 entity.Property(o => o.OrderNumber).HasColumnName("order_number");
                 entity.Property(o => o.Subtotal).HasColumnName("subtotal");
                 entity.Property(o => o.DiscountAmount).HasColumnName("discount_amount");
@@ -127,6 +130,39 @@ namespace MultiVendorAPI.Data
                 entity.HasMany(o => o.OrderItems)
                     .WithOne(oi => oi.Order)
                     .HasForeignKey(oi => oi.OrderId);
+            });
+
+            modelBuilder.Entity<Coupon>(entity =>
+            {
+                entity.ToTable("coupons");
+                entity.HasKey(c => c.Id);
+                entity.Property(c => c.Id).HasColumnName("id");
+                entity.Property(c => c.Code).HasColumnName("code");
+                entity.Property(c => c.Title).HasColumnName("title");
+                entity.Property(c => c.DiscountType).HasColumnName("discount_type");
+                entity.Property(c => c.DiscountValue).HasColumnName("discount_value");
+                entity.Property(c => c.MaxDiscount).HasColumnName("max_discount");
+                entity.Property(c => c.MinimumAmount).HasColumnName("minimum_amount");
+                entity.Property(c => c.UsageLimit).HasColumnName("usage_limit");
+                entity.Property(c => c.PerUserLimit).HasColumnName("per_user_limit");
+                entity.Property(c => c.StartDate).HasColumnName("start_date");
+                entity.Property(c => c.EndDate).HasColumnName("end_date");
+                entity.Property(c => c.IsActive).HasColumnName("is_active");
+                entity.Property(c => c.IsDeleted).HasColumnName("is_deleted");
+                entity.Property(c => c.CreatedAt).HasColumnName("created_at");
+                entity.Property(c => c.UpdatedAt).HasColumnName("updated_at");
+            });
+
+            modelBuilder.Entity<CouponUsage>(entity =>
+            {
+                entity.ToTable("coupon_usages");
+                entity.HasKey(cu => cu.Id);
+                entity.Property(cu => cu.Id).HasColumnName("id");
+                entity.Property(cu => cu.CouponId).HasColumnName("coupon_id");
+                entity.Property(cu => cu.UserId).HasColumnName("user_id");
+                entity.Property(cu => cu.OrderId).HasColumnName("order_id");
+                entity.Property(cu => cu.DiscountAmount).HasColumnName("discount_amount");
+                entity.Property(cu => cu.UsedAt).HasColumnName("used_at");
             });
 
             modelBuilder.Entity<CartItem>(entity =>
