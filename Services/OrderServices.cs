@@ -171,10 +171,15 @@ public class OrderServices : IOrderService
                 CouponId = couponId.Value,
                 UserId = dto.UserId,
                 OrderId = order.Id,
-                DiscountAmount = discountAmount,
                 UsedAt = now
             };
             await _applicationDbContext.CouponUsages.AddAsync(couponUsage);
+
+            var coupon = await _applicationDbContext.Coupons.FindAsync(couponId.Value);
+            if (coupon != null)
+            {
+                coupon.UsedCount = (coupon.UsedCount ?? 0) + 1;
+            }
         }
 
         // Clear cart items

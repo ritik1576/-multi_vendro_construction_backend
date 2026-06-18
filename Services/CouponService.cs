@@ -20,20 +20,45 @@ namespace MultiVendorAPI.Services
             _context = context;
         }
 
+        private string GenerateCouponTitle(string code, string discountType, decimal discountValue)
+        {
+            if (string.Equals(discountType, "percentage", StringComparison.OrdinalIgnoreCase))
+            {
+                return $"{code} - {discountValue:0.##}% OFF";
+            }
+            return $"{code} - ₹{discountValue:0.##} OFF";
+        }
+
+        private DateTime GetLocalTime()
+        {
+            try
+            {
+                var timeZoneId = OperatingSystem.IsWindows() ? "India Standard Time" : "Asia/Kolkata";
+                var tz = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+                return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+            }
+            catch
+            {
+                // Fallback to UTC + 5:30 (India Standard Time offset)
+                return DateTime.UtcNow.AddHours(5).AddMinutes(30);
+            }
+        }
+
         public async Task<List<CouponDto>> GetAvailableCouponsAsync()
         {
-            var now = DateTime.Now;
-            return await _context.Coupons
-                .Where(c => c.IsActive && !c.IsDeleted && c.StartDate <= now && c.EndDate >= now)
-                .Select(c => new CouponDto
-                {
-                    Id = c.Id,
-                    Code = c.Code,
-                    Title = c.Title,
-                    DiscountType = c.DiscountType,
-                    DiscountValue = c.DiscountValue
-                })
+            var now = GetLocalTime();
+            var coupons = await _context.Coupons
+                .Where(c => c.Status == "active" && c.StartDate <= now && c.EndDate >= now)
                 .ToListAsync();
+
+            return coupons.Select(c => new CouponDto
+            {
+                Id = c.Id,
+                Code = c.Code ?? string.Empty,
+                Title = GenerateCouponTitle(c.Code ?? string.Empty, c.DiscountType ?? "fixed", c.DiscountValue ?? 0),
+                DiscountType = string.Equals(c.DiscountType, "percentage", StringComparison.OrdinalIgnoreCase) ? "Percentage" : "Fixed",
+                DiscountValue = c.DiscountValue ?? 0
+            }).ToList();
         }
 
         public async Task<CouponValidationResult> ValidateCouponAsync(string couponCode, long userId)
@@ -44,46 +69,36 @@ namespace MultiVendorAPI.Services
             }
 
             var coupon = await _context.Coupons
-                .FirstOrDefaultAsync(c => c.Code.ToLower() == couponCode.ToLower() && !c.IsDeleted);
+                .FirstOrDefaultAsync(c => c.Code != null && c.Code.ToLower() == couponCode.ToLower());
 
             if (coupon == null)
             {
                 return new CouponValidationResult { Valid = false, Message = "Coupon does not exist" };
             }
 
-            if (!coupon.IsActive)
+            if (coupon.Status != "active")
             {
                 return new CouponValidationResult { Valid = false, Message = "Coupon is inactive" };
             }
 
-            var now = DateTime.Now;
-            if (coupon.StartDate > now)
+            var now = GetLocalTime();
+            if ((coupon.StartDate.HasValue) && (coupon.StartDate.Value > now))
             {
                 return new CouponValidationResult { Valid = false, Message = "Coupon promotion has not started yet" };
             }
 
-            if (coupon.EndDate < now)
+            if (coupon.EndDate.HasValue && coupon.EndDate.Value < now)
             {
                 return new CouponValidationResult { Valid = false, Message = "Coupon has expired" };
             }
 
             // Usage Limit Not Exceeded
-            if (coupon.UsageLimit.HasValue)
+            if (coupon.UsageLimit.HasValue && coupon.UsageLimit.Value > 0)
             {
                 var totalUsages = await _context.CouponUsages.CountAsync(cu => cu.CouponId == coupon.Id);
                 if (totalUsages >= coupon.UsageLimit.Value)
                 {
                     return new CouponValidationResult { Valid = false, Message = "Coupon usage limit has been exceeded" };
-                }
-            }
-
-            // Per User Usage Limit Not Exceeded
-            if (coupon.PerUserLimit.HasValue)
-            {
-                var userUsages = await _context.CouponUsages.CountAsync(cu => cu.CouponId == coupon.Id && cu.UserId == userId);
-                if (userUsages >= coupon.PerUserLimit.Value)
-                {
-                    return new CouponValidationResult { Valid = false, Message = "You have exceeded the usage limit for this coupon" };
                 }
             }
 
@@ -103,12 +118,12 @@ namespace MultiVendorAPI.Services
                 }
             }
 
-            if (coupon.MinimumAmount.HasValue && cartTotal < coupon.MinimumAmount.Value)
+            if (coupon.MinimumOrderAmount.HasValue && cartTotal < coupon.MinimumOrderAmount.Value)
             {
                 return new CouponValidationResult 
                 { 
                     Valid = false, 
-                    Message = $"Minimum cart amount of ₹{coupon.MinimumAmount.Value} required to apply this coupon" 
+                    Message = $"Minimum cart amount of ₹{coupon.MinimumOrderAmount.Value} required to apply this coupon" 
                 };
             }
 
@@ -125,14 +140,15 @@ namespace MultiVendorAPI.Services
             if (coupon == null) return Task.FromResult(0m);
 
             decimal discount = 0;
+            decimal val = coupon.DiscountValue ?? 0;
 
-            if (string.Equals(coupon.DiscountType, "Fixed", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(coupon.DiscountType, "fixed", StringComparison.OrdinalIgnoreCase))
             {
-                discount = coupon.DiscountValue;
+                discount = val;
             }
-            else if (string.Equals(coupon.DiscountType, "Percentage", StringComparison.OrdinalIgnoreCase))
+            else if (string.Equals(coupon.DiscountType, "percentage", StringComparison.OrdinalIgnoreCase))
             {
-                discount = cartTotal * (coupon.DiscountValue / 100m);
+                discount = cartTotal * (val / 100m);
                 if (coupon.MaxDiscount.HasValue && discount > coupon.MaxDiscount.Value)
                 {
                     discount = coupon.MaxDiscount.Value;
@@ -151,15 +167,16 @@ namespace MultiVendorAPI.Services
         public async Task<bool> CanUserUseCouponAsync(long couponId, long userId)
         {
             var coupon = await _context.Coupons.FindAsync(couponId);
-            if (coupon == null || !coupon.IsActive || coupon.IsDeleted)
+            if (coupon == null || coupon.Status != "active")
             {
                 return false;
             }
 
-            if (coupon.PerUserLimit.HasValue)
+            // Standard limits check (no per_user_limit column present in table, so we default to true unless usage_limit is hit)
+            if (coupon.UsageLimit.HasValue && coupon.UsageLimit.Value > 0)
             {
-                var userUsages = await _context.CouponUsages.CountAsync(cu => cu.CouponId == couponId && cu.UserId == userId);
-                if (userUsages >= coupon.PerUserLimit.Value)
+                var totalUsages = await _context.CouponUsages.CountAsync(cu => cu.CouponId == couponId);
+                if (totalUsages >= coupon.UsageLimit.Value)
                 {
                     return false;
                 }
@@ -173,24 +190,94 @@ namespace MultiVendorAPI.Services
             var coupon = new Coupon
             {
                 Code = dto.Code.Trim().ToUpper(),
-                Title = dto.Title,
-                DiscountType = dto.DiscountType,
+                DiscountType = dto.DiscountType.ToLower() == "percentage" ? "percentage" : "fixed",
                 DiscountValue = dto.DiscountValue,
                 MaxDiscount = dto.MaxDiscount,
-                MinimumAmount = dto.MinimumAmount,
+                MinimumOrderAmount = dto.MinimumAmount,
                 UsageLimit = dto.UsageLimit,
-                PerUserLimit = dto.PerUserLimit,
                 StartDate = dto.StartDate,
                 EndDate = dto.EndDate,
-                IsActive = true,
-                IsDeleted = false,
-                CreatedAt = DateTime.Now,
-                UpdatedAt = DateTime.Now
+                Status = "active",
+                CreatedAt = DateTime.Now
             };
 
             await _context.Coupons.AddAsync(coupon);
             await _context.SaveChangesAsync();
             return coupon;
+        }
+
+        public async Task<Coupon?> UpdateCouponAsync(long id, CreateCouponDto dto)
+        {
+            var coupon = await _context.Coupons.FindAsync(id);
+            if (coupon == null)
+            {
+                return null;
+            }
+
+            coupon.Code = dto.Code.Trim().ToUpper();
+            coupon.DiscountType = dto.DiscountType.ToLower() == "percentage" ? "percentage" : "fixed";
+            coupon.DiscountValue = dto.DiscountValue;
+            coupon.MaxDiscount = dto.MaxDiscount;
+            coupon.MinimumOrderAmount = dto.MinimumAmount;
+            coupon.UsageLimit = dto.UsageLimit;
+            coupon.StartDate = dto.StartDate;
+            coupon.EndDate = dto.EndDate;
+
+            _context.Coupons.Update(coupon);
+            await _context.SaveChangesAsync();
+            return coupon;
+        }
+
+        public async Task<bool> DeleteCouponAsync(long id)
+        {
+            var coupon = await _context.Coupons.FindAsync(id);
+            if (coupon == null)
+            {
+                return false;
+            }
+
+            // Check if the coupon is referenced in any orders
+            var hasOrders = await _context.Orders.AnyAsync(o => o.CouponId == id);
+            if (hasOrders)
+            {
+                // Soft delete: set status to inactive so order history is preserved
+                coupon.Status = "inactive";
+                _context.Coupons.Update(coupon);
+            }
+            else
+            {
+                // Hard delete: remove usages and the coupon itself
+                var usages = await _context.CouponUsages.Where(cu => cu.CouponId == id).ToListAsync();
+                if (usages.Any())
+                {
+                    _context.CouponUsages.RemoveRange(usages);
+                }
+
+                _context.Coupons.Remove(coupon);
+            }
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<List<AdminCouponDto>> GetAllCouponsForAdminAsync()
+        {
+            var coupons = await _context.Coupons.ToListAsync();
+            return coupons.Select(c => new AdminCouponDto
+            {
+                Id = c.Id,
+                Code = c.Code ?? string.Empty,
+                DiscountType = string.Equals(c.DiscountType, "percentage", StringComparison.OrdinalIgnoreCase) ? "Percentage" : "Fixed",
+                DiscountValue = c.DiscountValue ?? 0,
+                MaxDiscount = c.MaxDiscount,
+                MinimumOrderAmount = c.MinimumOrderAmount,
+                UsageLimit = c.UsageLimit,
+                UsedCount = c.UsedCount ?? 0,
+                StartDate = c.StartDate,
+                EndDate = c.EndDate,
+                Status = c.Status ?? "inactive",
+                CreatedAt = c.CreatedAt
+            }).ToList();
         }
     }
 }

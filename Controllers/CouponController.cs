@@ -32,9 +32,15 @@ namespace MultiVendorAPI.Controllers
         }
 
         [HttpGet]
-        [AllowAnonymous] // Available coupons can be requested without login or customer role depending on swagger requirements, but only active ones.
+        [Authorize(Roles = "admin")] // Available coupons can be requested without login or customer role depending on swagger requirements, but only active ones.
         public async Task<IActionResult> GetAvailableCoupons()
         {
+            if (User.Identity?.IsAuthenticated == true && User.IsInRole("admin"))
+            {
+                var allCoupons = await _couponService.GetAllCouponsForAdminAsync();
+                return Ok(allCoupons);
+            }
+
             var coupons = await _couponService.GetAvailableCouponsAsync();
             return Ok(coupons);
         }
@@ -97,12 +103,12 @@ namespace MultiVendorAPI.Controllers
         [Authorize(Roles = "admin")]
         public async Task<IActionResult> CreateCoupon([FromBody] CreateCouponDto dto)
         {
-            if (dto == null || string.IsNullOrWhiteSpace(dto.Code) || string.IsNullOrWhiteSpace(dto.Title) || string.IsNullOrWhiteSpace(dto.DiscountType))
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Code) || string.IsNullOrWhiteSpace(dto.DiscountType))
             {
-                return BadRequest(new { message = "Code, Title, and DiscountType are required" });
+                return BadRequest(new { message = "Code and DiscountType are required" });
             }
 
-            var existing = await _context.Coupons.AnyAsync(c => c.Code.ToLower() == dto.Code.ToLower() && !c.IsDeleted);
+            var existing = await _context.Coupons.AnyAsync(c => c.Code != null && c.Code.ToLower() == dto.Code.ToLower());
             if (existing)
             {
                 return BadRequest(new { message = "A coupon with this code already exists" });
@@ -110,6 +116,43 @@ namespace MultiVendorAPI.Controllers
 
             var coupon = await _couponService.CreateCouponAsync(dto);
             return CreatedAtAction(nameof(GetAvailableCoupons), new { id = coupon.Id }, coupon);
+        }
+
+        [HttpPut("{id:long}")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> UpdateCoupon(long id, [FromBody] CreateCouponDto dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Code) || string.IsNullOrWhiteSpace(dto.DiscountType))
+            {
+                return BadRequest(new { message = "Code and DiscountType are required" });
+            }
+
+            var existing = await _context.Coupons.AnyAsync(c => c.Id != id && c.Code != null && c.Code.ToLower() == dto.Code.ToLower());
+            if (existing)
+            {
+                return BadRequest(new { message = "Another coupon with this code already exists" });
+            }
+
+            var updatedCoupon = await _couponService.UpdateCouponAsync(id, dto);
+            if (updatedCoupon == null)
+            {
+                return NotFound(new { message = "Coupon not found" });
+            }
+
+            return Ok(updatedCoupon);
+        }
+
+        [HttpDelete("{id:long}")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> DeleteCoupon(long id)
+        {
+            var result = await _couponService.DeleteCouponAsync(id);
+            if (!result)
+            {
+                return NotFound(new { message = "Coupon not found" });
+            }
+
+            return Ok(new { message = "Coupon deleted successfully" });
         }
     }
 }

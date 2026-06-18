@@ -12,5 +12,8 @@ namespace MultiVendorAPI.Services.Interfaces
         Task<decimal> CalculateDiscountAsync(Coupon coupon, decimal cartTotal);
         Task<bool> CanUserUseCouponAsync(long couponId, long userId);
         Task<Coupon> CreateCouponAsync(CreateCouponDto dto);
+        Task<Coupon?> UpdateCouponAsync(long id, CreateCouponDto dto);
+        Task<bool> DeleteCouponAsync(long id);
+        Task<List<AdminCouponDto>> GetAllCouponsForAdminAsync();
     }
 }
