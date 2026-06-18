@@ -373,12 +373,13 @@ namespace InframartAPI_New.Services
             }
         }
 
-        public async Task<(bool success, string? error, List<AdminReviewResponseDto>? data)> GetAllReviewsAsync()
+        public async Task<(bool success, string? error, AdminReviewListDto? data)> GetAllReviewsAsync()
         {
             try
             {
                 var reviews = await _appContext.Reviews
                     .Include(r => r.Product)
+                        .ThenInclude(p => p!.Vendor)
                     .Include(r => r.User)
                     .OrderByDescending(r => r.CreatedAt)
                     .ToListAsync();
@@ -387,21 +388,57 @@ namespace InframartAPI_New.Services
                 {
                     Id = r.Id,
                     UserId = r.UserId,
-                    CustomerName = r.User?.FullName,
+                    CustomerName = r.User?.FullName ?? r.User?.Email ?? "Anonymous User",
                     CustomerEmail = r.User?.Email,
                     ProductId = r.ProductId,
                     ProductName = r.Product?.Name,
                     ProductThumbnail = r.Product?.Thumbnail,
                     Rating = r.Rating,
                     ReviewText = r.ReviewText,
-                    CreatedAt = r.CreatedAt
+                    CreatedAt = r.CreatedAt,
+                    VendorId = r.Product?.Vendor?.Id,
+                    VendorShopName = r.Product?.Vendor?.ShopName ?? "N/A"
                 }).ToList();
 
-                return (true, null, reviewDtos);
+                var totalReviews = reviewDtos.Count;
+                var averageRating = totalReviews > 0 ? Math.Round(reviewDtos.Average(r => r.Rating), 1) : 0.0;
+                var fiveStarReviews = reviewDtos.Count(r => r.Rating == 5);
+                var lowRatingReviews = reviewDtos.Count(r => r.Rating <= 2);
+
+                var result = new AdminReviewListDto
+                {
+                    TotalReviews = totalReviews,
+                    AverageRating = averageRating,
+                    FiveStarReviews = fiveStarReviews,
+                    LowRatingReviews = lowRatingReviews,
+                    Reviews = reviewDtos
+                };
+
+                return (true, null, result);
             }
             catch (Exception ex)
             {
                 return (false, $"An error occurred while fetching reviews: {ex.Message}", null);
+            }
+        }
+
+        public async Task<(bool success, string? error)> DeleteReviewAsync(long reviewId)
+        {
+            try
+            {
+                var review = await _appContext.Reviews.FindAsync(reviewId);
+                if (review == null)
+                {
+                    return (false, "Review not found");
+                }
+
+                _appContext.Reviews.Remove(review);
+                await _appContext.SaveChangesAsync();
+                return (true, null);
+            }
+            catch (Exception ex)
+            {
+                return (false, $"An error occurred while deleting review: {ex.Message}");
             }
         }
     }

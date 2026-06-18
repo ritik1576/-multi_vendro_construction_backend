@@ -40,7 +40,7 @@ namespace MultiVendorAPI.Controllers
         }
 
         [HttpPost]
-        [Authorize]
+        [Authorize(Roles = "customer")]
         public async Task<IActionResult> CreateReview([FromBody] CreateReviewDto dto)
         {
             if (!ModelState.IsValid)
