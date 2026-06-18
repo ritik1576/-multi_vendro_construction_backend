@@ -221,13 +221,26 @@ namespace MultiVendorAPI.Services
                 return false;
             }
 
-            var usages = await _context.CouponUsages.Where(cu => cu.CouponId == id).ToListAsync();
-            if (usages.Any())
+            // Check if the coupon is referenced in any orders
+            var hasOrders = await _context.Orders.AnyAsync(o => o.CouponId == id);
+            if (hasOrders)
             {
-                _context.CouponUsages.RemoveRange(usages);
+                // Soft delete: set status to inactive so order history is preserved
+                coupon.Status = "inactive";
+                _context.Coupons.Update(coupon);
+            }
+            else
+            {
+                // Hard delete: remove usages and the coupon itself
+                var usages = await _context.CouponUsages.Where(cu => cu.CouponId == id).ToListAsync();
+                if (usages.Any())
+                {
+                    _context.CouponUsages.RemoveRange(usages);
+                }
+
+                _context.Coupons.Remove(coupon);
             }
 
-            _context.Coupons.Remove(coupon);
             await _context.SaveChangesAsync();
             return true;
         }
