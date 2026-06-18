@@ -29,9 +29,24 @@ namespace MultiVendorAPI.Services
             return $"{code} - ₹{discountValue:0.##} OFF";
         }
 
+        private DateTime GetLocalTime()
+        {
+            try
+            {
+                var timeZoneId = OperatingSystem.IsWindows() ? "India Standard Time" : "Asia/Kolkata";
+                var tz = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+                return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+            }
+            catch
+            {
+                // Fallback to UTC + 5:30 (India Standard Time offset)
+                return DateTime.UtcNow.AddHours(5).AddMinutes(30);
+            }
+        }
+
         public async Task<List<CouponDto>> GetAvailableCouponsAsync()
         {
-            var now = DateTime.Now;
+            var now = GetLocalTime();
             var coupons = await _context.Coupons
                 .Where(c => c.Status == "active" && c.StartDate <= now && c.EndDate >= now)
                 .ToListAsync();
@@ -66,7 +81,7 @@ namespace MultiVendorAPI.Services
                 return new CouponValidationResult { Valid = false, Message = "Coupon is inactive" };
             }
 
-            var now = DateTime.Now;
+            var now = GetLocalTime();
             if ((coupon.StartDate.HasValue) && (coupon.StartDate.Value > now))
             {
                 return new CouponValidationResult { Valid = false, Message = "Coupon promotion has not started yet" };
