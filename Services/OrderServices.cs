@@ -166,7 +166,6 @@ public class OrderServices : IOrderService
                 CouponId = couponId.Value,
                 UserId = dto.UserId,
                 OrderId = order.Id,
-                DiscountAmount = discountAmount,
                 UsedAt = now
             };
             await _applicationDbContext.CouponUsages.AddAsync(couponUsage);

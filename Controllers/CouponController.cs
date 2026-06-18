@@ -102,7 +102,7 @@ namespace MultiVendorAPI.Controllers
                 return BadRequest(new { message = "Code and DiscountType are required" });
             }
 
-            var existing = await _context.Coupons.AnyAsync(c => c.Code.ToLower() == dto.Code.ToLower());
+            var existing = await _context.Coupons.AnyAsync(c => c.Code != null && c.Code.ToLower() == dto.Code.ToLower());
             if (existing)
             {
                 return BadRequest(new { message = "A coupon with this code already exists" });

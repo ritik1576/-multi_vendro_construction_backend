@@ -54,7 +54,7 @@ namespace MultiVendorAPI.Services
             }
 
             var coupon = await _context.Coupons
-                .FirstOrDefaultAsync(c => c.Code.ToLower() == couponCode.ToLower());
+                .FirstOrDefaultAsync(c => c.Code != null && c.Code.ToLower() == couponCode.ToLower());
 
             if (coupon == null)
             {
