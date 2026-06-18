@@ -67,7 +67,7 @@ namespace MultiVendorAPI.Services
             }
 
             var now = DateTime.Now;
-            if (coupon.StartDate.HasValue && coupon.StartDate.Value > now)
+            if ((coupon.StartDate.HasValue) && (coupon.StartDate.Value > now))
             {
                 return new CouponValidationResult { Valid = false, Message = "Coupon promotion has not started yet" };
             }
