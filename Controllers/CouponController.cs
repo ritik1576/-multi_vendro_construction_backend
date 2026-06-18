@@ -97,12 +97,12 @@ namespace MultiVendorAPI.Controllers
         [Authorize(Roles = "admin")]
         public async Task<IActionResult> CreateCoupon([FromBody] CreateCouponDto dto)
         {
-            if (dto == null || string.IsNullOrWhiteSpace(dto.Code) || string.IsNullOrWhiteSpace(dto.Title) || string.IsNullOrWhiteSpace(dto.DiscountType))
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Code) || string.IsNullOrWhiteSpace(dto.DiscountType))
             {
-                return BadRequest(new { message = "Code, Title, and DiscountType are required" });
+                return BadRequest(new { message = "Code and DiscountType are required" });
             }
 
-            var existing = await _context.Coupons.AnyAsync(c => c.Code.ToLower() == dto.Code.ToLower() && !c.IsDeleted);
+            var existing = await _context.Coupons.AnyAsync(c => c.Code.ToLower() == dto.Code.ToLower());
             if (existing)
             {
                 return BadRequest(new { message = "A coupon with this code already exists" });

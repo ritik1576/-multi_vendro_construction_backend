@@ -137,20 +137,17 @@ namespace MultiVendorAPI.Data
                 entity.ToTable("coupons");
                 entity.HasKey(c => c.Id);
                 entity.Property(c => c.Id).HasColumnName("id");
+                entity.Property(c => c.VendorId).HasColumnName("vendor_id");
                 entity.Property(c => c.Code).HasColumnName("code");
-                entity.Property(c => c.Title).HasColumnName("title");
                 entity.Property(c => c.DiscountType).HasColumnName("discount_type");
                 entity.Property(c => c.DiscountValue).HasColumnName("discount_value");
-                entity.Property(c => c.MaxDiscount).HasColumnName("max_discount");
-                entity.Property(c => c.MinimumAmount).HasColumnName("minimum_amount");
+                entity.Property(c => c.MinimumOrderAmount).HasColumnName("minimum_order_amount");
                 entity.Property(c => c.UsageLimit).HasColumnName("usage_limit");
-                entity.Property(c => c.PerUserLimit).HasColumnName("per_user_limit");
+                entity.Property(c => c.UsedCount).HasColumnName("used_count");
                 entity.Property(c => c.StartDate).HasColumnName("start_date");
                 entity.Property(c => c.EndDate).HasColumnName("end_date");
-                entity.Property(c => c.IsActive).HasColumnName("is_active");
-                entity.Property(c => c.IsDeleted).HasColumnName("is_deleted");
+                entity.Property(c => c.Status).HasColumnName("status");
                 entity.Property(c => c.CreatedAt).HasColumnName("created_at");
-                entity.Property(c => c.UpdatedAt).HasColumnName("updated_at");
             });
 
             modelBuilder.Entity<CouponUsage>(entity =>
@@ -161,7 +158,6 @@ namespace MultiVendorAPI.Data
                 entity.Property(cu => cu.CouponId).HasColumnName("coupon_id");
                 entity.Property(cu => cu.UserId).HasColumnName("user_id");
                 entity.Property(cu => cu.OrderId).HasColumnName("order_id");
-                entity.Property(cu => cu.DiscountAmount).HasColumnName("discount_amount");
                 entity.Property(cu => cu.UsedAt).HasColumnName("used_at");
             });
 
