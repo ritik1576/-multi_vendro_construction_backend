@@ -111,5 +111,42 @@ namespace MultiVendorAPI.Controllers
             var coupon = await _couponService.CreateCouponAsync(dto);
             return CreatedAtAction(nameof(GetAvailableCoupons), new { id = coupon.Id }, coupon);
         }
+
+        [HttpPut("{id:long}")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> UpdateCoupon(long id, [FromBody] CreateCouponDto dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Code) || string.IsNullOrWhiteSpace(dto.DiscountType))
+            {
+                return BadRequest(new { message = "Code and DiscountType are required" });
+            }
+
+            var existing = await _context.Coupons.AnyAsync(c => c.Id != id && c.Code != null && c.Code.ToLower() == dto.Code.ToLower());
+            if (existing)
+            {
+                return BadRequest(new { message = "Another coupon with this code already exists" });
+            }
+
+            var updatedCoupon = await _couponService.UpdateCouponAsync(id, dto);
+            if (updatedCoupon == null)
+            {
+                return NotFound(new { message = "Coupon not found" });
+            }
+
+            return Ok(updatedCoupon);
+        }
+
+        [HttpDelete("{id:long}")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> DeleteCoupon(long id)
+        {
+            var result = await _couponService.DeleteCouponAsync(id);
+            if (!result)
+            {
+                return NotFound(new { message = "Coupon not found" });
+            }
+
+            return Ok(new { message = "Coupon deleted successfully" });
+        }
     }
 }

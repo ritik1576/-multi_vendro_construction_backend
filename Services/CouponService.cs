@@ -190,5 +190,40 @@ namespace MultiVendorAPI.Services
             await _context.SaveChangesAsync();
             return coupon;
         }
+
+        public async Task<Coupon?> UpdateCouponAsync(long id, CreateCouponDto dto)
+        {
+            var coupon = await _context.Coupons.FindAsync(id);
+            if (coupon == null)
+            {
+                return null;
+            }
+
+            coupon.Code = dto.Code.Trim().ToUpper();
+            coupon.DiscountType = dto.DiscountType.ToLower() == "percentage" ? "percentage" : "fixed";
+            coupon.DiscountValue = dto.DiscountValue;
+            coupon.MaxDiscount = dto.MaxDiscount;
+            coupon.MinimumOrderAmount = dto.MinimumAmount;
+            coupon.UsageLimit = dto.UsageLimit;
+            coupon.StartDate = dto.StartDate;
+            coupon.EndDate = dto.EndDate;
+
+            _context.Coupons.Update(coupon);
+            await _context.SaveChangesAsync();
+            return coupon;
+        }
+
+        public async Task<bool> DeleteCouponAsync(long id)
+        {
+            var coupon = await _context.Coupons.FindAsync(id);
+            if (coupon == null)
+            {
+                return false;
+            }
+
+            _context.Coupons.Remove(coupon);
+            await _context.SaveChangesAsync();
+            return true;
+        }
     }
 }
