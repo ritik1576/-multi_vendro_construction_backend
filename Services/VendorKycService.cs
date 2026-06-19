@@ -26,12 +26,12 @@ namespace InframartAPI_New.Services
             _notificationService = notificationService;
         }
 
-        public async Task<(bool success, string message)> SubmitKycAsync(long userId, KycSubmitDto dto)
+        public async Task<(bool success, string message)> SubmitKycAsync(KycSubmitDto dto)
         {
-            var vendor = await _context.Vendors.FirstOrDefaultAsync(v => v.UserId == userId);
+            var vendor = await _context.Vendors.FirstOrDefaultAsync(v => v.Id == dto.VendorId);
             if (vendor == null)
             {
-                return (false, "Vendor profile not found for the user.");
+                return (false, "Vendor profile not found.");
             }
 
             try
@@ -60,7 +60,7 @@ namespace InframartAPI_New.Services
                 kyc.PanNumber = dto.PanNumber;
                 kyc.BusinessAddress = dto.BusinessAddress;
                 kyc.BankAccountNumber = dto.BankAccountNumber;
-                kyc.IfscCode = dto.IFC;
+                kyc.IfscCode = dto.IFSC;
                 kyc.GstCertificateUrl = gstUrl;
                 kyc.PanCardUrl = panUrl;
                 kyc.BankStatementUrl = bankUrl;
@@ -104,9 +104,9 @@ namespace InframartAPI_New.Services
             }
         }
 
-        public async Task<(bool success, string? error, KycStatusResponseDto? data)> GetKycStatusAsync(long userId)
+        public async Task<(bool success, string? error, KycStatusResponseDto? data)> GetKycStatusAsync(long vendorId)
         {
-            var vendor = await _context.Vendors.FirstOrDefaultAsync(v => v.UserId == userId);
+            var vendor = await _context.Vendors.FirstOrDefaultAsync(v => v.Id == vendorId);
             if (vendor == null)
             {
                 return (false, "Vendor profile not found.", null);

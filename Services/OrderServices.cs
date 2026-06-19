@@ -557,7 +557,7 @@ public class OrderServices : IOrderService
                 OrderItems = order.OrderItems.Select(item =>
                 {
                     products.TryGetValue(item.ProductId, out var product);
-                    global::Vendor? vendor = null;
+                    InframartAPI_New.Models.Vendor? vendor = null;
                     if (product != null && product.VendorId.HasValue)
                     {
                         vendors.TryGetValue(product.VendorId.Value, out vendor);
@@ -573,7 +573,7 @@ public class OrderServices : IOrderService
                         TotalPrice = item.TotalPrice,
                         VendorId = product?.VendorId,
                         VendorName = vendor?.ShopName,
-                        VendorStatus = vendor?.Status
+                        VendorStatus = vendor?.Status.ToString()
                     };
                 }).ToList()
             };

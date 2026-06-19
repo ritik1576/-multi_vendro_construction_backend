@@ -19,6 +19,7 @@ namespace InframartAPI_New.DTOs
 
         public bool? RequiresKyc { get; set; }
         public string? KycStatus { get; set; }
+        public string? VendorStatus { get; set; }
         public string? RejectionReason { get; set; }
     }
 }
