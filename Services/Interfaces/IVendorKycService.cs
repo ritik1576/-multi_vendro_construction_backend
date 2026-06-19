@@ -6,8 +6,8 @@ namespace InframartAPI_New.Services.Interfaces
 {
     public interface IVendorKycService
     {
-        Task<(bool success, string message)> SubmitKycAsync(long userId, KycSubmitDto dto);
-        Task<(bool success, string? error, KycStatusResponseDto? data)> GetKycStatusAsync(long userId);
+        Task<(bool success, string message)> SubmitKycAsync(KycSubmitDto dto);
+        Task<(bool success, string? error, KycStatusResponseDto? data)> GetKycStatusAsync(long vendorId);
         
         // Admin operations
         Task<(bool success, string? error, List<AdminKycDetailsDto>? data)> GetKycRequestsAsync(string? statusFilter);

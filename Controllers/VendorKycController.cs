@@ -10,7 +10,7 @@ namespace InframartAPI_New.Controllers
 {
     [Route("vendor/kyc")]
     [ApiController]
-    [Authorize(Roles = "vendor")]
+
     public class VendorKycController : ControllerBase
     {
         private readonly IVendorKycService _vendorKycService;
@@ -22,6 +22,7 @@ namespace InframartAPI_New.Controllers
 
         // POST /vendor/kyc
         [HttpPost]
+        [AllowAnonymous]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> SubmitKyc([FromForm] KycSubmitDto dto)
         {
@@ -30,13 +31,7 @@ namespace InframartAPI_New.Controllers
                 return BadRequest(new { success = false, message = "Invalid KYC details." });
             }
 
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userIdClaim) || !long.TryParse(userIdClaim, out var userId))
-            {
-                return Unauthorized(new { success = false, message = "User is unauthorized." });
-            }
-
-            var (success, message) = await _vendorKycService.SubmitKycAsync(userId, dto);
+            var (success, message) = await _vendorKycService.SubmitKycAsync(dto);
             if (!success)
             {
                 return BadRequest(new { success = false, message });
@@ -47,15 +42,10 @@ namespace InframartAPI_New.Controllers
 
         // GET /vendor/kyc/status
         [HttpGet("status")]
-        public async Task<IActionResult> GetKycStatus()
+        [AllowAnonymous]
+        public async Task<IActionResult> GetKycStatus([FromQuery] long vendorId)
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userIdClaim) || !long.TryParse(userIdClaim, out var userId))
-            {
-                return Unauthorized(new { success = false, message = "User is unauthorized." });
-            }
-
-            var (success, error, data) = await _vendorKycService.GetKycStatusAsync(userId);
+            var (success, error, data) = await _vendorKycService.GetKycStatusAsync(vendorId);
             if (!success)
             {
                 return BadRequest(new { success = false, message = error });

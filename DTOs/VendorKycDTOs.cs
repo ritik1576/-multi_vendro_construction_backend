@@ -7,6 +7,9 @@ namespace InframartAPI_New.DTOs
     public class KycSubmitDto
     {
         [Required]
+        public long VendorId { get; set; }
+
+        [Required]
         public string BusinessLegalName { get; set; } = string.Empty;
 
         [Required]
