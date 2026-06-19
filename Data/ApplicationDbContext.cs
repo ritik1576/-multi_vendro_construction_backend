@@ -228,6 +228,8 @@ namespace MultiVendorAPI.Data
                 entity.Property(u => u.Phone).HasColumnName("phone");
                 entity.Property(u => u.Role).HasColumnName("role");
                 entity.Property(u => u.Status).HasColumnName("status");
+            });
+
             modelBuilder.Entity<VendorKyc>(entity =>
             {
                 entity.ToTable("vendor_kyc");
