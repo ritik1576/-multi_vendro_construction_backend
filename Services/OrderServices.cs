@@ -552,7 +552,7 @@ public class OrderServices : IOrderService
                 OrderItems = order.OrderItems.Select(item =>
                 {
                     products.TryGetValue(item.ProductId, out var product);
-                    global::Vendor? vendor = null;
+                    InframartAPI_New.Models.Vendor? vendor = null;
                     if (product != null && product.VendorId.HasValue)
                     {
                         vendors.TryGetValue(product.VendorId.Value, out vendor);

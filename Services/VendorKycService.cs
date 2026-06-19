@@ -60,7 +60,7 @@ namespace InframartAPI_New.Services
                 kyc.PanNumber = dto.PanNumber;
                 kyc.BusinessAddress = dto.BusinessAddress;
                 kyc.BankAccountNumber = dto.BankAccountNumber;
-                kyc.IfscCode = dto.IFC;
+                kyc.IfscCode = dto.IFSC;
                 kyc.GstCertificateUrl = gstUrl;
                 kyc.PanCardUrl = panUrl;
                 kyc.BankStatementUrl = bankUrl;
