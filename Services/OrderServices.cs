@@ -568,7 +568,7 @@ public class OrderServices : IOrderService
                         TotalPrice = item.TotalPrice,
                         VendorId = product?.VendorId,
                         VendorName = vendor?.ShopName,
-                        VendorStatus = vendor?.Status
+                        VendorStatus = vendor?.Status.ToString()
                     };
                 }).ToList()
             };
