@@ -7,9 +7,6 @@ namespace InframartAPI_New.DTOs
     public class KycSubmitDto
     {
         [Required]
-        public long VendorId { get; set; }
-
-        [Required]
         public string BusinessLegalName { get; set; } = string.Empty;
 
         [Required]
@@ -31,7 +28,7 @@ namespace InframartAPI_New.DTOs
         public string BankAccountNumber { get; set; } = string.Empty;
 
         [Required]
-        public string IFSC { get; set; } = string.Empty; // using IFSC as requested/ifsc_code mapping
+        public string IFSC { get; set; } = string.Empty;
 
         [Required]
         public IFormFile GstCertificateUpload { get; set; }
