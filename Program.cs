@@ -215,7 +215,15 @@ using (var scope = app.Services.CreateScope())
         // Ensure Vendors table schema is updated to support integer status and kyc_status
         try
         {
-            await db.Database.ExecuteSqlRawAsync("ALTER TABLE `Vendors` ADD COLUMN IF NOT EXISTS `kyc_status` INT NOT NULL DEFAULT 1;");
+            try
+            {
+                await db.Database.ExecuteSqlRawAsync("ALTER TABLE `Vendors` ADD COLUMN `kyc_status` INT NOT NULL DEFAULT 1;");
+                Console.WriteLine("Added `kyc_status` column to `Vendors`.");
+            }
+            catch (Exception ex) when (ex.Message.Contains("Duplicate column") || ex.Message.Contains("1060"))
+            {
+                // Column already exists
+            }
             
             // Check if column status needs migrating from string to int
             // Safe conversion
@@ -226,7 +234,7 @@ using (var scope = app.Services.CreateScope())
             await db.Database.ExecuteSqlRawAsync("UPDATE `Vendors` SET `status` = '1' WHERE `status` NOT IN ('1', '2', '3', '4');");
             
             await db.Database.ExecuteSqlRawAsync("ALTER TABLE `Vendors` MODIFY COLUMN `status` INT NOT NULL DEFAULT 1;");
-            Console.WriteLine("Successfully migrated `Vendors` status and added `kyc_status` columns.");
+            Console.WriteLine("Successfully migrated `Vendors` status and ensured `kyc_status` columns.");
         }
         catch (Exception ex)
         {
