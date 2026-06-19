@@ -16,6 +16,7 @@ namespace InframartAPI_New.Data
         public DbSet<Payment> Payments { get; set; }
         public DbSet<MultiVendorAPI.Models.ImageFile> ImageFiles { get; set; }
         public DbSet<Notification> Notifications { get; set; }
+        public DbSet<VendorKyc> VendorKycs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -33,6 +34,16 @@ namespace InframartAPI_New.Data
                .WithMany()
                .HasForeignKey(n => n.UserId)
                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<VendorKyc>(entity =>
+            {
+                entity.ToTable("vendor_kyc");
+                entity.HasKey(k => k.Id);
+                entity.HasOne<Vendor>()
+                      .WithMany()
+                      .HasForeignKey(k => k.VendorId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
         }
     }
 }

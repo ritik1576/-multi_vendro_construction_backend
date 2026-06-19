@@ -116,6 +116,70 @@ namespace InframartAPI_New.Controllers
                 new Claim(ClaimTypes.Role, user.Role!)
             };
 
+            // Custom checks for vendor role
+            Vendor? vendor = null;
+            if (string.Equals(user.Role, "vendor", StringComparison.OrdinalIgnoreCase))
+            {
+                vendor = await _context.Vendors.FirstOrDefaultAsync(v => v.UserId == user.Id);
+                if (vendor == null)
+                {
+                    return Unauthorized(new DTOs.AuthResponseDto
+                    {
+                        Success = false,
+                        Message = "Vendor profile not found."
+                    });
+                }
+
+                // Check KYC Status
+                if (vendor.KycStatus == KycStatus.NotSubmitted)
+                {
+                    return Ok(new DTOs.AuthResponseDto
+                    {
+                        Success = false,
+                        RequiresKyc = true,
+                        Message = "Please complete KYC verification."
+                    });
+                }
+                else if (vendor.KycStatus == KycStatus.Submitted || vendor.KycStatus == KycStatus.UnderReview)
+                {
+                    return Ok(new DTOs.AuthResponseDto
+                    {
+                        Success = false,
+                        Message = "Your KYC is under review."
+                    });
+                }
+                else if (vendor.KycStatus == KycStatus.Rejected)
+                {
+                    var kyc = await _context.VendorKycs.FirstOrDefaultAsync(k => k.VendorId == vendor.Id);
+                    return Ok(new DTOs.AuthResponseDto
+                    {
+                        Success = false,
+                        Message = "KYC rejected.",
+                        RejectionReason = kyc?.RejectionReason ?? "Invalid GST Certificate"
+                    });
+                }
+
+                // Check Vendor Approval Status
+                if (vendor.Status == VendorStatus.Pending)
+                {
+                    return Ok(new DTOs.AuthResponseDto
+                    {
+                        Success = false,
+                        Message = "Your account is awaiting admin approval."
+                    });
+                }
+                else if (vendor.Status == VendorStatus.Rejected)
+                {
+                    return Ok(new DTOs.AuthResponseDto
+                    {
+                        Success = false,
+                        Message = "Vendor account rejected."
+                    });
+                }
+
+                claims.Add(new Claim("vendorId", vendor.Id.ToString()));
+            }
+
             var key = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!)
             );
@@ -142,14 +206,18 @@ namespace InframartAPI_New.Controllers
                 Success = true,
                 Message = "Login successful",
                 UserId = user.Id,
+                VendorId = vendor?.Id ?? 0,
                 Role = user.Role,
                 FullName = user.FullName,
-                Token = new JwtSecurityTokenHandler().WriteToken(token)
+                Token = new JwtSecurityTokenHandler().WriteToken(token),
+                VendorStatus = vendor?.Status.ToString(),
+                KycStatus = vendor?.KycStatus.ToString()
             };
 
             return Ok(response);
         }
         [HttpPost("vendor/register")]
+        [HttpPost("/vendor/register")]
         public async Task<IActionResult> RegisterVendor(
     [FromBody] VendorRegisterDto dto)
         {

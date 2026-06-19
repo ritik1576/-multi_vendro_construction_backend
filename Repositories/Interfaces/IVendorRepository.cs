@@ -19,5 +19,7 @@ namespace InframartAPI_New.Repositories.Interfaces
         Task<(User? user, Vendor? vendor)> GetVendorUserByEmailAsync(string email);
 
         Task<List<long>> GetAdminUserIdsAsync();
+
+        Task<VendorKyc?> GetKycByVendorIdAsync(long vendorId);
     }
 }

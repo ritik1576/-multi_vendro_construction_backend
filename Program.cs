@@ -34,6 +34,7 @@ builder.Services.AddHttpContextAccessor();
 // ================= SERVICES =================
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IVendorService, VendorService>();
+builder.Services.AddScoped<IVendorKycService, VendorKycService>();
 
 // ================= RAZORPAY CONFIG =================
 builder.Services.Configure<RazorpaySettings>(
@@ -210,10 +211,66 @@ using (var scope = app.Services.CreateScope())
             );
         ");
         Console.WriteLine("Successfully ensured `image_files` table exists.");
+
+        // Ensure Vendors table schema is updated to support integer status and kyc_status
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync("ALTER TABLE `Vendors` ADD COLUMN IF NOT EXISTS `kyc_status` INT NOT NULL DEFAULT 1;");
+            
+            // Check if column status needs migrating from string to int
+            // Safe conversion
+            await db.Database.ExecuteSqlRawAsync("UPDATE `Vendors` SET `status` = '1' WHERE `status` = 'pending' OR `status` IS NULL;");
+            await db.Database.ExecuteSqlRawAsync("UPDATE `Vendors` SET `status` = '2' WHERE `status` = 'approved';");
+            await db.Database.ExecuteSqlRawAsync("UPDATE `Vendors` SET `status` = '3' WHERE `status` = 'rejected';");
+            await db.Database.ExecuteSqlRawAsync("UPDATE `Vendors` SET `status` = '4' WHERE `status` = 'suspended';");
+            await db.Database.ExecuteSqlRawAsync("UPDATE `Vendors` SET `status` = '1' WHERE `status` NOT IN ('1', '2', '3', '4');");
+            
+            await db.Database.ExecuteSqlRawAsync("ALTER TABLE `Vendors` MODIFY COLUMN `status` INT NOT NULL DEFAULT 1;");
+            Console.WriteLine("Successfully migrated `Vendors` status and added `kyc_status` columns.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error checking/migrating `Vendors` schema: {ex.Message}");
+        }
+
+        // Create vendor_kyc table if not exists
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE IF NOT EXISTS `vendor_kyc` (
+                    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    `vendor_id` BIGINT NOT NULL,
+                    `business_legal_name` VARCHAR(255) NOT NULL,
+                    `bank_account_name` VARCHAR(255) NOT NULL,
+                    `aadhaar_document_url` VARCHAR(500) NOT NULL,
+                    `gst_number` VARCHAR(50) NOT NULL,
+                    `pan_number` VARCHAR(50) NOT NULL,
+                    `business_address` TEXT NOT NULL,
+                    `bank_account_number` VARCHAR(100) NOT NULL,
+                    `ifsc_code` VARCHAR(50) NOT NULL,
+                    `gst_certificate_url` VARCHAR(500) NOT NULL,
+                    `pan_card_url` VARCHAR(500) NOT NULL,
+                    `bank_statement_url` VARCHAR(500) NOT NULL,
+                    `status` INT NOT NULL DEFAULT 1,
+                    `rejection_reason` VARCHAR(1000) NULL,
+                    `submitted_at` DATETIME NULL,
+                    `verified_at` DATETIME NULL,
+                    `verified_by` BIGINT NULL,
+                    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    CONSTRAINT `FK_vendor_kyc_Vendors_vendor_id` FOREIGN KEY (`vendor_id`) REFERENCES `Vendors` (`id`) ON DELETE CASCADE
+                );
+            ");
+            Console.WriteLine("Successfully ensured `vendor_kyc` table exists.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error checking/creating `vendor_kyc` table: {ex.Message}");
+        }
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Error checking/creating `image_files` table: {ex.Message}");
+        Console.WriteLine($"Error in DB startup script: {ex.Message}");
     }
 }
 
