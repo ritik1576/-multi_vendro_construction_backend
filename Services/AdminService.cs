@@ -50,7 +50,7 @@ namespace InframartAPI_New.Services
                     Banner = vendor.Banner,
                     GstNumber = vendor.GstNumber,
                     CommissionRate = vendor.CommissionRate,
-                    Status = vendor.Status,
+                    Status = vendor.Status.ToString(),
                     CreatedAt = vendor.CreatedAt,
                     UpdatedAt = vendor.UpdatedAt,
                     Email = user?.Email,
@@ -77,7 +77,32 @@ namespace InframartAPI_New.Services
                 return (false, "Vendor not found");
             }
 
-            vendor.Status = newStatus;
+            if (Enum.TryParse<VendorStatus>(newStatus, true, out var parsedStatus))
+            {
+                vendor.Status = parsedStatus;
+                
+                if (parsedStatus == VendorStatus.Approved)
+                {
+                    vendor.KycStatus = KycStatus.Approved;
+                    var kyc = await _context.VendorKycs.FirstOrDefaultAsync(k => k.VendorId == vendor.Id);
+                    if (kyc != null)
+                    {
+                        kyc.Status = KycStatus.Approved;
+                        kyc.VerifiedAt = DateTime.UtcNow;
+                    }
+                }
+                else if (parsedStatus == VendorStatus.Rejected)
+                {
+                    vendor.KycStatus = KycStatus.Rejected;
+                    var kyc = await _context.VendorKycs.FirstOrDefaultAsync(k => k.VendorId == vendor.Id);
+                    if (kyc != null)
+                    {
+                        kyc.Status = KycStatus.Rejected;
+                        kyc.RejectionReason = "Vendor profile rejected by administrator.";
+                        kyc.VerifiedAt = DateTime.UtcNow;
+                    }
+                }
+            }
             await _context.SaveChangesAsync();
 
             // Trigger notification
@@ -85,7 +110,7 @@ namespace InframartAPI_New.Services
             {
                 if (newStatus == "approved")
                 {
-                    await _notificationService.CreateNotificationAsync(vendor.UserId.Value, "Vendor Approved", "Your vendor profile has been approved.", "vendor");
+                    await _notificationService.CreateNotificationAsync(vendor.UserId.Value, "Vendor Approved", "Your vendor profile and KYC have been approved.", "vendor");
                 }
                 else if (newStatus == "rejected")
                 {
@@ -244,7 +269,7 @@ namespace InframartAPI_New.Services
                 Banner = vendor.Banner,
                 GstNumber = vendor.GstNumber,
                 CommissionRate = vendor.CommissionRate,
-                Status = vendor.Status,
+                Status = vendor.Status.ToString(),
                 CreatedAt = vendor.CreatedAt,
                 UpdatedAt = vendor.UpdatedAt,
                 VendorName = user?.FullName,

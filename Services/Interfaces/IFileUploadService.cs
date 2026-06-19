@@ -5,5 +5,6 @@ namespace InframartAPI_New.Services.Interfaces
     public interface IFileUploadService
     {
         Task<string> UploadProductImageAsync(IFormFile file);
+        Task<string> UploadKycDocumentAsync(IFormFile file);
     }
 }

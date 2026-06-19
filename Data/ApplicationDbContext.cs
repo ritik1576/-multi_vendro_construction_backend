@@ -25,6 +25,7 @@ namespace MultiVendorAPI.Data
         public DbSet<User> Users { get; set; }
         public DbSet<Coupon> Coupons { get; set; }
         public DbSet<CouponUsage> CouponUsages { get; set; }
+        public DbSet<VendorKyc> VendorKycs { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -45,6 +46,7 @@ namespace MultiVendorAPI.Data
                 entity.Property(v => v.GstNumber).HasColumnName("gst_number");
                 entity.Property(v => v.CommissionRate).HasColumnName("commission_rate");
                 entity.Property(v => v.Status).HasColumnName("status");
+                entity.Property(v => v.KycStatus).HasColumnName("kyc_status");
                 entity.Property(v => v.CreatedAt).HasColumnName("created_at");
                 entity.Property(v => v.UpdatedAt).HasColumnName("updated_at");
             });
@@ -226,6 +228,35 @@ namespace MultiVendorAPI.Data
                 entity.Property(u => u.Phone).HasColumnName("phone");
                 entity.Property(u => u.Role).HasColumnName("role");
                 entity.Property(u => u.Status).HasColumnName("status");
+            modelBuilder.Entity<VendorKyc>(entity =>
+            {
+                entity.ToTable("vendor_kyc");
+                entity.HasKey(k => k.Id);
+                entity.Property(k => k.Id).HasColumnName("id");
+                entity.Property(k => k.VendorId).HasColumnName("vendor_id");
+                entity.Property(k => k.BusinessLegalName).HasColumnName("business_legal_name");
+                entity.Property(k => k.BankAccountName).HasColumnName("bank_account_name");
+                entity.Property(k => k.AadhaarDocumentUrl).HasColumnName("aadhaar_document_url");
+                entity.Property(k => k.GstNumber).HasColumnName("gst_number");
+                entity.Property(k => k.PanNumber).HasColumnName("pan_number");
+                entity.Property(k => k.BusinessAddress).HasColumnName("business_address");
+                entity.Property(k => k.BankAccountNumber).HasColumnName("bank_account_number");
+                entity.Property(k => k.IfscCode).HasColumnName("ifsc_code");
+                entity.Property(k => k.GstCertificateUrl).HasColumnName("gst_certificate_url");
+                entity.Property(k => k.PanCardUrl).HasColumnName("pan_card_url");
+                entity.Property(k => k.BankStatementUrl).HasColumnName("bank_statement_url");
+                entity.Property(k => k.Status).HasColumnName("status");
+                entity.Property(k => k.RejectionReason).HasColumnName("rejection_reason");
+                entity.Property(k => k.SubmittedAt).HasColumnName("submitted_at");
+                entity.Property(k => k.VerifiedAt).HasColumnName("verified_at");
+                entity.Property(k => k.VerifiedBy).HasColumnName("verified_by");
+                entity.Property(k => k.CreatedAt).HasColumnName("created_at");
+                entity.Property(k => k.UpdatedAt).HasColumnName("updated_at");
+
+                entity.HasOne<Vendor>()
+                      .WithMany()
+                      .HasForeignKey(k => k.VendorId)
+                      .OnDelete(DeleteBehavior.Cascade);
             });
         }
     }
