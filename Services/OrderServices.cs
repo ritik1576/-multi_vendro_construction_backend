@@ -112,6 +112,7 @@ public class OrderServices : IOrderService
             discountAmount = await _couponService.CalculateDiscountAsync(couponValidation.Coupon, subtotal);
         }
 
+        Order order = null!;
         bool isWalletPayment = string.Equals(dto.PaymentMethod, "Wallet", StringComparison.OrdinalIgnoreCase);
 
         if (isWalletPayment)
@@ -179,7 +180,7 @@ public class OrderServices : IOrderService
 
                 await _applicationDbContext.SaveChangesAsync();
 
-                var order = new Order
+                order = new Order
                 {
                     UserId = dto.UserId,
                     AddressId = dto.AddressId,
@@ -332,18 +333,6 @@ public class OrderServices : IOrderService
 
                 // Assign the local variable so that code after block can return correctly
                 dto.UserId = order.UserId;
-                var response = new PlaceOrderResponseDto
-                {
-                    Id = order.Id,
-                    OrderNumber = order.OrderNumber,
-                    TotalAmount = order.TotalAmount,
-                    OrderStatus = order.OrderStatus,
-                    PaymentStatus = order.PaymentStatus,
-                    PlacedAt = order.PlacedAt
-                };
-
-                return ServiceResponse<PlaceOrderResponseDto>
-                    .SuccessResponse(response, "Order placed successfully", 201);
             }
             catch (Exception ex)
             {
@@ -353,7 +342,7 @@ public class OrderServices : IOrderService
         }
         else
         {
-            var order = new Order
+            order = new Order
             {
                 UserId = dto.UserId,
                 AddressId = dto.AddressId,
