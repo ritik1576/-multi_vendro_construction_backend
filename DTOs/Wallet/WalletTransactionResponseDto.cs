@@ -10,7 +10,7 @@ namespace InframartAPI_New.DTOs
         public string TransactionType { get; set; } = string.Empty;
         public string Direction { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
-        public string? Description { get; set; }
+        public string Title { get; set; } = string.Empty;
         public string? ReferenceType { get; set; }
         public string? ReferenceId { get; set; }
         public DateTime CreatedAt { get; set; }

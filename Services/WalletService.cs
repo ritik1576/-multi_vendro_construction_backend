@@ -58,7 +58,7 @@ namespace InframartAPI_New.Services
                     TransactionType = t.TransactionType.ToString(),
                     Direction = t.Direction.ToString(),
                     Status = t.Status.ToString(),
-                    Description = t.Description,
+                    Title = t.Description ?? string.Empty,
                     ReferenceType = t.ReferenceType,
                     ReferenceId = t.ReferenceId,
                     CreatedAt = t.CreatedAt
@@ -76,6 +76,7 @@ namespace InframartAPI_New.Services
                 return (false, "Wallet not found.", null);
             }
 
+            var userName = await _walletRepository.GetUserNameAsync(userId) ?? "Customer";
             var balanceBefore = wallet.AvailableBalance;
             var balanceAfter = wallet.AvailableBalance + dto.Amount;
 
@@ -99,7 +100,7 @@ namespace InframartAPI_New.Services
                 LockedBefore = wallet.LockedBalance,
                 LockedAfter = wallet.LockedBalance,
                 Status = Models.TransactionStatus.Success,
-                Description = dto.Description ?? "Money added to wallet",
+                Description = userName,
                 CreatedAt = System.DateTime.UtcNow,
                 CreatedBy = "User"
             };
@@ -160,7 +161,7 @@ namespace InframartAPI_New.Services
                 LockedBefore = wallet.LockedBalance,
                 LockedAfter = wallet.LockedBalance,
                 Status = Models.TransactionStatus.Success,
-                Description = dto.Description ?? "Withdrawal from wallet",
+                Description = "To Bank Account",
                 CreatedAt = System.DateTime.UtcNow,
                 CreatedBy = "User"
             };
