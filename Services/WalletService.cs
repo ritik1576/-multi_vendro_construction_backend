@@ -67,5 +67,122 @@ namespace InframartAPI_New.Services
 
             return (items, totalCount);
         }
+
+        public async Task<(bool success, string message, WalletBalanceResponseDto? wallet)> AddMoneyAsync(long userId, AddMoneyRequestDto dto)
+        {
+            var wallet = await _walletRepository.GetWalletByUserIdAsync(userId);
+            if (wallet == null)
+            {
+                return (false, "Wallet not found.", null);
+            }
+
+            var balanceBefore = wallet.AvailableBalance;
+            var balanceAfter = wallet.AvailableBalance + dto.Amount;
+
+            wallet.AvailableBalance = balanceAfter;
+            wallet.TotalCredits += dto.Amount;
+            wallet.UpdatedAt = System.DateTime.UtcNow;
+
+            await _walletRepository.UpdateWalletAsync(wallet);
+
+            var txn = new Models.WalletTransaction
+            {
+                TransactionId = "DEP" + System.Guid.NewGuid().ToString("N").Substring(0, 10).ToUpper(),
+                WalletId = wallet.Id,
+                TransactionType = Models.TransactionType.Deposit,
+                Direction = Models.TransactionDirection.Credit,
+                Amount = dto.Amount,
+                BalanceBefore = balanceBefore,
+                BalanceAfter = balanceAfter,
+                AvailableBefore = balanceBefore,
+                AvailableAfter = balanceAfter,
+                LockedBefore = wallet.LockedBalance,
+                LockedAfter = wallet.LockedBalance,
+                Status = Models.TransactionStatus.Success,
+                Description = dto.Description ?? "Money added to wallet",
+                CreatedAt = System.DateTime.UtcNow,
+                CreatedBy = "User"
+            };
+
+            await _walletRepository.AddTransactionAsync(txn);
+            await _walletRepository.SaveChangesAsync();
+
+            var monthlyExpenditure = await _walletRepository.GetMonthlyExpenditureAsync(wallet.Id);
+
+            var response = new WalletBalanceResponseDto
+            {
+                WalletId = wallet.Id,
+                WalletType = wallet.WalletType.ToString(),
+                AvailableBalance = wallet.AvailableBalance,
+                LockedBalance = wallet.LockedBalance,
+                TotalCredits = wallet.TotalCredits,
+                TotalDebits = wallet.TotalDebits,
+                MonthlyExpenditure = monthlyExpenditure,
+                Status = wallet.Status
+            };
+
+            return (true, "Money added successfully.", response);
+        }
+
+        public async Task<(bool success, string message, WalletBalanceResponseDto? wallet)> WithdrawMoneyAsync(long userId, WithdrawMoneyRequestDto dto)
+        {
+            var wallet = await _walletRepository.GetWalletByUserIdAsync(userId);
+            if (wallet == null)
+            {
+                return (false, "Wallet not found.", null);
+            }
+
+            if (wallet.AvailableBalance < dto.Amount)
+            {
+                return (false, "Insufficient wallet balance.", null);
+            }
+
+            var balanceBefore = wallet.AvailableBalance;
+            var balanceAfter = wallet.AvailableBalance - dto.Amount;
+
+            wallet.AvailableBalance = balanceAfter;
+            wallet.TotalDebits += dto.Amount;
+            wallet.UpdatedAt = System.DateTime.UtcNow;
+
+            await _walletRepository.UpdateWalletAsync(wallet);
+
+            var txn = new Models.WalletTransaction
+            {
+                TransactionId = "WDR" + System.Guid.NewGuid().ToString("N").Substring(0, 10).ToUpper(),
+                WalletId = wallet.Id,
+                TransactionType = Models.TransactionType.Withdrawal,
+                Direction = Models.TransactionDirection.Debit,
+                Amount = dto.Amount,
+                BalanceBefore = balanceBefore,
+                BalanceAfter = balanceAfter,
+                AvailableBefore = balanceBefore,
+                AvailableAfter = balanceAfter,
+                LockedBefore = wallet.LockedBalance,
+                LockedAfter = wallet.LockedBalance,
+                Status = Models.TransactionStatus.Success,
+                Description = dto.Description ?? "Withdrawal from wallet",
+                CreatedAt = System.DateTime.UtcNow,
+                CreatedBy = "User"
+            };
+
+            await _walletRepository.AddTransactionAsync(txn);
+            await _walletRepository.SaveChangesAsync();
+
+            var monthlyExpenditure = await _walletRepository.GetMonthlyExpenditureAsync(wallet.Id);
+
+            var response = new WalletBalanceResponseDto
+            {
+                WalletId = wallet.Id,
+                WalletType = wallet.WalletType.ToString(),
+                AvailableBalance = wallet.AvailableBalance,
+                LockedBalance = wallet.LockedBalance,
+                TotalCredits = wallet.TotalCredits,
+                TotalDebits = wallet.TotalDebits,
+                MonthlyExpenditure = monthlyExpenditure,
+                Status = wallet.Status
+            };
+
+            return (true, "Money withdrawn successfully.", response);
+        }
     }
 }

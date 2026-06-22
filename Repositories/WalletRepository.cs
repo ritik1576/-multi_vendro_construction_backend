@@ -46,5 +46,21 @@ namespace InframartAPI_New.Repositories
 
             return (items, totalCount);
         }
+
+        public async Task UpdateWalletAsync(Wallet wallet)
+        {
+            _context.Wallets.Update(wallet);
+            await Task.CompletedTask;
+        }
+
+        public async Task AddTransactionAsync(WalletTransaction transaction)
+        {
+            await _context.WalletTransactions.AddAsync(transaction);
+        }
+
+        public async Task SaveChangesAsync()
+        {
+            await _context.SaveChangesAsync();
+        }
     }
 }

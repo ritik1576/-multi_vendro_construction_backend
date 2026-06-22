@@ -1,4 +1,5 @@
 using InframartAPI_New.Services.Interfaces;
+using InframartAPI_New.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -96,6 +97,90 @@ namespace InframartAPI_New.Controllers
                 totalCount = result.Value.totalCount,
                 page,
                 pageSize
+            });
+        }
+
+        /// <summary>
+        /// Add Money to Wallet
+        /// </summary>
+        /// <remarks>
+        /// Deposits money into the authenticated user's wallet and logs a credit transaction.
+        /// </remarks>
+        [HttpPost("add-money")]
+        public async Task<IActionResult> AddMoney([FromBody] AddMoneyRequestDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !long.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized(new
+                {
+                    success = false,
+                    message = "Unauthorized."
+                });
+            }
+
+            var (success, message, wallet) = await _walletService.AddMoneyAsync(userId, dto);
+            if (!success)
+            {
+                if (message == "Wallet not found.")
+                {
+                    return NotFound(new { success = false, message });
+                }
+                return BadRequest(new { success = false, message });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                message,
+                data = wallet
+            });
+        }
+
+        /// <summary>
+        /// Withdraw Money from Wallet
+        /// </summary>
+        /// <remarks>
+        /// Withdraws money from the authenticated user's wallet and logs a debit transaction.
+        /// </remarks>
+        [HttpPost("withdraw")]
+        public async Task<IActionResult> Withdraw([FromBody] WithdrawMoneyRequestDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !long.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized(new
+                {
+                    success = false,
+                    message = "Unauthorized."
+                });
+            }
+
+            var (success, message, wallet) = await _walletService.WithdrawMoneyAsync(userId, dto);
+            if (!success)
+            {
+                if (message == "Wallet not found.")
+                {
+                    return NotFound(new { success = false, message });
+                }
+                return BadRequest(new { success = false, message });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                message,
+                data = wallet
             });
         }
     }

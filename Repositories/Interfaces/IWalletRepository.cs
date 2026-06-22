@@ -8,5 +8,8 @@ namespace InframartAPI_New.Repositories.Interfaces
         Task<Wallet?> GetWalletByUserIdAsync(long userId);
         Task<decimal> GetMonthlyExpenditureAsync(long walletId);
         Task<(System.Collections.Generic.List<WalletTransaction> items, int totalCount)> GetWalletTransactionsAsync(long walletId, int page, int pageSize);
+        Task UpdateWalletAsync(Wallet wallet);
+        Task AddTransactionAsync(WalletTransaction transaction);
+        Task SaveChangesAsync();
     }
 }
