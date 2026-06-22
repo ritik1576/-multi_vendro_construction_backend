@@ -8,6 +8,7 @@ namespace InframartAPI_New.DTOs
         public decimal LockedBalance { get; set; }
         public decimal TotalCredits { get; set; }
         public decimal TotalDebits { get; set; }
+        public decimal MonthlyExpenditure { get; set; }
         public string Status { get; set; } = "Active";
     }
 }

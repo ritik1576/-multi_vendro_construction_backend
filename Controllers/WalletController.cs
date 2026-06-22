@@ -55,5 +55,48 @@ namespace InframartAPI_New.Controllers
                 data = walletBalance
             });
         }
+
+        /// <summary>
+        /// Get Wallet Transactions
+        /// </summary>
+        /// <remarks>
+        /// Returns a paginated list of wallet transactions for the authenticated user.
+        /// </remarks>
+        [HttpGet("transactions")]
+        public async Task<IActionResult> GetTransactions([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        {
+            if (page < 1) page = 1;
+            if (pageSize < 1 || pageSize > 100) pageSize = 10;
+
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !long.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized(new
+                {
+                    success = false,
+                    message = "Unauthorized."
+                });
+            }
+
+            var result = await _walletService.GetWalletTransactionsAsync(userId, page, pageSize);
+            if (result == null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Wallet not found."
+                });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                message = "Wallet transactions retrieved successfully.",
+                data = result.Value.items,
+                totalCount = result.Value.totalCount,
+                page,
+                pageSize
+            });
+        }
     }
 }
