@@ -59,6 +59,7 @@ builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IAddressRepository, AddressRepository>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
+builder.Services.AddScoped<IWalletRepository, WalletRepository>();
 
 // Services
 builder.Services.AddScoped<IEmailService, EmailService>();
@@ -73,6 +74,7 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<ICouponService, CouponService>();
+builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddSwaggerGen(options =>
 {
     // Repositories
