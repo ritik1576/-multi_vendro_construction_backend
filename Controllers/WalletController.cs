@@ -183,5 +183,47 @@ namespace InframartAPI_New.Controllers
                 data = wallet
             });
         }
+
+        /// <summary>
+        /// Transfer Money to Vendor
+        /// </summary>
+        /// <remarks>
+        /// Transfers money from the authenticated user's wallet to a target vendor's wallet.
+        /// </remarks>
+        [HttpPost("transfer")]
+        public async Task<IActionResult> Transfer([FromBody] TransferMoneyRequestDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !long.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized(new
+                {
+                    success = false,
+                    message = "Unauthorized."
+                });
+            }
+
+            var (success, message, wallet) = await _walletService.TransferMoneyAsync(userId, dto);
+            if (!success)
+            {
+                if (message == "Sender wallet not found." || message == "Recipient wallet not found.")
+                {
+                    return NotFound(new { success = false, message });
+                }
+                return BadRequest(new { success = false, message });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                message,
+                data = wallet
+            });
+        }
     }
 }

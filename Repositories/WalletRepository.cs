@@ -27,6 +27,17 @@ namespace InframartAPI_New.Repositories
             return user?.FullName;
         }
 
+        public async Task<string?> GetVendorNameByUserIdAsync(long userId)
+        {
+            var vendor = await _context.Vendors.FirstOrDefaultAsync(v => v.UserId == userId);
+            if (vendor != null && !string.IsNullOrEmpty(vendor.ShopName))
+            {
+                return vendor.ShopName;
+            }
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            return user?.FullName;
+        }
+
         public async Task<decimal> GetMonthlyExpenditureAsync(long walletId)
         {
             var startOfMonth = new System.DateTime(System.DateTime.UtcNow.Year, System.DateTime.UtcNow.Month, 1, 0, 0, 0, System.DateTimeKind.Utc);

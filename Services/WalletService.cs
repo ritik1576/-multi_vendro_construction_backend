@@ -185,5 +185,109 @@ namespace InframartAPI_New.Services
 
             return (true, "Money withdrawn successfully.", response);
         }
+
+        public async Task<(bool success, string message, WalletBalanceResponseDto? wallet)> TransferMoneyAsync(long userId, TransferMoneyRequestDto dto)
+        {
+            var customerWallet = await _walletRepository.GetWalletByUserIdAsync(userId);
+            if (customerWallet == null)
+            {
+                return (false, "Sender wallet not found.", null);
+            }
+
+            var vendorWallet = await _walletRepository.GetWalletByUserIdAsync(dto.TargetUserId);
+            if (vendorWallet == null)
+            {
+                return (false, "Recipient wallet not found.", null);
+            }
+
+            if (customerWallet.AvailableBalance < dto.Amount)
+            {
+                return (false, "Insufficient wallet balance.", null);
+            }
+
+            var customerName = await _walletRepository.GetUserNameAsync(userId) ?? "Customer";
+            var vendorName = await _walletRepository.GetVendorNameByUserIdAsync(dto.TargetUserId) ?? "Vendor";
+
+            var custBefore = customerWallet.AvailableBalance;
+            var custAfter = customerWallet.AvailableBalance - dto.Amount;
+
+            var vendBefore = vendorWallet.AvailableBalance;
+            var vendAfter = vendorWallet.AvailableBalance + dto.Amount;
+
+            // Update sender (customer) wallet
+            customerWallet.AvailableBalance = custAfter;
+            customerWallet.TotalDebits += dto.Amount;
+            customerWallet.UpdatedAt = System.DateTime.UtcNow;
+            await _walletRepository.UpdateWalletAsync(customerWallet);
+
+            // Update recipient (vendor) wallet
+            vendorWallet.AvailableBalance = vendAfter;
+            vendorWallet.TotalCredits += dto.Amount;
+            vendorWallet.UpdatedAt = System.DateTime.UtcNow;
+            await _walletRepository.UpdateWalletAsync(vendorWallet);
+
+            // Generate transaction id
+            var transactionId = "TRF" + System.Guid.NewGuid().ToString("N").Substring(0, 10).ToUpper();
+
+            // Sender debit transaction (Title is Recipient Vendor Name)
+            var senderTxn = new Models.WalletTransaction
+            {
+                TransactionId = transactionId,
+                WalletId = customerWallet.Id,
+                TransactionType = Models.TransactionType.Transfer,
+                Direction = Models.TransactionDirection.Debit,
+                Amount = dto.Amount,
+                BalanceBefore = custBefore,
+                BalanceAfter = custAfter,
+                AvailableBefore = custBefore,
+                AvailableAfter = custAfter,
+                LockedBefore = customerWallet.LockedBalance,
+                LockedAfter = customerWallet.LockedBalance,
+                Status = Models.TransactionStatus.Success,
+                Description = vendorName,
+                CreatedAt = System.DateTime.UtcNow,
+                CreatedBy = "User"
+            };
+
+            // Recipient credit transaction (Title is Sender Customer Name)
+            var recipientTxn = new Models.WalletTransaction
+            {
+                TransactionId = transactionId,
+                WalletId = vendorWallet.Id,
+                TransactionType = Models.TransactionType.Transfer,
+                Direction = Models.TransactionDirection.Credit,
+                Amount = dto.Amount,
+                BalanceBefore = vendBefore,
+                BalanceAfter = vendAfter,
+                AvailableBefore = vendBefore,
+                AvailableAfter = vendAfter,
+                LockedBefore = vendorWallet.LockedBalance,
+                LockedAfter = vendorWallet.LockedBalance,
+                Status = Models.TransactionStatus.Success,
+                Description = customerName,
+                CreatedAt = System.DateTime.UtcNow,
+                CreatedBy = "User"
+            };
+
+            await _walletRepository.AddTransactionAsync(senderTxn);
+            await _walletRepository.AddTransactionAsync(recipientTxn);
+            await _walletRepository.SaveChangesAsync();
+
+            var monthlyExpenditure = await _walletRepository.GetMonthlyExpenditureAsync(customerWallet.Id);
+
+            var response = new WalletBalanceResponseDto
+            {
+                WalletId = customerWallet.Id,
+                WalletType = customerWallet.WalletType.ToString(),
+                AvailableBalance = customerWallet.AvailableBalance,
+                LockedBalance = customerWallet.LockedBalance,
+                TotalCredits = customerWallet.TotalCredits,
+                TotalDebits = customerWallet.TotalDebits,
+                MonthlyExpenditure = monthlyExpenditure,
+                Status = customerWallet.Status
+            };
+
+            return (true, "Money transferred successfully.", response);
+        }
     }
 }
