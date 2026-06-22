@@ -11,6 +11,7 @@ namespace InframartAPI_New.DTOs
         public string Direction { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
+        public string? Description { get; set; }
         public string? ReferenceType { get; set; }
         public string? ReferenceId { get; set; }
         public DateTime CreatedAt { get; set; }

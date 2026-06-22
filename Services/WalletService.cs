@@ -58,7 +58,8 @@ namespace InframartAPI_New.Services
                     TransactionType = t.TransactionType.ToString(),
                     Direction = t.Direction.ToString(),
                     Status = t.Status.ToString(),
-                    Title = t.Description ?? string.Empty,
+                    Title = t.Title ?? t.Description ?? string.Empty,
+                    Description = t.Description,
                     ReferenceType = t.ReferenceType,
                     ReferenceId = t.ReferenceId,
                     CreatedAt = t.CreatedAt
@@ -74,6 +75,11 @@ namespace InframartAPI_New.Services
             if (wallet == null)
             {
                 return (false, "Wallet not found.", null);
+            }
+
+            if (dto.Amount > 100000m)
+            {
+                return (false, "Deposit amount cannot exceed 100,000.", null);
             }
 
             var userName = await _walletRepository.GetUserNameAsync(userId) ?? "Customer";
@@ -100,7 +106,8 @@ namespace InframartAPI_New.Services
                 LockedBefore = wallet.LockedBalance,
                 LockedAfter = wallet.LockedBalance,
                 Status = Models.TransactionStatus.Success,
-                Description = userName,
+                Title = userName,
+                Description = "Money added to wallet",
                 CreatedAt = System.DateTime.UtcNow,
                 CreatedBy = "User"
             };
@@ -161,7 +168,8 @@ namespace InframartAPI_New.Services
                 LockedBefore = wallet.LockedBalance,
                 LockedAfter = wallet.LockedBalance,
                 Status = Models.TransactionStatus.Success,
-                Description = "To Bank Account",
+                Title = "To Bank Account",
+                Description = "Withdrawal from wallet",
                 CreatedAt = System.DateTime.UtcNow,
                 CreatedBy = "User"
             };
@@ -244,7 +252,8 @@ namespace InframartAPI_New.Services
                 LockedBefore = customerWallet.LockedBalance,
                 LockedAfter = customerWallet.LockedBalance,
                 Status = Models.TransactionStatus.Success,
-                Description = vendorName,
+                Title = vendorName,
+                Description = $"Transfer to vendor {vendorName}",
                 CreatedAt = System.DateTime.UtcNow,
                 CreatedBy = "User"
             };
@@ -264,7 +273,8 @@ namespace InframartAPI_New.Services
                 LockedBefore = vendorWallet.LockedBalance,
                 LockedAfter = vendorWallet.LockedBalance,
                 Status = Models.TransactionStatus.Success,
-                Description = customerName,
+                Title = customerName,
+                Description = $"Transfer from customer {customerName}",
                 CreatedAt = System.DateTime.UtcNow,
                 CreatedBy = "User"
             };

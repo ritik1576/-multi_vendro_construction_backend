@@ -6,5 +6,7 @@ public class CreateOrderDto
 
     public string? CouponCode { get; set; }
 
+    public string? PaymentMethod { get; set; } = "razorpay";
+
     public List<CreateOrderItemDto> Items { get; set; } = new();
 }
