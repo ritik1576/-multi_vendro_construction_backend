@@ -36,8 +36,11 @@ public class OrderServices : IOrderService
     public async Task<ServiceResponse<PlaceOrderResponseDto>>
         CreateOrderAsync(CreateOrderDto dto)
     {
+        Console.WriteLine($"[DEBUG CreateOrderAsync] Starting order placement. UserId: {dto.UserId}, PaymentMethod: '{dto.PaymentMethod}', Items Count: {dto.Items.Count}");
+
         if (dto.UserId <= 0 || dto.AddressId <= 0 || dto.Items.Count == 0)
         {
+            Console.WriteLine("[DEBUG CreateOrderAsync] Invalid order data validation failed.");
             return ServiceResponse<PlaceOrderResponseDto>
                 .FailureResponse("Invalid order data", 400);
         }
@@ -45,6 +48,7 @@ public class OrderServices : IOrderService
         var cart = await _cartRepository.GetByUserIdWithItemsAsync(dto.UserId);
         if (cart == null)
         {
+            Console.WriteLine($"[DEBUG CreateOrderAsync] Cart not found for user {dto.UserId}");
             return ServiceResponse<PlaceOrderResponseDto>
                 .FailureResponse("Cart not found for user", 404);
         }
@@ -81,7 +85,6 @@ public class OrderServices : IOrderService
                     .FailureResponse($"Product {cartItem.ProductId} not found", 404);
             }
 
-            // ── Stock check ────────────────────────────────────────────────
             var availableStock = product.Quantity ?? 0;
             if (availableStock < item.Quantity)
             {
@@ -114,6 +117,7 @@ public class OrderServices : IOrderService
 
         Order order = null!;
         bool isWalletPayment = string.Equals(dto.PaymentMethod, "Wallet", StringComparison.OrdinalIgnoreCase);
+        Console.WriteLine($"[DEBUG CreateOrderAsync] isWalletPayment evaluated to: {isWalletPayment} (Input: '{dto.PaymentMethod}')");
 
         if (isWalletPayment)
         {
@@ -121,24 +125,32 @@ public class OrderServices : IOrderService
             decimal commissionAmount = orderAmount * 0.10m;
             decimal vendorAmount = orderAmount - commissionAmount;
 
+            Console.WriteLine($"[DEBUG CreateOrderAsync] Wallet calculation - subtotal: {subtotal}, discount: {discountAmount}, delivery: {DeliveryCharge}, orderAmount: {orderAmount}, commissionAmount: {commissionAmount}, vendorAmount: {vendorAmount}");
+
             var customerWallet = await _applicationDbContext.Wallets.FirstOrDefaultAsync(w => w.UserId == dto.UserId);
             if (customerWallet == null)
             {
+                Console.WriteLine($"[DEBUG CreateOrderAsync] Customer wallet NOT found for UserId: {dto.UserId}");
                 return ServiceResponse<PlaceOrderResponseDto>.FailureResponse("Customer wallet not found.", 404);
             }
+            Console.WriteLine($"[DEBUG CreateOrderAsync] Customer wallet found. Available Balance: {customerWallet.AvailableBalance}");
+
             if (customerWallet.AvailableBalance < orderAmount)
             {
+                Console.WriteLine($"[DEBUG CreateOrderAsync] Insufficient balance. Required: {orderAmount}, Available: {customerWallet.AvailableBalance}");
                 return ServiceResponse<PlaceOrderResponseDto>.FailureResponse("Insufficient Balance", 400);
             }
 
             var vendorId = products.FirstOrDefault(p => p.VendorId.HasValue)?.VendorId;
             if (vendorId == null)
             {
+                Console.WriteLine("[DEBUG CreateOrderAsync] Vendor ID not found in ordered items.");
                 return ServiceResponse<PlaceOrderResponseDto>.FailureResponse("Vendor not found for the ordered items.", 400);
             }
             var vendorObj = await _appDbContext.Vendors.FirstOrDefaultAsync(v => v.Id == vendorId.Value);
             if (vendorObj == null || !vendorObj.UserId.HasValue)
             {
+                Console.WriteLine($"[DEBUG CreateOrderAsync] Vendor object not found or UserId missing for VendorId: {vendorId}");
                 return ServiceResponse<PlaceOrderResponseDto>.FailureResponse("Vendor user ID not found.", 400);
             }
             long vendorUserId = vendorObj.UserId.Value;
@@ -146,23 +158,29 @@ public class OrderServices : IOrderService
             var vendorWallet = await _applicationDbContext.Wallets.FirstOrDefaultAsync(w => w.UserId == vendorUserId);
             if (vendorWallet == null)
             {
+                Console.WriteLine($"[DEBUG CreateOrderAsync] Vendor wallet NOT found for VendorUserId: {vendorUserId}");
                 return ServiceResponse<PlaceOrderResponseDto>.FailureResponse("Vendor wallet not found.", 400);
             }
+            Console.WriteLine($"[DEBUG CreateOrderAsync] Vendor wallet found. Balance: {vendorWallet.AvailableBalance}");
 
             var adminUser = await _appDbContext.Users.FirstOrDefaultAsync(u => u.Role == "admin");
             if (adminUser == null)
             {
+                Console.WriteLine("[DEBUG CreateOrderAsync] Admin user not found.");
                 return ServiceResponse<PlaceOrderResponseDto>.FailureResponse("Admin user not found.", 500);
             }
             var adminWallet = await _applicationDbContext.Wallets.FirstOrDefaultAsync(w => w.UserId == adminUser.Id);
             if (adminWallet == null)
             {
+                Console.WriteLine($"[DEBUG CreateOrderAsync] Admin wallet NOT found for AdminUserId: {adminUser.Id}");
                 return ServiceResponse<PlaceOrderResponseDto>.FailureResponse("Admin wallet not found.", 500);
             }
+            Console.WriteLine($"[DEBUG CreateOrderAsync] Admin wallet found. Balance: {adminWallet.AvailableBalance}");
 
             using var dbTransaction = await _applicationDbContext.Database.BeginTransactionAsync();
             try
             {
+                Console.WriteLine("[DEBUG CreateOrderAsync] DB Transaction started.");
                 var custBefore = customerWallet.AvailableBalance;
                 customerWallet.AvailableBalance -= orderAmount;
                 customerWallet.TotalDebits += orderAmount;
@@ -336,6 +354,7 @@ public class OrderServices : IOrderService
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"[DEBUG CreateOrderAsync] EXCEPTION CAUGHT during wallet transaction processing: {ex}");
                 await dbTransaction.RollbackAsync();
                 return ServiceResponse<PlaceOrderResponseDto>.FailureResponse($"Failed to place order using Wallet: {ex.Message}", 500);
             }
