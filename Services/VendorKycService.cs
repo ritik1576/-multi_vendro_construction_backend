@@ -346,6 +346,28 @@ namespace InframartAPI_New.Services
             vendor.Status = VendorStatus.Approved;
             vendor.UpdatedAt = DateTime.UtcNow;
 
+            if (vendor.UserId.HasValue)
+            {
+                var walletExists = await _context.Wallets.AnyAsync(w => w.UserId == vendor.UserId.Value && w.WalletType == WalletType.Vendor);
+                if (!walletExists)
+                {
+                    var wallet = new Wallet
+                    {
+                        UserId = vendor.UserId.Value,
+                        WalletType = WalletType.Vendor,
+                        AvailableBalance = 0.00m,
+                        LockedBalance = 0.00m,
+                        TotalCredits = 0.00m,
+                        TotalDebits = 0.00m,
+                        Status = "Active",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        RowVersion = 1
+                    };
+                    _context.Wallets.Add(wallet);
+                }
+            }
+
             await _context.SaveChangesAsync();
 
             if (vendor.UserId.HasValue)
