@@ -116,7 +116,7 @@ public class OrderServices : IOrderService
         }
 
         Order order = null!;
-        bool isWalletPayment = string.Equals(dto.PaymentMethod, "Wallet", StringComparison.OrdinalIgnoreCase);
+        bool isWalletPayment = string.Equals(dto.PaymentMethod?.Trim(), "Wallet", StringComparison.OrdinalIgnoreCase);
         Console.WriteLine($"[DEBUG CreateOrderAsync] isWalletPayment evaluated to: {isWalletPayment} (Input: '{dto.PaymentMethod}')");
 
         if (isWalletPayment)
@@ -345,7 +345,7 @@ public class OrderServices : IOrderService
                 await _applicationDbContext.WalletTransactions.AddAsync(vendTxn);
                 await _applicationDbContext.WalletTransactions.AddAsync(adminTxn);
 
-                await _orderRepository.SaveChangesAsync();
+                await _applicationDbContext.SaveChangesAsync();
 
                 await dbTransaction.CommitAsync();
 
