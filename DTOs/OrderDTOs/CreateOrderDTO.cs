@@ -23,7 +23,4 @@ public class CreateOrderDto
     public string? PaymentMethodSnakeCase { get => PaymentMethod; set => PaymentMethod = value; }
 
     public List<CreateOrderItemDto> Items { get; set; } = new();
-
-    [JsonPropertyName("items")]
-    public List<CreateOrderItemDto> ItemsSnakeCase { get => Items; set => Items = value; }
 }
