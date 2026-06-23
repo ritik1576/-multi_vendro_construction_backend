@@ -25,4 +25,6 @@ public class UpdateProductDto
     public int? Quantity { get; set; }
 
     public string? Unit { get; set; }
+
+    public List<string>? Images { get; set; }
 }
