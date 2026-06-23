@@ -64,6 +64,23 @@ namespace InframartAPI_New.Controllers
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
+            // Create customer wallet
+            var wallet = new Wallet
+            {
+                UserId = user.Id,
+                WalletType = WalletType.Customer,
+                AvailableBalance = 0.00m,
+                LockedBalance = 0.00m,
+                TotalCredits = 0.00m,
+                TotalDebits = 0.00m,
+                Status = "Active",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                RowVersion = 1
+            };
+            _context.Wallets.Add(wallet);
+            await _context.SaveChangesAsync();
+
             // Trigger welcome notification
             await _notificationService.CreateNotificationAsync(user.Id, "Welcome to InfraMart", "Welcome to InfraMart!", "customer");
 

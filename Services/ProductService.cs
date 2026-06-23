@@ -378,7 +378,7 @@ namespace MultiVendorAPI.Services
         public async Task<ServiceResponse<List<ProductDto>>> SearchProductsAsync(string searchTerm)
         {
             var products = await _context.Products
-                .Where(p => p.Name.Contains(searchTerm) && p.Status != "inactive" && p.Status != "deleted")
+                .Where(p => p.Name != null && p.Name.Contains(searchTerm) && p.Status != "inactive" && p.Status != "deleted")
                 .Select(p => new ProductDto
                 {
                     Name = p.Name,

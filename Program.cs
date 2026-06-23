@@ -59,6 +59,7 @@ builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IAddressRepository, AddressRepository>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
+builder.Services.AddScoped<IWalletRepository, WalletRepository>();
 
 // Services
 builder.Services.AddScoped<IEmailService, EmailService>();
@@ -73,6 +74,7 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<ICouponService, CouponService>();
+builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddSwaggerGen(options =>
 {
     // Repositories
@@ -239,6 +241,23 @@ using (var scope = app.Services.CreateScope())
         catch (Exception ex)
         {
             Console.WriteLine($"Error checking/migrating `Vendors` schema: {ex.Message}");
+        }
+
+        // Ensure Orders table schema is updated to support wallet columns
+        try
+        {
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `orders` ADD COLUMN `subtotal_amount` DECIMAL(18,2) NULL;"); } catch {}
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `orders` ADD COLUMN `commission_amount` DECIMAL(18,2) NULL;"); } catch {}
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `orders` ADD COLUMN `vendor_amount` DECIMAL(18,2) NULL;"); } catch {}
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `orders` ADD COLUMN `final_amount` DECIMAL(18,2) NULL;"); } catch {}
+            Console.WriteLine("Successfully ensured `orders` wallet columns exist.");
+            
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `wallet_transactions` ADD COLUMN `title` VARCHAR(255) NULL;"); } catch {}
+            Console.WriteLine("Successfully ensured `wallet_transactions` title column exists.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error checking/updating `orders` wallet columns: {ex.Message}");
         }
 
         // Create vendor_kyc table if not exists

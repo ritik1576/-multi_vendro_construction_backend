@@ -36,8 +36,11 @@ public class OrderServices : IOrderService
     public async Task<ServiceResponse<PlaceOrderResponseDto>>
         CreateOrderAsync(CreateOrderDto dto)
     {
+        Console.WriteLine($"[DEBUG CreateOrderAsync] Starting order placement. UserId: {dto.UserId}, PaymentMethod: '{dto.PaymentMethod}', Items Count: {dto.Items.Count}");
+
         if (dto.UserId <= 0 || dto.AddressId <= 0 || dto.Items.Count == 0)
         {
+            Console.WriteLine("[DEBUG CreateOrderAsync] Invalid order data validation failed.");
             return ServiceResponse<PlaceOrderResponseDto>
                 .FailureResponse("Invalid order data", 400);
         }
@@ -45,6 +48,7 @@ public class OrderServices : IOrderService
         var cart = await _cartRepository.GetByUserIdWithItemsAsync(dto.UserId);
         if (cart == null)
         {
+            Console.WriteLine($"[DEBUG CreateOrderAsync] Cart not found for user {dto.UserId}");
             return ServiceResponse<PlaceOrderResponseDto>
                 .FailureResponse("Cart not found for user", 404);
         }
@@ -81,7 +85,6 @@ public class OrderServices : IOrderService
                     .FailureResponse($"Product {cartItem.ProductId} not found", 404);
             }
 
-            // ── Stock check ────────────────────────────────────────────────
             var availableStock = product.Quantity ?? 0;
             if (availableStock < item.Quantity)
             {
@@ -115,27 +118,31 @@ public class OrderServices : IOrderService
             discountAmount = await _couponService.CalculateDiscountAsync(couponValidation.Coupon, subtotal);
         }
 
-        var order = new Order
+        Order order = null!;
+        bool isWalletPayment = string.Equals(dto.PaymentMethod?.Trim(), "Wallet", StringComparison.OrdinalIgnoreCase);
+        Console.WriteLine($"[DEBUG CreateOrderAsync] isWalletPayment evaluated to: {isWalletPayment} (Input: '{dto.PaymentMethod}')");
+
+        if (isWalletPayment)
         {
-            UserId = dto.UserId,
-            AddressId = dto.AddressId,
-            Subtotal = subtotal,
-            DiscountAmount = discountAmount,
-            ShippingCharge = DeliveryCharge,
-            TotalAmount = subtotal - discountAmount + DeliveryCharge,
-            CouponId = couponId,
-            CouponCode = dto.CouponCode,
-            PaymentStatus = "pending",
-            OrderStatus = "pending",
-            PlacedAt = now,
-            CreatedAt = now
-        };
+            decimal orderAmount = subtotal - discountAmount + DeliveryCharge;
+            decimal commissionAmount = orderAmount * 0.10m;
+            decimal vendorAmount = orderAmount - commissionAmount;
 
-        await _orderRepository.CreateOrderAsync(order);
-        await _orderRepository.SaveChangesAsync();
+            Console.WriteLine($"[DEBUG CreateOrderAsync] Wallet calculation - subtotal: {subtotal}, discount: {discountAmount}, delivery: {DeliveryCharge}, orderAmount: {orderAmount}, commissionAmount: {commissionAmount}, vendorAmount: {vendorAmount}");
 
-        order.OrderNumber = FormatOrderNumber(order.Id);
+            var customerWallet = await _applicationDbContext.Wallets.FirstOrDefaultAsync(w => w.UserId == dto.UserId);
+            if (customerWallet == null)
+            {
+                Console.WriteLine($"[DEBUG CreateOrderAsync] Customer wallet NOT found for UserId: {dto.UserId}");
+                return ServiceResponse<PlaceOrderResponseDto>.FailureResponse("Customer wallet not found.", 404);
+            }
+            Console.WriteLine($"[DEBUG CreateOrderAsync] Customer wallet found. Available Balance: {customerWallet.AvailableBalance}");
 
+            if (customerWallet.AvailableBalance < orderAmount)
+            {
+                Console.WriteLine($"[DEBUG CreateOrderAsync] Insufficient balance. Required: {orderAmount}, Available: {customerWallet.AvailableBalance}");
+                return ServiceResponse<PlaceOrderResponseDto>.FailureResponse("Insufficient Balance", 400);
+            }
         for (var i = 0; i < dto.Items.Count; i++)
         {
             var item = dto.Items[i];
@@ -144,49 +151,297 @@ public class OrderServices : IOrderService
                 ? product.DiscountPrice.Value
                 : product.Price.GetValueOrDefault();
 
-            await _orderRepository.CreateOrderItemAsync(new OrderItem
+            var vendorId = products.FirstOrDefault(p => p.VendorId.HasValue)?.VendorId;
+            if (vendorId == null)
             {
-                OrderId = order.Id,
-                ProductId = product.Id,
-                Quantity = item.Quantity,
-                ProductName = product.Name ?? string.Empty,
-                Price = price,
-                TotalPrice = price * item.Quantity,
-                CreatedAt = now
-            });
+                Console.WriteLine("[DEBUG CreateOrderAsync] Vendor ID not found in ordered items.");
+                return ServiceResponse<PlaceOrderResponseDto>.FailureResponse("Vendor not found for the ordered items.", 400);
+            }
+            var vendorObj = await _appDbContext.Vendors.FirstOrDefaultAsync(v => v.Id == vendorId.Value);
+            if (vendorObj == null || !vendorObj.UserId.HasValue)
+            {
+                Console.WriteLine($"[DEBUG CreateOrderAsync] Vendor object not found or UserId missing for VendorId: {vendorId}");
+                return ServiceResponse<PlaceOrderResponseDto>.FailureResponse("Vendor user ID not found.", 400);
+            }
+            long vendorUserId = vendorObj.UserId.Value;
 
-            // ── Deduct stock ───────────────────────────────────────────────
-            product.Quantity = (product.Quantity ?? 0) - item.Quantity;
-            if (product.Quantity <= 0)
+            var vendorWallet = await _applicationDbContext.Wallets.FirstOrDefaultAsync(w => w.UserId == vendorUserId);
+            if (vendorWallet == null)
             {
-                product.Quantity = 0;
-                product.InStock = false;
+                Console.WriteLine($"[DEBUG CreateOrderAsync] Vendor wallet NOT found for VendorUserId: {vendorUserId}");
+                return ServiceResponse<PlaceOrderResponseDto>.FailureResponse("Vendor wallet not found.", 400);
+            }
+            Console.WriteLine($"[DEBUG CreateOrderAsync] Vendor wallet found. Balance: {vendorWallet.AvailableBalance}");
+
+            var adminUser = await _appDbContext.Users.FirstOrDefaultAsync(u => u.Role == "admin");
+            if (adminUser == null)
+            {
+                Console.WriteLine("[DEBUG CreateOrderAsync] Admin user not found.");
+                return ServiceResponse<PlaceOrderResponseDto>.FailureResponse("Admin user not found.", 500);
+            }
+            var adminWallet = await _applicationDbContext.Wallets.FirstOrDefaultAsync(w => w.UserId == adminUser.Id);
+            if (adminWallet == null)
+            {
+                Console.WriteLine($"[DEBUG CreateOrderAsync] Admin wallet NOT found for AdminUserId: {adminUser.Id}");
+                return ServiceResponse<PlaceOrderResponseDto>.FailureResponse("Admin wallet not found.", 500);
+            }
+            Console.WriteLine($"[DEBUG CreateOrderAsync] Admin wallet found. Balance: {adminWallet.AvailableBalance}");
+
+            using var dbTransaction = await _applicationDbContext.Database.BeginTransactionAsync();
+            try
+            {
+                Console.WriteLine("[DEBUG CreateOrderAsync] DB Transaction started.");
+                var custBefore = customerWallet.AvailableBalance;
+                customerWallet.AvailableBalance -= orderAmount;
+                customerWallet.TotalDebits += orderAmount;
+                _applicationDbContext.Wallets.Update(customerWallet);
+
+                var vendBefore = vendorWallet.AvailableBalance;
+                vendorWallet.AvailableBalance += vendorAmount;
+                vendorWallet.TotalCredits += vendorAmount;
+                _applicationDbContext.Wallets.Update(vendorWallet);
+
+                var adminBefore = adminWallet.AvailableBalance;
+                adminWallet.AvailableBalance += commissionAmount;
+                adminWallet.TotalCredits += commissionAmount;
+                _applicationDbContext.Wallets.Update(adminWallet);
+
+                await _applicationDbContext.SaveChangesAsync();
+
+                order = new Order
+                {
+                    UserId = dto.UserId,
+                    AddressId = dto.AddressId,
+                    Subtotal = subtotal,
+                    DiscountAmount = discountAmount,
+                    ShippingCharge = DeliveryCharge,
+                    TotalAmount = orderAmount,
+                    CouponId = couponId,
+                    CouponCode = dto.CouponCode,
+                    PaymentStatus = "paid",
+                    OrderStatus = "pending",
+                    PlacedAt = now,
+                    CreatedAt = now,
+                    SubtotalAmount = subtotal,
+                    CommissionAmount = commissionAmount,
+                    VendorAmount = vendorAmount,
+                    FinalAmount = orderAmount
+                };
+
+                await _orderRepository.CreateOrderAsync(order);
+                await _orderRepository.SaveChangesAsync();
+
+                order.OrderNumber = FormatOrderNumber(order.Id);
+
+                for (var i = 0; i < dto.Items.Count; i++)
+                {
+                    var item = dto.Items[i];
+                    var product = products[i];
+                    var price = product.Price.GetValueOrDefault();
+
+                    await _orderRepository.CreateOrderItemAsync(new OrderItem
+                    {
+                        OrderId = order.Id,
+                        ProductId = product.Id,
+                        Quantity = item.Quantity,
+                        ProductName = product.Name ?? string.Empty,
+                        Price = price,
+                        TotalPrice = price * item.Quantity,
+                        CreatedAt = now
+                    });
+
+                    product.Quantity = (product.Quantity ?? 0) - item.Quantity;
+                    if (product.Quantity <= 0)
+                    {
+                        product.Quantity = 0;
+                        product.InStock = false;
+                    }
+                }
+
+                if (couponId.HasValue)
+                {
+                    var couponUsage = new CouponUsage
+                    {
+                        CouponId = couponId.Value,
+                        UserId = dto.UserId,
+                        OrderId = order.Id,
+                        UsedAt = now
+                    };
+                    await _applicationDbContext.CouponUsages.AddAsync(couponUsage);
+
+                    var coupon = await _applicationDbContext.Coupons.FindAsync(couponId.Value);
+                    if (coupon != null)
+                    {
+                        coupon.UsedCount = (coupon.UsedCount ?? 0) + 1;
+                    }
+                }
+
+                var cartItems = cart.CartItems.ToList();
+                await _cartRepository.RemoveCartItemsAsync(cartItems);
+
+                var customerUser = await _appDbContext.Users.FirstOrDefaultAsync(u => u.Id == dto.UserId);
+                string customerName = customerUser?.FullName ?? "Customer";
+                string vendorName = vendorObj.ShopName ?? "Tata Steel";
+
+                var transactionId = "ORD" + System.Guid.NewGuid().ToString("N").Substring(0, 10).ToUpper();
+
+                var custTxn = new InframartAPI_New.Models.WalletTransaction
+                {
+                    TransactionId = transactionId,
+                    WalletId = customerWallet.Id,
+                    TransactionType = InframartAPI_New.Models.TransactionType.Purchase,
+                    Direction = InframartAPI_New.Models.TransactionDirection.Debit,
+                    Amount = orderAmount,
+                    BalanceBefore = custBefore,
+                    BalanceAfter = customerWallet.AvailableBalance,
+                    AvailableBefore = custBefore,
+                    AvailableAfter = customerWallet.AvailableBalance,
+                    LockedBefore = customerWallet.LockedBalance,
+                    LockedAfter = customerWallet.LockedBalance,
+                    Status = InframartAPI_New.Models.TransactionStatus.Success,
+                    Title = vendorName,
+                    Description = $"Order Payment - Order #{order.OrderNumber}",
+                    ReferenceType = "Order",
+                    ReferenceId = order.OrderNumber,
+                    CreatedAt = now,
+                    CreatedBy = "System"
+                };
+
+                var vendTxn = new InframartAPI_New.Models.WalletTransaction
+                {
+                    TransactionId = transactionId,
+                    WalletId = vendorWallet.Id,
+                    TransactionType = InframartAPI_New.Models.TransactionType.Purchase,
+                    Direction = InframartAPI_New.Models.TransactionDirection.Credit,
+                    Amount = vendorAmount,
+                    BalanceBefore = vendBefore,
+                    BalanceAfter = vendorWallet.AvailableBalance,
+                    AvailableBefore = vendBefore,
+                    AvailableAfter = vendorWallet.AvailableBalance,
+                    LockedBefore = vendorWallet.LockedBalance,
+                    LockedAfter = vendorWallet.LockedBalance,
+                    Status = InframartAPI_New.Models.TransactionStatus.Success,
+                    Title = customerName,
+                    Description = $"Order Received Payment - Order #{order.OrderNumber}",
+                    ReferenceType = "Order",
+                    ReferenceId = order.OrderNumber,
+                    CreatedAt = now,
+                    CreatedBy = "System"
+                };
+
+                var adminTxn = new InframartAPI_New.Models.WalletTransaction
+                {
+                    TransactionId = transactionId,
+                    WalletId = adminWallet.Id,
+                    TransactionType = InframartAPI_New.Models.TransactionType.Purchase,
+                    Direction = InframartAPI_New.Models.TransactionDirection.Credit,
+                    Amount = commissionAmount,
+                    BalanceBefore = adminBefore,
+                    BalanceAfter = adminWallet.AvailableBalance,
+                    AvailableBefore = adminBefore,
+                    AvailableAfter = adminWallet.AvailableBalance,
+                    LockedBefore = adminWallet.LockedBalance,
+                    LockedAfter = adminWallet.LockedBalance,
+                    Status = InframartAPI_New.Models.TransactionStatus.Success,
+                    Title = $"Commission - Order #{order.OrderNumber}",
+                    Description = "Marketplace Commission",
+                    ReferenceType = "Order",
+                    ReferenceId = order.OrderNumber,
+                    CreatedAt = now,
+                    CreatedBy = "System"
+                };
+
+                await _applicationDbContext.WalletTransactions.AddAsync(custTxn);
+                await _applicationDbContext.WalletTransactions.AddAsync(vendTxn);
+                await _applicationDbContext.WalletTransactions.AddAsync(adminTxn);
+
+                await _applicationDbContext.SaveChangesAsync();
+
+                await dbTransaction.CommitAsync();
+
+                // Assign the local variable so that code after block can return correctly
+                dto.UserId = order.UserId;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DEBUG CreateOrderAsync] EXCEPTION CAUGHT during wallet transaction processing: {ex}");
+                await dbTransaction.RollbackAsync();
+                return ServiceResponse<PlaceOrderResponseDto>.FailureResponse($"Failed to place order using Wallet: {ex.Message}", 500);
             }
         }
-
-        if (couponId.HasValue)
+        else
         {
-            var couponUsage = new CouponUsage
+            order = new Order
             {
-                CouponId = couponId.Value,
                 UserId = dto.UserId,
-                OrderId = order.Id,
-                UsedAt = now
+                AddressId = dto.AddressId,
+                Subtotal = subtotal,
+                DiscountAmount = discountAmount,
+                ShippingCharge = DeliveryCharge,
+                TotalAmount = subtotal - discountAmount + DeliveryCharge,
+                CouponId = couponId,
+                CouponCode = dto.CouponCode,
+                PaymentStatus = "pending",
+                OrderStatus = "pending",
+                PlacedAt = now,
+                CreatedAt = now
             };
-            await _applicationDbContext.CouponUsages.AddAsync(couponUsage);
 
-            var coupon = await _applicationDbContext.Coupons.FindAsync(couponId.Value);
-            if (coupon != null)
+            await _orderRepository.CreateOrderAsync(order);
+            await _orderRepository.SaveChangesAsync();
+
+            order.OrderNumber = FormatOrderNumber(order.Id);
+
+            for (var i = 0; i < dto.Items.Count; i++)
             {
-                coupon.UsedCount = (coupon.UsedCount ?? 0) + 1;
+                var item = dto.Items[i];
+                var product = products[i];
+                var price = product.Price.GetValueOrDefault();
+
+                await _orderRepository.CreateOrderItemAsync(new OrderItem
+                {
+                    OrderId = order.Id,
+                    ProductId = product.Id,
+                    Quantity = item.Quantity,
+                    ProductName = product.Name ?? string.Empty,
+                    Price = price,
+                    TotalPrice = price * item.Quantity,
+                    CreatedAt = now
+                });
+
+                // ── Deduct stock ───────────────────────────────────────────────
+                product.Quantity = (product.Quantity ?? 0) - item.Quantity;
+                if (product.Quantity <= 0)
+                {
+                    product.Quantity = 0;
+                    product.InStock = false;
+                }
             }
+
+            if (couponId.HasValue)
+            {
+                var couponUsage = new CouponUsage
+                {
+                    CouponId = couponId.Value,
+                    UserId = dto.UserId,
+                    OrderId = order.Id,
+                    UsedAt = now
+                };
+                await _applicationDbContext.CouponUsages.AddAsync(couponUsage);
+
+                var coupon = await _applicationDbContext.Coupons.FindAsync(couponId.Value);
+                if (coupon != null)
+                {
+                    coupon.UsedCount = (coupon.UsedCount ?? 0) + 1;
+                }
+            }
+
+            // Clear cart items
+            var cartItems = cart.CartItems.ToList();
+            await _cartRepository.RemoveCartItemsAsync(cartItems);
+
+            await _orderRepository.SaveChangesAsync();
         }
-
-        // Clear cart items
-        var cartItems = cart.CartItems.ToList();
-        await _cartRepository.RemoveCartItemsAsync(cartItems);
-
-        await _orderRepository.SaveChangesAsync();
 
         // Trigger notifications
         try

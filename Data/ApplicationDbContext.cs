@@ -26,6 +26,8 @@ namespace MultiVendorAPI.Data
         public DbSet<Coupon> Coupons { get; set; }
         public DbSet<CouponUsage> CouponUsages { get; set; }
         public DbSet<VendorKyc> VendorKycs { get; set; }
+        public DbSet<Wallet> Wallets { get; set; }
+        public DbSet<WalletTransaction> WalletTransactions { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -127,6 +129,10 @@ namespace MultiVendorAPI.Data
                 entity.Property(o => o.OrderStatus).HasColumnName("order_status");
                 entity.Property(o => o.PlacedAt).HasColumnName("placed_at");
                 entity.Property(o => o.CreatedAt).HasColumnName("created_at");
+                entity.Property(o => o.SubtotalAmount).HasColumnName("subtotal_amount");
+                entity.Property(o => o.CommissionAmount).HasColumnName("commission_amount");
+                entity.Property(o => o.VendorAmount).HasColumnName("vendor_amount");
+                entity.Property(o => o.FinalAmount).HasColumnName("final_amount");
                 entity.Ignore(o => o.OrderDate);
                 entity.HasMany(o => o.OrderItems)
                     .WithOne(oi => oi.Order)
