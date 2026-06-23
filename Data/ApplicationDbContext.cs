@@ -67,8 +67,8 @@ namespace MultiVendorAPI.Data
             modelBuilder.Entity<Product>().Property(p => p.Images)
                 .HasColumnName("images")
                 .HasConversion(
-                    v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions)null),
-                    v => System.Text.Json.JsonSerializer.Deserialize<List<string>>(v, (System.Text.Json.JsonSerializerOptions)null) ?? new List<string>()
+                    v => v == null ? null : System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions)null),
+                    v => string.IsNullOrEmpty(v) ? new List<string>() : System.Text.Json.JsonSerializer.Deserialize<List<string>>(v, (System.Text.Json.JsonSerializerOptions)null) ?? new List<string>()
                 )
                 .Metadata.SetValueComparer(new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<string>>(
                     (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == c2,
