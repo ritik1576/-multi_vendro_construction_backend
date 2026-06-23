@@ -22,5 +22,20 @@ public class CreateOrderDto
     [JsonPropertyName("payment_method")]
     public string? PaymentMethodSnakeCase { get => PaymentMethod; set => PaymentMethod = value; }
 
+    [JsonPropertyName("payment_type")]
+    public string? PaymentTypeSnakeCase { get => PaymentMethod; set => PaymentMethod = value; }
+
+    [JsonPropertyName("paymentType")]
+    public string? PaymentTypeCamelCase { get => PaymentMethod; set => PaymentMethod = value; }
+
+    [JsonPropertyName("payment_mode")]
+    public string? PaymentModeSnakeCase { get => PaymentMethod; set => PaymentMethod = value; }
+
+    [JsonPropertyName("paymentMode")]
+    public string? PaymentModeCamelCase { get => PaymentMethod; set => PaymentMethod = value; }
+
+    [JsonPropertyName("payment")]
+    public string? PaymentAlias { get => PaymentMethod; set => PaymentMethod = value; }
+
     public List<CreateOrderItemDto> Items { get; set; } = new();
 }
