@@ -54,6 +54,7 @@ namespace MultiVendorAPI.Services
                     Price = p.Price,
                     DiscountPrice = p.DiscountPrice,
                     Thumbnail = p.Thumbnail,
+                    Images = p.Images,
                     CategoryId = p.CategoryId,
                     ShortDescription = p.ShortDescription,
                     Unit = p.Unit,
@@ -67,6 +68,7 @@ namespace MultiVendorAPI.Services
             foreach (var prod in products)
             {
                 prod.Thumbnail = FormatThumbnailUrl(prod.Thumbnail);
+                prod.Images = prod.Images?.Select(img => FormatThumbnailUrl(img)!).ToList() ?? new List<string>();
             }
 
             return products;
@@ -114,6 +116,7 @@ namespace MultiVendorAPI.Services
                 DiscountPrice = dto.DiscountPrice,
                 Sku = dto.Sku,
                 Thumbnail = dto.Thumbnail,
+                Images = dto.Images ?? new(),
                 InStock = dto.InStock,
                 Quantity = dto.Quantity,
                 Unit = dto.Unit,
@@ -131,6 +134,7 @@ namespace MultiVendorAPI.Services
                 Price = product.Price,
                 DiscountPrice = product.DiscountPrice,
                 Thumbnail = FormatThumbnailUrl(product.Thumbnail),
+                Images = product.Images.Select(img => FormatThumbnailUrl(img)!).ToList(),
                 CategoryId = product.CategoryId,
                 ShortDescription = product.ShortDescription,
                 Category = category.Name
@@ -203,9 +207,9 @@ namespace MultiVendorAPI.Services
                 Unit = product.Unit,
                 CreatedAt = product.CreatedAt,
                 UpdatedAt = product.UpdatedAt,
-                Images = string.IsNullOrWhiteSpace(formattedThumbnail)
-                    ? new List<string>()
-                    : new List<string> { formattedThumbnail },
+                Images = product.Images != null && product.Images.Any()
+                    ? product.Images.Select(img => FormatThumbnailUrl(img)!).ToList()
+                    : (string.IsNullOrWhiteSpace(formattedThumbnail) ? new List<string>() : new List<string> { formattedThumbnail }),
                 Category = categoryName,
                 VendorName = vendorName
             };
@@ -291,6 +295,11 @@ namespace MultiVendorAPI.Services
 
             product.Thumbnail = dto.Thumbnail;
 
+            if (dto.Images != null)
+            {
+                product.Images = dto.Images;
+            }
+
             product.Status = dto.Status;
 
             product.InStock = dto.InStock;
@@ -312,6 +321,7 @@ namespace MultiVendorAPI.Services
                         Price = product.Price,
                         DiscountPrice = product.DiscountPrice,
                         Thumbnail = FormatThumbnailUrl(product.Thumbnail),
+                        Images = product.Images.Select(img => FormatThumbnailUrl(img)!).ToList(),
                         CategoryId = product.CategoryId,
                         ShortDescription = product.ShortDescription,
                         Category = _context.Categories
@@ -385,6 +395,7 @@ namespace MultiVendorAPI.Services
                     Price = p.Price,
                     DiscountPrice = p.DiscountPrice,
                     Thumbnail = p.Thumbnail,
+                    Images = p.Images,
                     CategoryId = p.CategoryId,
                     ShortDescription = p.ShortDescription,
                     Unit = p.Unit,
@@ -398,6 +409,7 @@ namespace MultiVendorAPI.Services
             foreach (var prod in products)
             {
                 prod.Thumbnail = FormatThumbnailUrl(prod.Thumbnail);
+                prod.Images = prod.Images?.Select(img => FormatThumbnailUrl(img)!).ToList() ?? new List<string>();
             }
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
 
@@ -435,6 +447,7 @@ namespace MultiVendorAPI.Services
                     Price = p.Price,
                     DiscountPrice = p.DiscountPrice,
                     Thumbnail = p.Thumbnail,
+                    Images = p.Images,
                     CategoryId = p.CategoryId,
                     ShortDescription = p.ShortDescription,
                     Unit = p.Unit,
@@ -448,6 +461,7 @@ namespace MultiVendorAPI.Services
             foreach (var prod in products)
             {
                 prod.Thumbnail = FormatThumbnailUrl(prod.Thumbnail);
+                prod.Images = prod.Images?.Select(img => FormatThumbnailUrl(img)!).ToList() ?? new List<string>();
             }
 
             return ServiceResponse<List<ProductDto>>.SuccessResponse(products, "Blocked products retrieved successfully", 200);
