@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Http;
+
 namespace MultiVendorAPI.DTOs
 {
     public class CreateProductDto
@@ -31,6 +33,6 @@ namespace MultiVendorAPI.DTOs
 
         public string? Category { get; set; }
 
-        public List<string>? Images { get; set; }
+        public List<IFormFile>? Images { get; set; }
     }
 }

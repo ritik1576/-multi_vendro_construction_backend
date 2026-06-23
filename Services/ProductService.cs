@@ -5,6 +5,7 @@ using MultiVendorAPI.DTOs;
 using MultiVendorAPI.Services.Interfaces;
 using MultiVendorAPI.Models;
 using MultiVendorAPI.Common;
+using InframartAPI_New.Services.Interfaces;
 
 namespace MultiVendorAPI.Services
 {
@@ -12,11 +13,13 @@ namespace MultiVendorAPI.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IFileUploadService _fileUploadService;
 
-        public ProductService(ApplicationDbContext context, IHttpContextAccessor httpContextAccessor)
+        public ProductService(ApplicationDbContext context, IHttpContextAccessor httpContextAccessor, IFileUploadService fileUploadService)
         {
             _context = context;
             _httpContextAccessor = httpContextAccessor;
+            _fileUploadService = fileUploadService;
         }
 
         private string? FormatThumbnailUrl(string? thumbnail)
@@ -104,6 +107,23 @@ namespace MultiVendorAPI.Services
             }
 
 
+            var uploadedUrls = new List<string>();
+            if (dto.Images != null && dto.Images.Any())
+            {
+                try
+                {
+                    foreach (var file in dto.Images)
+                    {
+                        var url = await _fileUploadService.UploadProductImageAsync(file);
+                        uploadedUrls.Add(url);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    return ServiceResponse<ProductDto>.FailureResponse($"Image upload failed: {ex.Message}", 500);
+                }
+            }
+
             var product = new Product
             {
                 VendorId = dto.VendorId,
@@ -115,8 +135,8 @@ namespace MultiVendorAPI.Services
                 Price = dto.Price,
                 DiscountPrice = dto.DiscountPrice,
                 Sku = dto.Sku,
-                Thumbnail = dto.Thumbnail,
-                Images = dto.Images ?? new(),
+                Thumbnail = string.IsNullOrEmpty(dto.Thumbnail) && uploadedUrls.Any() ? uploadedUrls.First() : dto.Thumbnail,
+                Images = uploadedUrls,
                 InStock = dto.InStock,
                 Quantity = dto.Quantity,
                 Unit = dto.Unit,
@@ -295,9 +315,26 @@ namespace MultiVendorAPI.Services
 
             product.Thumbnail = dto.Thumbnail;
 
-            if (dto.Images != null)
+            if (dto.Images != null && dto.Images.Any())
             {
-                product.Images = dto.Images;
+                try
+                {
+                    var uploadedUrls = new List<string>();
+                    foreach (var file in dto.Images)
+                    {
+                        var url = await _fileUploadService.UploadProductImageAsync(file);
+                        uploadedUrls.Add(url);
+                    }
+                    product.Images = uploadedUrls;
+                    if (string.IsNullOrEmpty(product.Thumbnail))
+                    {
+                        product.Thumbnail = uploadedUrls.First();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    return ServiceResponse<ProductDto>.FailureResponse($"Image upload failed: {ex.Message}", 500);
+                }
             }
 
             product.Status = dto.Status;
