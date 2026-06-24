@@ -32,10 +32,15 @@ namespace InframartAPI_New.Services
 
             using var smtp = new SmtpClient();
 
+            int port = int.Parse(_config["EmailSettings:Port"]!);
+            var secureOption = port == 465 
+                ? MailKit.Security.SecureSocketOptions.SslOnConnect 
+                : MailKit.Security.SecureSocketOptions.StartTls;
+
             await smtp.ConnectAsync(
                 _config["EmailSettings:SmtpServer"]!,
-                int.Parse(_config["EmailSettings:Port"]!),
-                MailKit.Security.SecureSocketOptions.StartTls
+                port,
+                secureOption
             );
 
             await smtp.AuthenticateAsync(
