@@ -31,6 +31,7 @@ namespace InframartAPI_New.Services
             };
 
             using var smtp = new SmtpClient();
+            smtp.Timeout = 10000; // 10 seconds connection and operation timeout
 
             int port = int.Parse(_config["EmailSettings:Port"]!);
             var secureOption = port == 465 
