@@ -10,16 +10,16 @@ namespace InframartAPI_New.Services
     public class EmailNotificationService : IEmailNotificationService
     {
         private readonly IEmailTemplateService _templateService;
-        private readonly IEmailService _emailService;
+        private readonly IEmailSender _emailSender;
         private readonly ApplicationDbContext _dbContext;
 
         public EmailNotificationService(
             IEmailTemplateService templateService,
-            IEmailService emailService,
+            IEmailSender emailSender,
             ApplicationDbContext dbContext)
         {
             _templateService = templateService;
-            _emailService = emailService;
+            _emailSender = emailSender;
             _dbContext = dbContext;
         }
 
@@ -30,6 +30,7 @@ namespace InframartAPI_New.Services
             string body = string.Empty;
             string status = "Failed";
             string? errorMessage = null;
+            string? providerResponse = null;
             DateTime? sentAt = null;
 
             try
@@ -52,11 +53,27 @@ namespace InframartAPI_New.Services
                 subject = renderedSubject;
                 body = renderedBody;
 
-                await _emailService.SendEmailAsync(email, subject, body);
+                // Send via Resend Email Sender
+                var result = await _emailSender.SendEmailAsync(email, subject, body);
                 
-                status = "Sent";
-                sentAt = DateTime.UtcNow;
-                return true;
+                providerResponse = result.ProviderResponse;
+                if (result.Success)
+                {
+                    status = "Success"; // Requirement says Status = Success (or Sent, let's use Success as requested)
+                    sentAt = DateTime.UtcNow;
+                    return true;
+                }
+                else
+                {
+                    status = "Failed";
+                    errorMessage = result.ErrorMessage;
+                    // Prepend stack trace to error message or keep it structured
+                    if (!string.IsNullOrEmpty(result.StackTrace))
+                    {
+                        errorMessage += $"\nStack Trace: {result.StackTrace}";
+                    }
+                    return false;
+                }
             }
             catch (Exception ex)
             {
@@ -80,7 +97,7 @@ namespace InframartAPI_New.Services
                         Subject = string.IsNullOrEmpty(subject) ? $"[{templateKey}] Pending/Failed Email" : subject,
                         Body = string.IsNullOrEmpty(body) ? "Failed to render body or template missing." : body,
                         Status = status,
-                        ErrorMessage = errorMessage,
+                        ErrorMessage = string.IsNullOrEmpty(errorMessage) ? providerResponse : errorMessage,
                         SentAt = sentAt,
                         CreatedAt = DateTime.UtcNow
                     };

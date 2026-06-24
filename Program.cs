@@ -32,7 +32,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddHttpContextAccessor();
 // ================= SERVICES =================
-builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IEmailSender, ResendEmailSender>();
 builder.Services.AddScoped<IVendorService, VendorService>();
 builder.Services.AddScoped<IVendorKycService, VendorKycService>();
 
@@ -62,7 +62,6 @@ builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
 builder.Services.AddScoped<IWalletRepository, WalletRepository>();
 
 // Services
-builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<IOrderService, OrderServices>();
