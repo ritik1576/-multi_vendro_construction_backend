@@ -60,7 +60,7 @@ namespace InframartAPI_New.Services
             }
             catch (Exception ex)
             {
-                errorMessage = ex.Message;
+                errorMessage = ex.ToString();
                 // If rendering succeeded but sending failed, we still want to log subject/body
                 if (string.IsNullOrEmpty(subject) && template != null)
                 {
