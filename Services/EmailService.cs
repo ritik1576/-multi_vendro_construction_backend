@@ -39,8 +39,24 @@ namespace InframartAPI_New.Services
                 ? MailKit.Security.SecureSocketOptions.SslOnConnect 
                 : MailKit.Security.SecureSocketOptions.StartTls;
 
+            // Resolve host to IPv4 to prevent IPv6 routing hangs
+            string host = _config["EmailSettings:SmtpServer"]!;
+            try
+            {
+                var addresses = await System.Net.Dns.GetHostAddressesAsync(host);
+                var ipv4 = addresses.FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
+                if (ipv4 != null)
+                {
+                    host = ipv4.ToString();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"DNS resolution failed for {host}, falling back to hostname. Error: {ex.Message}");
+            }
+
             await smtp.ConnectAsync(
-                _config["EmailSettings:SmtpServer"]!,
+                host,
                 port,
                 secureOption
             );
