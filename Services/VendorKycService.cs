@@ -15,15 +15,18 @@ namespace InframartAPI_New.Services
         private readonly AppDbContext _context;
         private readonly IFileUploadService _fileUploadService;
         private readonly INotificationService _notificationService;
+        private readonly IEmailNotificationService _emailNotificationService;
 
         public VendorKycService(
             AppDbContext context,
             IFileUploadService fileUploadService,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            IEmailNotificationService emailNotificationService)
         {
             _context = context;
             _fileUploadService = fileUploadService;
             _notificationService = notificationService;
+            _emailNotificationService = emailNotificationService;
         }
 
         public async Task<(bool success, string message)> SubmitKycAsync(KycSubmitDto dto)
@@ -276,6 +279,20 @@ namespace InframartAPI_New.Services
                         "Your Vendor KYC documents have been successfully approved by the administrator.",
                         "vendor"
                     );
+
+                    // Send KYC_APPROVED email
+                    var vendorUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == vendor.UserId.Value);
+                    if (vendorUser != null && !string.IsNullOrEmpty(vendorUser.Email))
+                    {
+                        await _emailNotificationService.SendTemplateEmailAsync(
+                            "KYC_APPROVED",
+                            vendorUser.Email,
+                            new Dictionary<string, string>
+                            {
+                                { "vendor_name", vendorUser.FullName ?? "Vendor" }
+                            }
+                        );
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -320,6 +337,21 @@ namespace InframartAPI_New.Services
                         $"Your Vendor KYC has been rejected. Reason: {reason}",
                         "vendor"
                     );
+
+                    // Send KYC_REJECTED email
+                    var vendorUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == vendor.UserId.Value);
+                    if (vendorUser != null && !string.IsNullOrEmpty(vendorUser.Email))
+                    {
+                        await _emailNotificationService.SendTemplateEmailAsync(
+                            "KYC_REJECTED",
+                            vendorUser.Email,
+                            new Dictionary<string, string>
+                            {
+                                { "vendor_name", vendorUser.FullName ?? "Vendor" },
+                                { "rejection_reason", reason }
+                            }
+                        );
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -380,6 +412,20 @@ namespace InframartAPI_New.Services
                         "Your Vendor profile is now fully approved! You can now log in and access your dashboard.",
                         "vendor"
                     );
+
+                    // Send VENDOR_APPROVED email
+                    var vendorUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == vendor.UserId.Value);
+                    if (vendorUser != null && !string.IsNullOrEmpty(vendorUser.Email))
+                    {
+                        await _emailNotificationService.SendTemplateEmailAsync(
+                            "VENDOR_APPROVED",
+                            vendorUser.Email,
+                            new Dictionary<string, string>
+                            {
+                                { "vendor_name", vendorUser.FullName ?? "Vendor" }
+                            }
+                        );
+                    }
                 }
                 catch (Exception ex)
                 {

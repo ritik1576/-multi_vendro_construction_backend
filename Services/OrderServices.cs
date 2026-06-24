@@ -16,6 +16,7 @@ public class OrderServices : IOrderService
     private readonly MultiVendorAPI.Data.ApplicationDbContext _applicationDbContext;
     private readonly InframartAPI_New.Services.Interfaces.INotificationService _notificationService;
     private readonly ICouponService _couponService;
+    private readonly InframartAPI_New.Services.Interfaces.IEmailNotificationService _emailNotificationService;
 
     public OrderServices(
         IOrderRepository orderRepository,
@@ -23,7 +24,8 @@ public class OrderServices : IOrderService
         InframartAPI_New.Data.AppDbContext appDbContext,
         MultiVendorAPI.Data.ApplicationDbContext applicationDbContext,
         InframartAPI_New.Services.Interfaces.INotificationService notificationService,
-        ICouponService couponService)
+        ICouponService couponService,
+        InframartAPI_New.Services.Interfaces.IEmailNotificationService emailNotificationService)
     {
         _orderRepository = orderRepository;
         _cartRepository = cartRepository;
@@ -31,6 +33,7 @@ public class OrderServices : IOrderService
         _applicationDbContext = applicationDbContext;
         _notificationService = notificationService;
         _couponService = couponService;
+        _emailNotificationService = emailNotificationService;
     }
 
     public async Task<ServiceResponse<PlaceOrderResponseDto>>
@@ -442,6 +445,29 @@ public class OrderServices : IOrderService
             // Customer notification
             await _notificationService.CreateNotificationAsync(order.UserId, "Order Placed", $"Your order {order.OrderNumber} has been placed successfully.", "order");
 
+            // Send ORDER_CREATED email to customer
+            try
+            {
+                var customerUser = await _appDbContext.Users.FirstOrDefaultAsync(u => u.Id == order.UserId);
+                if (customerUser != null && !string.IsNullOrEmpty(customerUser.Email))
+                {
+                    await _emailNotificationService.SendTemplateEmailAsync(
+                        "ORDER_CREATED",
+                        customerUser.Email,
+                        new Dictionary<string, string>
+                        {
+                            { "customer_name", customerUser.FullName ?? "Customer" },
+                            { "order_number", order.OrderNumber ?? $"INFR-LOCAL-{order.Id:000}" },
+                            { "order_amount", order.TotalAmount.ToString("F2") }
+                        }
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to send order placed email: {ex.Message}");
+            }
+
             // Vendors notification
             var vendorIds = products.Where(p => p.VendorId.HasValue).Select(p => p.VendorId!.Value).Distinct().ToList();
             if (vendorIds.Count > 0)
@@ -562,6 +588,28 @@ public class OrderServices : IOrderService
             try
             {
                 await _notificationService.CreateNotificationAsync(order.UserId, "Order Cancelled", $"Your order {GetOrderNumber(order)} has been cancelled.", "order");
+
+                // Send ORDER_CANCELLED email to customer
+                try
+                {
+                    var customerUser = await _appDbContext.Users.FirstOrDefaultAsync(u => u.Id == order.UserId);
+                    if (customerUser != null && !string.IsNullOrEmpty(customerUser.Email))
+                    {
+                        await _emailNotificationService.SendTemplateEmailAsync(
+                            "ORDER_CANCELLED",
+                            customerUser.Email,
+                            new Dictionary<string, string>
+                            {
+                                { "customer_name", customerUser.FullName ?? "Customer" },
+                                { "order_number", GetOrderNumber(order) }
+                            }
+                        );
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to send order cancelled email: {ex.Message}");
+                }
             }
             catch (Exception ex)
             {

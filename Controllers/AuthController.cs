@@ -23,13 +23,20 @@ namespace InframartAPI_New.Controllers
         private readonly IConfiguration _configuration;
         private readonly IVendorService _vendorService;
         private readonly INotificationService _notificationService;
+        private readonly IEmailNotificationService _emailNotificationService;
 
-        public AuthController(AppDbContext context, IConfiguration configuration, IVendorService vendorService, INotificationService notificationService)
+        public AuthController(
+            AppDbContext context,
+            IConfiguration configuration,
+            IVendorService vendorService,
+            INotificationService notificationService,
+            IEmailNotificationService emailNotificationService)
         {
             _context = context;
             _configuration = configuration;
             _vendorService = vendorService;
             _notificationService = notificationService;
+            _emailNotificationService = emailNotificationService;
         }
 
         // ================= REGISTER =================
@@ -83,6 +90,20 @@ namespace InframartAPI_New.Controllers
 
             // Trigger welcome notification
             await _notificationService.CreateNotificationAsync(user.Id, "Welcome to InfraMart", "Welcome to InfraMart!", "customer");
+
+            // Send WELCOME_EMAIL
+            try
+            {
+                await _emailNotificationService.SendTemplateEmailAsync(
+                    "WELCOME_EMAIL",
+                    user.Email ?? "",
+                    new Dictionary<string, string> { { "customer_name", user.FullName ?? "Customer" } }
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to send welcome email: {ex.Message}");
+            }
 
             return Ok(new
             {
@@ -360,6 +381,20 @@ namespace InframartAPI_New.Controllers
 
             // Trigger password reset notification
             await _notificationService.CreateNotificationAsync(user.Id, "Password Reset Successful", "Your password has been reset successfully.", "system");
+
+            // Send PASSWORD_RESET email
+            try
+            {
+                await _emailNotificationService.SendTemplateEmailAsync(
+                    "PASSWORD_RESET",
+                    user.Email ?? "",
+                    new Dictionary<string, string> { { "customer_name", user.FullName ?? "Customer" } }
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to send password reset email: {ex.Message}");
+            }
 
             return Ok(new { message = "Password reset successfully." });
         }
