@@ -15,7 +15,8 @@ namespace InframartAPI_New.Controllers
     public class TestTemplateEmailRequest
     {
         public string Email { get; set; } = string.Empty;
-        public string TemplatePath { get; set; } = string.Empty;
+        public string Template { get; set; } = string.Empty;
+        public string Subject { get; set; } = string.Empty;
         public Dictionary<string, string> Variables { get; set; } = new();
     }
 
@@ -39,8 +40,8 @@ namespace InframartAPI_New.Controllers
                 return BadRequest(new { success = false, message = "Email is required" });
             }
 
-            var subject = "InfraMart Gmail SMTP Test Email";
-            var body = "<h3>InfraMart Test</h3><p>Your Gmail SMTP mail delivery is working perfectly!</p>";
+            var subject = "InfraMart Test Email";
+            var body = "<h3>InfraMart Test</h3><p>Your Brevo HTTP mail delivery is working perfectly!</p>";
 
             var success = await _emailService.SendAsync(request.Email, subject, body);
 
@@ -49,7 +50,7 @@ namespace InframartAPI_New.Controllers
                 return Ok(new
                 {
                     success = true,
-                    message = "Test email sent successfully via Gmail SMTP."
+                    provider = "Brevo"
                 });
             }
             else
@@ -57,7 +58,7 @@ namespace InframartAPI_New.Controllers
                 return StatusCode(500, new
                 {
                     success = false,
-                    message = "Failed to send email. Check logs for SMTP or connection errors."
+                    message = "Failed to send email. Check server logs for details."
                 });
             }
         }
@@ -65,17 +66,19 @@ namespace InframartAPI_New.Controllers
         [HttpPost("test-template")]
         public async Task<IActionResult> TestTemplateSend([FromBody] TestTemplateEmailRequest request)
         {
-            if (request == null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.TemplatePath))
+            if (request == null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Template))
             {
-                return BadRequest(new { success = false, message = "Email and TemplatePath are required" });
+                return BadRequest(new { success = false, message = "Email and Template are required" });
             }
 
-            var subject = $"InfraMart Template Test - {request.TemplatePath}";
-            
+            var subject = string.IsNullOrWhiteSpace(request.Subject) 
+                ? $"InfraMart Template Test - {request.Template}" 
+                : request.Subject;
+
             var success = await _emailService.SendTemplateAsync(
                 request.Email, 
                 subject, 
-                request.TemplatePath, 
+                request.Template, 
                 request.Variables
             );
 
@@ -84,7 +87,7 @@ namespace InframartAPI_New.Controllers
                 return Ok(new
                 {
                     success = true,
-                    message = $"Template email sent successfully using: {request.TemplatePath}"
+                    provider = "Brevo"
                 });
             }
             else
@@ -92,7 +95,7 @@ namespace InframartAPI_New.Controllers
                 return StatusCode(500, new
                 {
                     success = false,
-                    message = "Failed to send template email. Verify that the template file exists on disk and SMTP is working."
+                    message = "Failed to send template email. Verify that the template file exists on disk and SMTP/HTTP settings are correct."
                 });
             }
         }
