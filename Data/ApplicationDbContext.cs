@@ -28,6 +28,8 @@ namespace MultiVendorAPI.Data
         public DbSet<VendorKyc> VendorKycs { get; set; }
         public DbSet<Wallet> Wallets { get; set; }
         public DbSet<WalletTransaction> WalletTransactions { get; set; }
+        public DbSet<EmailTemplate> EmailTemplates { get; set; }
+        public DbSet<EmailLog> EmailLogs { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -163,6 +165,7 @@ namespace MultiVendorAPI.Data
                 entity.Property(c => c.MinimumOrderAmount).HasColumnName("minimum_order_amount");
                 entity.Property(c => c.UsageLimit).HasColumnName("usage_limit");
                 entity.Property(c => c.UsedCount).HasColumnName("used_count");
+                entity.Property(c => c.PerUserLimit).HasColumnName("per_user_limit");
                 entity.Property(c => c.StartDate).HasColumnName("start_date");
                 entity.Property(c => c.EndDate).HasColumnName("end_date");
                 entity.Property(c => c.Status).HasColumnName("status");
@@ -276,6 +279,43 @@ namespace MultiVendorAPI.Data
                       .WithMany()
                       .HasForeignKey(k => k.VendorId)
                       .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<EmailTemplate>(entity =>
+            {
+                entity.ToTable("email_templates");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TemplateKey).HasColumnName("template_key").IsRequired();
+                entity.HasIndex(e => e.TemplateKey).IsUnique();
+                entity.Property(e => e.TemplateName).HasColumnName("template_name").IsRequired();
+                entity.Property(e => e.Subject).HasColumnName("subject").IsRequired();
+                entity.Property(e => e.HtmlContent).HasColumnName("html_content").IsRequired();
+                entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+                entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+            });
+
+            modelBuilder.Entity<EmailLog>(entity =>
+            {
+                entity.ToTable("email_logs");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TemplateId).HasColumnName("template_id");
+                entity.Property(e => e.RecipientEmail).HasColumnName("recipient_email").IsRequired();
+                entity.Property(e => e.Subject).HasColumnName("subject").IsRequired();
+                entity.Property(e => e.Body).HasColumnName("body").IsRequired();
+                entity.Property(e => e.Status).HasColumnName("status").IsRequired();
+                entity.Property(e => e.ErrorMessage).HasColumnName("error_message");
+                entity.Property(e => e.SentAt).HasColumnName("sent_at");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+
+                entity.HasOne(e => e.Template)
+                      .WithMany()
+                      .HasForeignKey(e => e.TemplateId)
+                      .OnDelete(DeleteBehavior.SetNull);
             });
         }
     }

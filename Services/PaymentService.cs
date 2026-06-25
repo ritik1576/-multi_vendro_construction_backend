@@ -17,15 +17,18 @@ namespace InframartAPI_New.Services
     public class PaymentService : IPaymentService
     {
         private readonly AppDbContext _context;
+        private readonly MultiVendorAPI.Data.ApplicationDbContext _appContext;
         private readonly RazorpaySettings _razorpay;
         private readonly INotificationService _notificationService;
 
         public PaymentService(
             AppDbContext context,
+            MultiVendorAPI.Data.ApplicationDbContext appContext,
             IOptions<RazorpaySettings> razorpay,
             INotificationService notificationService)
         {
             _context = context;
+            _appContext = appContext;
             _razorpay = razorpay.Value;
             _notificationService = notificationService;
         }
@@ -122,14 +125,16 @@ namespace InframartAPI_New.Services
                     if (((Dictionary<string, object>)paymentResponse)["status"].ToString() != "captured")
                     {
                         // Trigger Payment Failed Notification
-                        await _notificationService.CreateNotificationAsync(order.UserId, "Payment Failed", $"Payment failed for your order {order.OrderNumber}.", "payment");
+                        await _notificationService.CreateNotificationAsync(order.UserId, "Payment Failed", $"Payment failed for your order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
+                        await _notificationService.CreateNotificationAsync(order.UserId, "Order Payment Failed", $"Payment failed for your order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
                         return ServiceResponse<object>.FailureResponse("Payment not captured", 400);
                     }
                 }
                 catch (Exception ex)
                 {
                     // Trigger Payment Failed Notification
-                    await _notificationService.CreateNotificationAsync(order.UserId, "Payment Failed", $"Payment failed for your order {order.OrderNumber}.", "payment");
+                    await _notificationService.CreateNotificationAsync(order.UserId, "Payment Failed", $"Payment failed for your order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
+                    await _notificationService.CreateNotificationAsync(order.UserId, "Order Payment Failed", $"Payment failed for your order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
                     return ServiceResponse<object>.FailureResponse($"Invalid Razorpay Payment ID or check failed: {ex.Message}", 400);
                 }
 
@@ -149,8 +154,47 @@ namespace InframartAPI_New.Services
 
                 await _context.SaveChangesAsync();
 
-                // Trigger Payment Successful Notification
-                await _notificationService.CreateNotificationAsync(order.UserId, "Payment Successful", $"Payment of {order.TotalAmount} INR was successful for order {order.OrderNumber}.", "payment");
+                // Trigger Customer Notifications
+                await _notificationService.CreateNotificationAsync(order.UserId, "Payment Successful", $"Payment of {order.TotalAmount} INR was successful for order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
+                await _notificationService.CreateNotificationAsync(order.UserId, "Order Payment Successful", $"Payment of {order.TotalAmount} INR was successful for order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
+
+                // Calculate commission and vendor amounts
+                decimal commissionAmount = order.CommissionAmount ?? (order.TotalAmount * 0.10m);
+                decimal vendorAmount = order.VendorAmount ?? (order.TotalAmount - commissionAmount);
+
+                // Get Vendor User
+                var firstItem = await _appContext.OrderItems.FirstOrDefaultAsync(oi => oi.OrderId == order.Id);
+                long? vendorUserId = null;
+                if (firstItem != null)
+                {
+                    var product = await _appContext.Products.FirstOrDefaultAsync(p => p.Id == firstItem.ProductId);
+                    if (product != null && product.VendorId.HasValue)
+                    {
+                        var vendor = await _context.Vendors.FirstOrDefaultAsync(v => v.Id == product.VendorId.Value);
+                        if (vendor != null && vendor.UserId.HasValue)
+                        {
+                            vendorUserId = vendor.UserId.Value;
+                        }
+                    }
+                }
+
+                // Get Admin User
+                var adminUser = await _context.Users.FirstOrDefaultAsync(u => u.Role == "admin");
+
+                // Vendor Notifications
+                if (vendorUserId.HasValue)
+                {
+                    await _notificationService.CreateNotificationAsync(vendorUserId.Value, "Payment Received", $"Payment of {vendorAmount} INR received for order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
+                    await _notificationService.CreateNotificationAsync(vendorUserId.Value, "Commission Deducted", $"Commission of {commissionAmount} INR deducted for order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
+                    await _notificationService.CreateNotificationAsync(vendorUserId.Value, "Order Payment Received", $"Order payment of {vendorAmount} INR received for order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
+                }
+
+                // Admin Notifications
+                if (adminUser != null)
+                {
+                    await _notificationService.CreateNotificationAsync(adminUser.Id, "New Payment Received", $"Payment of {order.TotalAmount} INR received for order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
+                    await _notificationService.CreateNotificationAsync(adminUser.Id, "Commission Received", $"Commission of {commissionAmount} INR received for order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
+                }
 
                 var data = new
                 {
@@ -222,10 +266,48 @@ namespace InframartAPI_New.Services
 
                 await _context.SaveChangesAsync();
 
-                // Trigger Refund Processed Notification
+                // Trigger Refund Processed and Completed Notifications
                 if (dbPayment.User_Id.HasValue)
                 {
-                    await _notificationService.CreateNotificationAsync(dbPayment.User_Id.Value, "Refund Processed", $"Refund of {request.Amount} INR was successfully processed for your payment.", "payment");
+                    await _notificationService.CreateNotificationAsync(dbPayment.User_Id.Value, "Refund Processed", $"Refund of {request.Amount} INR was successfully processed for your payment.", "payment", "Order", order?.Id.ToString());
+                    await _notificationService.CreateNotificationAsync(dbPayment.User_Id.Value, "Refund Completed", $"Refund of {request.Amount} INR has been completed for order {order?.OrderNumber}.", "payment", "Order", order?.Id.ToString());
+                }
+
+                // Vendor and Admin notifications
+                if (order != null)
+                {
+                    // Calculate vendor refund deduction
+                    decimal commissionRefund = request.Amount * 0.10m;
+                    decimal vendorDeduction = request.Amount - commissionRefund;
+
+                    // Get Vendor
+                    var firstItem = await _appContext.OrderItems.FirstOrDefaultAsync(oi => oi.OrderId == order.Id);
+                    long? vendorUserId = null;
+                    if (firstItem != null)
+                    {
+                        var product = await _appContext.Products.FirstOrDefaultAsync(p => p.Id == firstItem.ProductId);
+                        if (product != null && product.VendorId.HasValue)
+                        {
+                            var vendor = await _context.Vendors.FirstOrDefaultAsync(v => v.Id == product.VendorId.Value);
+                            if (vendor != null && vendor.UserId.HasValue)
+                            {
+                                vendorUserId = vendor.UserId.Value;
+                            }
+                        }
+                    }
+
+                    if (vendorUserId.HasValue)
+                    {
+                        await _notificationService.CreateNotificationAsync(vendorUserId.Value, "Refund Deducted", $"Refund deduction of {vendorDeduction} INR was deducted from your wallet for order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
+                    }
+
+                    // Admin notifications
+                    var adminUser = await _context.Users.FirstOrDefaultAsync(u => u.Role == "admin");
+                    if (adminUser != null)
+                    {
+                        await _notificationService.CreateNotificationAsync(adminUser.Id, "Refund Approved", $"Refund of {request.Amount} INR has been approved for order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
+                        await _notificationService.CreateNotificationAsync(adminUser.Id, "Refund Processed", $"Refund of {request.Amount} INR has been processed for order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
+                    }
                 }
 
                 var data = new

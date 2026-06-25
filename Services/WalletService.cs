@@ -62,7 +62,7 @@ namespace InframartAPI_New.Services
                     Description = t.Description,
                     ReferenceType = t.ReferenceType,
                     ReferenceId = t.ReferenceId,
-                    CreatedAt = t.CreatedAt
+                    CreatedAt = Helpers.TimezoneHelper.ConvertToIst(t.CreatedAt)
                 });
             }
 

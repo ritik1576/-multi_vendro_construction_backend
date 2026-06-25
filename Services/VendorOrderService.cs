@@ -11,12 +11,18 @@ namespace InframartAPI_New.Services
         private readonly AppDbContext _authCtx;          // users, vendors (auth side)
         private readonly ApplicationDbContext _appCtx;   // orders, products, addresses
         private readonly INotificationService _notificationService;
+        private readonly IEmailNotificationService _emailNotificationService;
 
-        public VendorOrderService(AppDbContext authCtx, ApplicationDbContext appCtx, INotificationService notificationService)
+        public VendorOrderService(
+            AppDbContext authCtx, 
+            ApplicationDbContext appCtx, 
+            INotificationService notificationService,
+            IEmailNotificationService emailNotificationService)
         {
             _authCtx = authCtx;
             _appCtx = appCtx;
             _notificationService = notificationService;
+            _emailNotificationService = emailNotificationService;
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -168,7 +174,7 @@ namespace InframartAPI_New.Services
                 {
                     OrderId       = order.Id,
                     OrderNumber   = order.OrderNumber,
-                    PlacedAt      = order.PlacedAt,
+                    PlacedAt      = InframartAPI_New.Helpers.TimezoneHelper.ConvertToIst(order.PlacedAt),
                     OrderStatus   = order.OrderStatus,
                     PaymentStatus = order.PaymentStatus,
                     Subtotal      = order.Subtotal,
@@ -247,8 +253,8 @@ namespace InframartAPI_New.Services
                 OrderNumber   = order.OrderNumber,
                 OrderStatus   = order.OrderStatus,
                 PaymentStatus = order.PaymentStatus,
-                PlacedAt      = order.PlacedAt,
-                CreatedAt     = order.CreatedAt,
+                PlacedAt      = InframartAPI_New.Helpers.TimezoneHelper.ConvertToIst(order.PlacedAt),
+                CreatedAt     = InframartAPI_New.Helpers.TimezoneHelper.ConvertToIst(order.CreatedAt),
                 Subtotal      = order.Subtotal,
                 ShippingCharge = order.ShippingCharge,
                 DiscountAmount = order.DiscountAmount,
@@ -362,6 +368,10 @@ namespace InframartAPI_New.Services
             // Trigger notification
             try
             {
+                var customerUser = await _authCtx.Users.FirstOrDefaultAsync(u => u.Id == order.UserId);
+                string customerEmail = customerUser?.Email ?? "";
+                string customerName = customerUser?.FullName ?? "Customer";
+
                 if (newStatus == "confirmed")
                 {
                     await _notificationService.CreateNotificationAsync(order.UserId, "Order Approved", $"Your order {order.OrderNumber} has been approved.", "order");
@@ -375,6 +385,19 @@ namespace InframartAPI_New.Services
                     else
                     {
                         await _notificationService.CreateNotificationAsync(order.UserId, "Order Cancelled", $"Your order {order.OrderNumber} has been cancelled.", "order");
+                    }
+
+                    if (!string.IsNullOrEmpty(customerEmail))
+                    {
+                        await _emailNotificationService.SendTemplateEmailAsync(
+                            "ORDER_CANCELLED",
+                            customerEmail,
+                            new Dictionary<string, string>
+                            {
+                                { "customer_name", customerName },
+                                { "order_number", order.OrderNumber ?? $"INFR-LOCAL-{order.Id:000}" }
+                            }
+                        );
                     }
                 }
                 else if (newStatus == "packed")
@@ -392,11 +415,24 @@ namespace InframartAPI_New.Services
                 else if (newStatus == "delivered")
                 {
                     await _notificationService.CreateNotificationAsync(order.UserId, "Order Delivered", $"Your order {order.OrderNumber} has been delivered.", "tracking");
+
+                    if (!string.IsNullOrEmpty(customerEmail))
+                    {
+                        await _emailNotificationService.SendTemplateEmailAsync(
+                            "ORDER_DELIVERED",
+                            customerEmail,
+                            new Dictionary<string, string>
+                            {
+                                { "customer_name", customerName },
+                                { "order_number", order.OrderNumber ?? $"INFR-LOCAL-{order.Id:000}" }
+                            }
+                        );
+                    }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Notification trigger failed on vendor order status update: {ex.Message}");
+                Console.WriteLine($"Notification/Email trigger failed on vendor order status update: {ex.Message}");
             }
 
             return (true, null);

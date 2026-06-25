@@ -32,7 +32,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddHttpContextAccessor();
 // ================= SERVICES =================
-builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IEmailSender, ResendEmailSender>();
 builder.Services.AddScoped<IVendorService, VendorService>();
 builder.Services.AddScoped<IVendorKycService, VendorKycService>();
 
@@ -62,7 +62,6 @@ builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
 builder.Services.AddScoped<IWalletRepository, WalletRepository>();
 
 // Services
-builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<IOrderService, OrderServices>();
@@ -75,6 +74,8 @@ builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<ICouponService, CouponService>();
 builder.Services.AddScoped<IWalletService, WalletService>();
+builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+builder.Services.AddScoped<IEmailNotificationService, EmailNotificationService>();
 builder.Services.AddSwaggerGen(options =>
 {
     // Repositories
@@ -214,6 +215,62 @@ using (var scope = app.Services.CreateScope())
         ");
         Console.WriteLine("Successfully ensured `image_files` table exists.");
 
+        // Ensure email_templates and email_logs tables exist
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE IF NOT EXISTS `email_templates` (
+                    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    `template_key` VARCHAR(100) NOT NULL UNIQUE,
+                    `template_name` VARCHAR(255) NOT NULL,
+                    `subject` VARCHAR(255) NOT NULL,
+                    `html_content` LONGTEXT NOT NULL,
+                    `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+                    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    `updated_at` DATETIME NULL,
+                    `created_by` VARCHAR(255) NULL,
+                    `updated_by` VARCHAR(255) NULL
+                );
+            ");
+            await db.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE IF NOT EXISTS `email_logs` (
+                    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    `template_id` BIGINT NULL,
+                    `recipient_email` VARCHAR(255) NOT NULL,
+                    `subject` VARCHAR(255) NOT NULL,
+                    `body` LONGTEXT NOT NULL,
+                    `status` VARCHAR(50) NOT NULL,
+                    `error_message` TEXT NULL,
+                    `sent_at` DATETIME NULL,
+                    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT `FK_email_logs_email_templates_template_id` FOREIGN KEY (`template_id`) REFERENCES `email_templates` (`id`) ON DELETE SET NULL
+                );
+            ");
+            Console.WriteLine("Successfully ensured `email_templates` and `email_logs` tables exist.");
+
+            // Seed default email templates if empty
+            if (!await db.EmailTemplates.AnyAsync())
+            {
+                db.EmailTemplates.AddRange(new List<EmailTemplate>
+                {
+                    new EmailTemplate { TemplateKey = "WELCOME_EMAIL", TemplateName = "Welcome Email", Subject = "Welcome to InfraMart", HtmlContent = "Hi {customer_name},<br/><br/>Welcome to InfraMart! Your account is ready.", CreatedAt = DateTime.UtcNow, CreatedBy = "System" },
+                    new EmailTemplate { TemplateKey = "PASSWORD_RESET", TemplateName = "Password Reset", Subject = "Password Reset Successful", HtmlContent = "Hi {customer_name},<br/><br/>Your password has been reset successfully.", CreatedAt = DateTime.UtcNow, CreatedBy = "System" },
+                    new EmailTemplate { TemplateKey = "ORDER_CREATED", TemplateName = "Order Created", Subject = "Order #{order_number} Created Successfully", HtmlContent = "Hi {customer_name},<br/><br/>Thank you for your order. Your order number is <strong>#{order_number}</strong> with amount <strong>₹{order_amount}</strong>.", CreatedAt = DateTime.UtcNow, CreatedBy = "System" },
+                    new EmailTemplate { TemplateKey = "ORDER_CANCELLED", TemplateName = "Order Cancelled", Subject = "Order #{order_number} Cancelled", HtmlContent = "Hi {customer_name},<br/><br/>Your order <strong>#{order_number}</strong> has been cancelled.", CreatedAt = DateTime.UtcNow, CreatedBy = "System" },
+                    new EmailTemplate { TemplateKey = "ORDER_DELIVERED", TemplateName = "Order Delivered", Subject = "Order #{order_number} Delivered", HtmlContent = "Hi {customer_name},<br/><br/>Good news! Your order <strong>#{order_number}</strong> has been delivered.", CreatedAt = DateTime.UtcNow, CreatedBy = "System" },
+                    new EmailTemplate { TemplateKey = "VENDOR_APPROVED", TemplateName = "Vendor Approved", Subject = "Vendor Account Approved", HtmlContent = "Hi {vendor_name},<br/><br/>Congratulations! Your vendor profile has been approved.", CreatedAt = DateTime.UtcNow, CreatedBy = "System" },
+                    new EmailTemplate { TemplateKey = "KYC_APPROVED", TemplateName = "KYC Approved", Subject = "KYC Verification Approved", HtmlContent = "Hi {vendor_name},<br/><br/>Your KYC verification has been approved.", CreatedAt = DateTime.UtcNow, CreatedBy = "System" },
+                    new EmailTemplate { TemplateKey = "KYC_REJECTED", TemplateName = "KYC Rejected", Subject = "KYC Verification Rejected", HtmlContent = "Hi {vendor_name},<br/><br/>Your KYC verification has been rejected. Reason: {rejection_reason}.", CreatedAt = DateTime.UtcNow, CreatedBy = "System" }
+                });
+                await db.SaveChangesAsync();
+                Console.WriteLine("Seeded default email templates.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error checking/creating email template tables: {ex.Message}");
+        }
+
         // Ensure Vendors table schema is updated to support integer status and kyc_status
         try
         {
@@ -254,6 +311,11 @@ using (var scope = app.Services.CreateScope())
             
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `wallet_transactions` ADD COLUMN `title` VARCHAR(255) NULL;"); } catch {}
             Console.WriteLine("Successfully ensured `wallet_transactions` title column exists.");
+
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `coupons` ADD COLUMN `per_user_limit` INT NULL;"); } catch {}
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `notifications` ADD COLUMN `reference_type` VARCHAR(100) NULL;"); } catch {}
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `notifications` ADD COLUMN `reference_id` VARCHAR(100) NULL;"); } catch {}
+            Console.WriteLine("Successfully ensured `coupons` and `notifications` columns exist.");
         }
         catch (Exception ex)
         {
