@@ -1,12 +1,10 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using InframartAPI_New.Models;
 
 namespace InframartAPI_New.Services.Interfaces
 {
     public interface IEmailTemplateService
     {
-        Task<EmailTemplate?> GetTemplateAsync(string templateKey);
-        Task<(string subject, string body)> RenderTemplateAsync(string templateKey, Dictionary<string, string> variables);
+        Task<string> GetRenderedTemplateAsync(string templatePath, Dictionary<string, string> variables);
     }
 }
