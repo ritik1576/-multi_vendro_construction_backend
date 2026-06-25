@@ -78,11 +78,11 @@ builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 builder.Services.Configure<BrevoSettings>(builder.Configuration.GetSection("BrevoSettings"));
 builder.Services.AddHttpClient<IEmailService, BrevoEmailService>((sp, client) =>
 {
-    var settings = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<BrevoSettings>>().Value;
-    var apiKey = settings.ApiKey;
+    var config = sp.GetRequiredService<IConfiguration>();
+    var apiKey = config["BrevoSettings:ApiKey"];
     if (string.IsNullOrEmpty(apiKey) || apiKey == "YOUR_BREVO_API_KEY")
     {
-        apiKey = Environment.GetEnvironmentVariable("BREVO_API_KEY") ?? apiKey;
+        apiKey = config["BREVO_API_KEY"] ?? Environment.GetEnvironmentVariable("BREVO_API_KEY");
     }
     client.BaseAddress = new Uri("https://api.brevo.com/v3/");
     client.DefaultRequestHeaders.Add("api-key", apiKey);
