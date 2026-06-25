@@ -75,7 +75,19 @@ builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<ICouponService, CouponService>();
 builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
-builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.Configure<BrevoSettings>(builder.Configuration.GetSection("BrevoSettings"));
+builder.Services.AddHttpClient<IEmailService, BrevoEmailService>((sp, client) =>
+{
+    var settings = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<BrevoSettings>>().Value;
+    var apiKey = settings.ApiKey;
+    if (string.IsNullOrEmpty(apiKey) || apiKey == "YOUR_BREVO_API_KEY")
+    {
+        apiKey = Environment.GetEnvironmentVariable("BREVO_API_KEY") ?? apiKey;
+    }
+    client.BaseAddress = new Uri("https://api.brevo.com/v3/");
+    client.DefaultRequestHeaders.Add("api-key", apiKey);
+    client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+});
 builder.Services.AddScoped<IEmailNotificationService, EmailNotificationService>();
 builder.Services.AddSwaggerGen(options =>
 {
