@@ -14,6 +14,7 @@ namespace MultiVendorAPI.DTOs
     public class ApplyCouponRequestDto
     {
         public string CouponCode { get; set; } = string.Empty;
+        public decimal? ShippingCharge { get; set; }
     }
 
     public class ApplyCouponResponseDto
@@ -22,6 +23,8 @@ namespace MultiVendorAPI.DTOs
         public long? CouponId { get; set; }
         public string? CouponCode { get; set; }
         public decimal CartTotal { get; set; }
+        public decimal Subtotal { get; set; }
+        public decimal ShippingCharge { get; set; }
         public decimal DiscountAmount { get; set; }
         public decimal FinalAmount { get; set; }
         public string Message { get; set; } = string.Empty;
@@ -57,6 +60,7 @@ namespace MultiVendorAPI.DTOs
         public decimal? MaxDiscount { get; set; }
         public decimal? MinimumOrderAmount { get; set; }
         public int? UsageLimit { get; set; }
+        public int? PerUserLimit { get; set; }
         public int UsedCount { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }

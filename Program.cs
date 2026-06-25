@@ -311,6 +311,11 @@ using (var scope = app.Services.CreateScope())
             
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `wallet_transactions` ADD COLUMN `title` VARCHAR(255) NULL;"); } catch {}
             Console.WriteLine("Successfully ensured `wallet_transactions` title column exists.");
+
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `coupons` ADD COLUMN `per_user_limit` INT NULL;"); } catch {}
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `notifications` ADD COLUMN `reference_type` VARCHAR(100) NULL;"); } catch {}
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `notifications` ADD COLUMN `reference_id` VARCHAR(100) NULL;"); } catch {}
+            Console.WriteLine("Successfully ensured `coupons` and `notifications` columns exist.");
         }
         catch (Exception ex)
         {
