@@ -66,7 +66,9 @@ namespace MultiVendorAPI.Controllers
             {
                 foreach (var item in cart.CartItems)
                 {
-                    var price = item.Product?.Price ?? 0;
+                    var price = (item.Product?.DiscountPrice.HasValue == true && item.Product.DiscountPrice.Value > 0)
+                        ? item.Product.DiscountPrice.Value
+                        : (item.Product?.Price ?? 0);
                     cartTotal += price * item.Quantity;
                 }
             }
