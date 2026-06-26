@@ -130,13 +130,21 @@ namespace InframartAPI_New.Services
                             await _emailNotificationService.SendTemplateEmailAsync(
                                 "VENDOR_APPROVED",
                                 vendorEmail,
-                                new Dictionary<string, string> { { "vendor_name", vendorName } }
+                                new Dictionary<string, string>
+                                {
+                                    { "VendorName", vendorName },
+                                    { "DashboardUrl", "https://inframart.com/vendor/dashboard" }
+                                }
                             );
 
                             await _emailNotificationService.SendTemplateEmailAsync(
                                 "KYC_APPROVED",
                                 vendorEmail,
-                                new Dictionary<string, string> { { "vendor_name", vendorName } }
+                                new Dictionary<string, string>
+                                {
+                                    { "VendorName", vendorName },
+                                    { "ApprovalDate", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss") }
+                                }
                             );
                         }
                     }
@@ -147,12 +155,24 @@ namespace InframartAPI_New.Services
                         if (!string.IsNullOrEmpty(vendorEmail))
                         {
                             await _emailNotificationService.SendTemplateEmailAsync(
+                                "VENDOR_REJECTED",
+                                vendorEmail,
+                                new Dictionary<string, string>
+                                {
+                                    { "VendorName", vendorName },
+                                    { "RejectReason", "Vendor profile rejected by administrator." },
+                                    { "ResubmitUrl", "https://inframart.com/vendor/kyc/resubmit" }
+                                }
+                            );
+
+                            await _emailNotificationService.SendTemplateEmailAsync(
                                 "KYC_REJECTED",
                                 vendorEmail,
                                 new Dictionary<string, string>
                                 {
-                                    { "vendor_name", vendorName },
-                                    { "rejection_reason", "Vendor profile rejected by administrator." }
+                                    { "VendorName", vendorName },
+                                    { "RejectReason", "Vendor profile rejected by administrator." },
+                                    { "ResubmitUrl", "https://inframart.com/vendor/kyc/resubmit" }
                                 }
                             );
                         }

@@ -498,9 +498,14 @@ public class OrderServices : IOrderService
                         customerUser.Email,
                         new Dictionary<string, string>
                         {
-                            { "customer_name", customerUser.FullName ?? "Customer" },
-                            { "order_number", order.OrderNumber ?? $"INFR-LOCAL-{order.Id:000}" },
-                            { "order_amount", order.TotalAmount.ToString("F2") }
+                            { "CustomerName", customerUser.FullName ?? "Customer" },
+                            { "OrderNumber", order.OrderNumber ?? $"INFR-LOCAL-{order.Id:000}" },
+                            { "OrderDate", order.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss") },
+                            { "TotalAmount", order.TotalAmount.ToString("F2") },
+                            { "ShippingCharge", order.ShippingCharge.ToString("F2") },
+                            { "Discount", order.DiscountAmount.ToString("F2") },
+                            { "FinalAmount", order.TotalAmount.ToString("F2") },
+                            { "TrackOrderUrl", $"https://inframart.com/orders/track/{order.Id}" }
                         }
                     );
                 }

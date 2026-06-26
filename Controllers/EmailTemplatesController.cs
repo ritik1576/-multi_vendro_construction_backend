@@ -199,6 +199,67 @@ namespace InframartAPI_New.Controllers
                 EditableVariables = meta.DefaultVars
             });
         }
+
+        // GET /admin/email-templates/test/{templateKey}
+        [HttpGet("test/{templateKey}")]
+        [AllowAnonymous] // Allow quick previewing in browser
+        public async Task<IActionResult> TestRenderTemplate(string templateKey, [FromQuery] bool json = false)
+        {
+            var key = templateKey.ToUpper();
+            var dummyVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "CustomerName", "John Doe" },
+                { "VendorName", "Acme Construction Supply" },
+                { "OTP", "123456" },
+                { "ExpiryMinutes", "10" },
+                { "ResetLink", "https://inframart.com/reset-password?token=mock_token_123" },
+                { "LoginUrl", "https://inframart.com/login" },
+                { "DashboardUrl", "https://inframart.com/dashboard" },
+                { "OrderNumber", "INFR-8942-0192" },
+                { "OrderDate", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss") },
+                { "TotalAmount", "12500.00" },
+                { "ShippingCharge", "150.00" },
+                { "Discount", "500.00" },
+                { "FinalAmount", "12150.00" },
+                { "TrackOrderUrl", "https://inframart.com/orders/track/123" },
+                { "DeliveredDate", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss") },
+                { "ReviewProductUrl", "https://inframart.com/orders/review/123" },
+                { "TransactionId", "TXN_MOCK_984392" },
+                { "PaymentMethod", "Razorpay" },
+                { "PaidAmount", "12150.00" },
+                { "InvoiceUrl", "https://inframart.com/invoices/download/123" },
+                { "FailureReason", "Insufficient funds in customer card." },
+                { "RetryPaymentUrl", "https://inframart.com/checkout/retry/123" },
+                { "RefundAmount", "12150.00" },
+                { "RefundDate", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss") },
+                { "Amount", "5000.00" },
+                { "WalletBalance", "7500.00" },
+                { "WalletUrl", "https://inframart.com/wallet" },
+                { "RejectReason", "GST Certificate scan is blur and unreadable." },
+                { "ResubmitUrl", "https://inframart.com/vendor/kyc/resubmit" },
+                { "ApprovalDate", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss") }
+            };
+
+            try
+            {
+                var (subject, body) = await _templateService.RenderTemplateAsync(key, dummyVars, "test_recipient@gmail.com");
+                
+                if (json)
+                {
+                    return Ok(new { subject, body });
+                }
+
+                return Content(body, "text/html");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    message = $"Failed to render template: {ex.Message}",
+                    details = ex.ToString()
+                });
+            }
+        }
     }
 
     public class UpdateTemplateRequest

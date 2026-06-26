@@ -1,17 +1,28 @@
+using InframartAPI_New.Data;
 using InframartAPI_New.DTOs;
 using InframartAPI_New.Repositories.Interfaces;
 using InframartAPI_New.Services.Interfaces;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
 
 namespace InframartAPI_New.Services
 {
     public class WalletService : IWalletService
     {
         private readonly IWalletRepository _walletRepository;
+        private readonly AppDbContext _context;
+        private readonly IEmailNotificationService _emailNotificationService;
 
-        public WalletService(IWalletRepository walletRepository)
+        public WalletService(
+            IWalletRepository walletRepository,
+            AppDbContext context,
+            IEmailNotificationService emailNotificationService)
         {
             _walletRepository = walletRepository;
+            _context = context;
+            _emailNotificationService = emailNotificationService;
         }
 
         public async Task<WalletBalanceResponseDto?> GetWalletBalanceAsync(long userId)
@@ -115,6 +126,31 @@ namespace InframartAPI_New.Services
             await _walletRepository.AddTransactionAsync(txn);
             await _walletRepository.SaveChangesAsync();
 
+            // Trigger ADD_MONEY email notification
+            try
+            {
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+                if (user != null && !string.IsNullOrEmpty(user.Email))
+                {
+                    await _emailNotificationService.SendTemplateEmailAsync(
+                        "ADD_MONEY",
+                        user.Email,
+                        new Dictionary<string, string>
+                        {
+                            { "CustomerName", user.FullName ?? "Customer" },
+                            { "Amount", dto.Amount.ToString("F2") },
+                            { "WalletBalance", wallet.AvailableBalance.ToString("F2") },
+                            { "TransactionId", txn.TransactionId },
+                            { "WalletUrl", "https://inframart.com/wallet" }
+                        }
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to send add money email: {ex.Message}");
+            }
+
             var monthlyExpenditure = await _walletRepository.GetMonthlyExpenditureAsync(wallet.Id);
 
             var response = new WalletBalanceResponseDto
@@ -176,6 +212,31 @@ namespace InframartAPI_New.Services
 
             await _walletRepository.AddTransactionAsync(txn);
             await _walletRepository.SaveChangesAsync();
+
+            // Trigger WITHDRAW email notification
+            try
+            {
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+                if (user != null && !string.IsNullOrEmpty(user.Email))
+                {
+                    await _emailNotificationService.SendTemplateEmailAsync(
+                        "WITHDRAW",
+                        user.Email,
+                        new Dictionary<string, string>
+                        {
+                            { "CustomerName", user.FullName ?? "Customer" },
+                            { "Amount", dto.Amount.ToString("F2") },
+                            { "WalletBalance", wallet.AvailableBalance.ToString("F2") },
+                            { "TransactionId", txn.TransactionId },
+                            { "WalletUrl", "https://inframart.com/wallet" }
+                        }
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to send withdraw email: {ex.Message}");
+            }
 
             var monthlyExpenditure = await _walletRepository.GetMonthlyExpenditureAsync(wallet.Id);
 
@@ -282,6 +343,31 @@ namespace InframartAPI_New.Services
             await _walletRepository.AddTransactionAsync(senderTxn);
             await _walletRepository.AddTransactionAsync(recipientTxn);
             await _walletRepository.SaveChangesAsync();
+
+            // Trigger TRANSFER email notification to customer (sender)
+            try
+            {
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+                if (user != null && !string.IsNullOrEmpty(user.Email))
+                {
+                    await _emailNotificationService.SendTemplateEmailAsync(
+                        "TRANSFER",
+                        user.Email,
+                        new Dictionary<string, string>
+                        {
+                            { "CustomerName", user.FullName ?? "Customer" },
+                            { "Amount", dto.Amount.ToString("F2") },
+                            { "WalletBalance", customerWallet.AvailableBalance.ToString("F2") },
+                            { "TransactionId", transactionId },
+                            { "WalletUrl", "https://inframart.com/wallet" }
+                        }
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to send wallet transfer email: {ex.Message}");
+            }
 
             var monthlyExpenditure = await _walletRepository.GetMonthlyExpenditureAsync(customerWallet.Id);
 

@@ -423,8 +423,10 @@ namespace InframartAPI_New.Services
                             customerEmail,
                             new Dictionary<string, string>
                             {
-                                { "customer_name", customerName },
-                                { "order_number", order.OrderNumber ?? $"INFR-LOCAL-{order.Id:000}" }
+                                { "CustomerName", customerName },
+                                { "OrderNumber", order.OrderNumber ?? $"INFR-LOCAL-{order.Id:000}" },
+                                { "DeliveredDate", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss") },
+                                { "ReviewProductUrl", $"https://inframart.com/orders/review/{order.Id}" }
                             }
                         );
                     }

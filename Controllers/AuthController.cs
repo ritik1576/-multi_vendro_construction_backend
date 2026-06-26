@@ -388,7 +388,11 @@ namespace InframartAPI_New.Controllers
                 await _emailNotificationService.SendTemplateEmailAsync(
                     "PASSWORD_RESET",
                     user.Email ?? "",
-                    new Dictionary<string, string> { { "customer_name", user.FullName ?? "Customer" } }
+                    new Dictionary<string, string>
+                    {
+                        { "CustomerName", user.FullName ?? "Customer" },
+                        { "ResetLink", "https://inframart.com/login" }
+                    }
                 );
             }
             catch (Exception ex)
