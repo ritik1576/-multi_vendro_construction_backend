@@ -63,7 +63,8 @@ namespace InframartAPI_New.Services
                 ShopSlug = dto.ShopSlug,
                 Description = dto.Description,
                 GstNumber = dto.GstNumber,
-                Status = "pending"
+                Status = VendorStatus.Pending,
+                KycStatus = KycStatus.NotSubmitted
             };
 
             await _vendorRepository.AddVendorAsync(vendor);
@@ -83,49 +84,15 @@ namespace InframartAPI_New.Services
                 Console.WriteLine($"Notification failed for vendor registration: {ex.Message}");
             }
 
-            var claims = new[]
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.Email!),
-                new Claim(ClaimTypes.Role, user.Role!),
-                new Claim("vendorId", vendor.Id.ToString())
-            };
-
-            var key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(
-                    _configuration["Jwt:Key"]!
-                ));
-
-            var creds = new SigningCredentials(
-                key,
-                SecurityAlgorithms.HmacSha256
-            );
-
-            var token = new JwtSecurityToken(
-                issuer: _configuration["Jwt:Issuer"],
-                audience: _configuration["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.Now.AddDays(7),
-                signingCredentials: creds
-            );
-
             return new AuthResponseDto
             {
                 Success = true,
-                Message = "Vendor registered successfully",
-
+                Message = "Vendor registered successfully. Please complete KYC.",
                 UserId = user.Id,
-
                 VendorId = vendor.Id,
-
                 Role = user.Role,
-
-                Status = vendor.Status,
-
-                ShopName = vendor.ShopName,
-
-                Token = new JwtSecurityTokenHandler()
-                    .WriteToken(token)
+                Status = vendor.Status.ToString(),
+                ShopName = vendor.ShopName
             };
         }
 
@@ -161,15 +128,6 @@ namespace InframartAPI_New.Services
                 };
             }
 
-            if (!string.Equals(vendor.Status, "approved", StringComparison.OrdinalIgnoreCase))
-            {
-                return new AuthResponseDto
-                {
-                    Success = false,
-                    Message = $"Your vendor account is not approved. Current status: {vendor.Status ?? "pending"}"
-                };
-            }
-
             if (string.IsNullOrEmpty(user.Password) ||
                 !PasswordHelper.VerifyPassword(dto.Password, user.Password))
             {
@@ -180,12 +138,59 @@ namespace InframartAPI_New.Services
                 };
             }
 
+            // Check KYC Status
+            if (vendor.KycStatus == KycStatus.NotSubmitted)
+            {
+                return new AuthResponseDto
+                {
+                    Success = false,
+                    RequiresKyc = true,
+                    Message = "Please complete KYC verification."
+                };
+            }
+            else if (vendor.KycStatus == KycStatus.Submitted || vendor.KycStatus == KycStatus.UnderReview)
+            {
+                return new AuthResponseDto
+                {
+                    Success = false,
+                    Message = "Your KYC is under review."
+                };
+            }
+            else if (vendor.KycStatus == KycStatus.Rejected)
+            {
+                var kyc = await _vendorRepository.GetKycByVendorIdAsync(vendor.Id);
+                return new AuthResponseDto
+                {
+                    Success = false,
+                    Message = "KYC rejected.",
+                    RejectionReason = kyc?.RejectionReason ?? "Invalid GST Certificate"
+                };
+            }
+
+            // Check Vendor Approval Status
+            if (vendor.Status == VendorStatus.Pending)
+            {
+                return new AuthResponseDto
+                {
+                    Success = false,
+                    Message = "Your account is awaiting admin approval."
+                };
+            }
+            else if (vendor.Status == VendorStatus.Rejected)
+            {
+                return new AuthResponseDto
+                {
+                    Success = false,
+                    Message = "Vendor account rejected."
+                };
+            }
+
             var claims = new[]
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Name, user.Email!),
                 new Claim(ClaimTypes.Role, user.Role!),
-                new Claim("vendorId", vendor?.Id.ToString() ?? "")
+                new Claim("vendorId", vendor.Id.ToString())
             };
 
             var key = new SymmetricSecurityKey(
@@ -206,12 +211,14 @@ namespace InframartAPI_New.Services
                 Success = true,
                 Message = "Login successful",
                 UserId = user.Id,
-                VendorId = vendor?.Id ?? 0,
+                VendorId = vendor.Id,
                 Role = user.Role,
-                Status = vendor?.Status,
-                ShopName = vendor?.ShopName,
+                Status = vendor.Status.ToString(),
+                ShopName = vendor.ShopName,
                 FullName = user.FullName,
-                Token = new JwtSecurityTokenHandler().WriteToken(token)
+                Token = new JwtSecurityTokenHandler().WriteToken(token),
+                VendorStatus = vendor.Status.ToString(),
+                KycStatus = vendor.KycStatus.ToString()
             };
         }
     }

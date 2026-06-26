@@ -47,7 +47,7 @@ namespace MultiVendorAPI.Controllers
 
         [HttpPut("{id:long}")]
         [Authorize(Roles = "vendor,admin")]
-        public async Task<IActionResult> UpdateProductById(long id, [FromBody] UpdateProductDto dto)
+        public async Task<IActionResult> UpdateProductById(long id, [FromForm] UpdateProductDto dto)
         {
             var (vendorId, role) = GetCurrentUser();
             var result = await _productService.UpdateProductAsync(id, dto, vendorId, role);
@@ -60,7 +60,7 @@ namespace MultiVendorAPI.Controllers
 
         [HttpPost]
         [Authorize(Roles = "vendor")]
-        public async Task<IActionResult> CreateProduct([FromBody] CreateProductDto dto)
+        public async Task<IActionResult> CreateProduct([FromForm] CreateProductDto dto)
         {
             var (vendorId, _) = GetCurrentUser();
             if (vendorId == null)

@@ -20,13 +20,20 @@ namespace InframartAPI_New.Services
         private readonly ApplicationDbContext _appContext;
         private readonly IConfiguration _configuration;
         private readonly INotificationService _notificationService;
+        private readonly IEmailNotificationService _emailNotificationService;
 
-        public AdminService(AppDbContext context, ApplicationDbContext appContext, IConfiguration configuration, INotificationService notificationService)
+        public AdminService(
+            AppDbContext context,
+            ApplicationDbContext appContext,
+            IConfiguration configuration,
+            INotificationService notificationService,
+            IEmailNotificationService emailNotificationService)
         {
             _context = context;
             _appContext = appContext;
             _configuration = configuration;
             _notificationService = notificationService;
+            _emailNotificationService = emailNotificationService;
         }
 
 
@@ -50,7 +57,7 @@ namespace InframartAPI_New.Services
                     Banner = vendor.Banner,
                     GstNumber = vendor.GstNumber,
                     CommissionRate = vendor.CommissionRate,
-                    Status = vendor.Status,
+                    Status = vendor.Status.ToString(),
                     CreatedAt = vendor.CreatedAt,
                     UpdatedAt = vendor.UpdatedAt,
                     Email = user?.Email,
@@ -77,19 +84,83 @@ namespace InframartAPI_New.Services
                 return (false, "Vendor not found");
             }
 
-            vendor.Status = newStatus;
+            if (Enum.TryParse<VendorStatus>(newStatus, true, out var parsedStatus))
+            {
+                vendor.Status = parsedStatus;
+                
+                if (parsedStatus == VendorStatus.Approved)
+                {
+                    vendor.KycStatus = KycStatus.Approved;
+                    var kyc = await _context.VendorKycs.FirstOrDefaultAsync(k => k.VendorId == vendor.Id);
+                    if (kyc != null)
+                    {
+                        kyc.Status = KycStatus.Approved;
+                        kyc.VerifiedAt = DateTime.UtcNow;
+                    }
+                }
+                else if (parsedStatus == VendorStatus.Rejected)
+                {
+                    vendor.KycStatus = KycStatus.Rejected;
+                    var kyc = await _context.VendorKycs.FirstOrDefaultAsync(k => k.VendorId == vendor.Id);
+                    if (kyc != null)
+                    {
+                        kyc.Status = KycStatus.Rejected;
+                        kyc.RejectionReason = "Vendor profile rejected by administrator.";
+                        kyc.VerifiedAt = DateTime.UtcNow;
+                    }
+                }
+            }
             await _context.SaveChangesAsync();
 
             // Trigger notification
             if (vendor.UserId.HasValue)
             {
-                if (newStatus == "approved")
+                try
                 {
-                    await _notificationService.CreateNotificationAsync(vendor.UserId.Value, "Vendor Approved", "Your vendor profile has been approved.", "vendor");
+                    var vendorUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == vendor.UserId.Value);
+                    string vendorEmail = vendorUser?.Email ?? "";
+                    string vendorName = vendorUser?.FullName ?? "Vendor";
+
+                    if (newStatus == "approved")
+                    {
+                        await _notificationService.CreateNotificationAsync(vendor.UserId.Value, "Vendor Approved", "Your vendor profile and KYC have been approved.", "vendor");
+
+                        if (!string.IsNullOrEmpty(vendorEmail))
+                        {
+                            await _emailNotificationService.SendTemplateEmailAsync(
+                                "VENDOR_APPROVED",
+                                vendorEmail,
+                                new Dictionary<string, string> { { "vendor_name", vendorName } }
+                            );
+
+                            await _emailNotificationService.SendTemplateEmailAsync(
+                                "KYC_APPROVED",
+                                vendorEmail,
+                                new Dictionary<string, string> { { "vendor_name", vendorName } }
+                            );
+                        }
+                    }
+                    else if (newStatus == "rejected")
+                    {
+                        await _notificationService.CreateNotificationAsync(vendor.UserId.Value, "Vendor Rejected", "Your vendor profile has been rejected.", "vendor");
+
+                        if (!string.IsNullOrEmpty(vendorEmail))
+                        {
+                            await _emailNotificationService.SendTemplateEmailAsync(
+                                "KYC_REJECTED",
+                                vendorEmail,
+                                new Dictionary<string, string>
+                                {
+                                    { "vendor_name", vendorName },
+                                    { "rejection_reason", "Vendor profile rejected by administrator." }
+                                }
+                            );
+                        }
+                    }
                 }
-                else if (newStatus == "rejected")
+                catch (Exception ex)
                 {
-                    await _notificationService.CreateNotificationAsync(vendor.UserId.Value, "Vendor Rejected", "Your vendor profile has been rejected.", "vendor");
+                    Console.WriteLine($"Failed to send vendor status email notification: {ex.Message}");
                 }
             }
 
@@ -148,23 +219,24 @@ namespace InframartAPI_New.Services
 
             var orders = await _appContext.Orders
                 .Where(o => o.UserId == userId)
-                .Select(o => new AdminOrderResponseDto
-                {
-                    Id = o.Id,
-                    OrderNumber = o.OrderNumber,
-                    Subtotal = o.Subtotal,
-                    TotalAmount = o.TotalAmount,
-                    DiscountAmount = o.DiscountAmount,
-                    ShippingCharge = o.ShippingCharge,
-                    PaymentStatus = o.PaymentStatus,
-                    OrderStatus = o.OrderStatus,
-                    PlacedAt = o.PlacedAt,
-                    CreatedAt = o.CreatedAt,
-                    UserId = o.UserId,
-                    CustomerName = user.FullName,
-                    CustomerEmail = user.Email
-                })
                 .ToListAsync();
+
+            var orderDtos = orders.Select(o => new AdminOrderResponseDto
+            {
+                Id = o.Id,
+                OrderNumber = o.OrderNumber,
+                Subtotal = o.Subtotal,
+                TotalAmount = o.TotalAmount,
+                DiscountAmount = o.DiscountAmount,
+                ShippingCharge = o.ShippingCharge,
+                PaymentStatus = o.PaymentStatus,
+                OrderStatus = o.OrderStatus,
+                PlacedAt = Helpers.TimezoneHelper.ConvertToIst(o.PlacedAt),
+                CreatedAt = Helpers.TimezoneHelper.ConvertToIst(o.CreatedAt),
+                UserId = o.UserId,
+                CustomerName = user.FullName,
+                CustomerEmail = user.Email
+            }).ToList();
 
             var details = new UserDetailsResponseDto
             {
@@ -178,7 +250,7 @@ namespace InframartAPI_New.Services
                     Status = user.Status
                 },
                 Addresses = addresses,
-                Orders = orders
+                Orders = orderDtos
             };
 
             return (true, null, details);
@@ -244,7 +316,7 @@ namespace InframartAPI_New.Services
                 Banner = vendor.Banner,
                 GstNumber = vendor.GstNumber,
                 CommissionRate = vendor.CommissionRate,
-                Status = vendor.Status,
+                Status = vendor.Status.ToString(),
                 CreatedAt = vendor.CreatedAt,
                 UpdatedAt = vendor.UpdatedAt,
                 VendorName = user?.FullName,
@@ -276,8 +348,8 @@ namespace InframartAPI_New.Services
                     ShippingCharge = o.ShippingCharge,
                     PaymentStatus = o.PaymentStatus,
                     OrderStatus = o.OrderStatus,
-                    PlacedAt = o.PlacedAt,
-                    CreatedAt = o.CreatedAt,
+                    PlacedAt = Helpers.TimezoneHelper.ConvertToIst(o.PlacedAt),
+                    CreatedAt = Helpers.TimezoneHelper.ConvertToIst(o.CreatedAt),
                     UserId = o.UserId,
                     CustomerName = user?.FullName,
                     CustomerEmail = user?.Email

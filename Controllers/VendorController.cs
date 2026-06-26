@@ -4,12 +4,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using InframartAPI_New.Middlewares;
+using InframartAPI_New.Helpers;
 
 namespace InframartAPI_New.Controllers
 {
     [Route("vendor")]
     [ApiController]
     [Authorize(Roles = "vendor")]
+    [VendorDashboardAuthorize]
     public class VendorController : ControllerBase
     {
         private readonly IVendorOrderService _vendorOrderService;

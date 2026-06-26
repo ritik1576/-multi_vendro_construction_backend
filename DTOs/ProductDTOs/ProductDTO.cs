@@ -19,5 +19,7 @@ namespace MultiVendorAPI.DTOs
         public string? Unit { get; set; }
 
         public string? Category { get; set; }
+
+        public List<string> Images { get; set; } = new();
     }
 }

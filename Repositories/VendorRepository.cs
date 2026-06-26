@@ -54,4 +54,9 @@ public class VendorRepository : IVendorRepository
             .Select(u => u.Id)
             .ToListAsync();
     }
+
+    public async Task<VendorKyc?> GetKycByVendorIdAsync(long vendorId)
+    {
+        return await _context.VendorKycs.FirstOrDefaultAsync(k => k.VendorId == vendorId);
+    }
 }

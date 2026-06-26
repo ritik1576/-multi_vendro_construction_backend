@@ -80,7 +80,8 @@ namespace MultiVendorAPI.Controllers
             }
 
             var discount = await _couponService.CalculateDiscountAsync(validationResult.Coupon, cartTotal);
-            var finalAmount = cartTotal - discount;
+            decimal shippingCharge = dto.ShippingCharge ?? 99m;
+            var finalAmount = cartTotal + shippingCharge - discount;
 
             return Ok(new ApplyCouponResponseDto
             {
@@ -88,6 +89,8 @@ namespace MultiVendorAPI.Controllers
                 CouponId = validationResult.Coupon.Id,
                 CouponCode = validationResult.Coupon.Code,
                 CartTotal = cartTotal,
+                Subtotal = cartTotal,
+                ShippingCharge = shippingCharge,
                 DiscountAmount = discount,
                 FinalAmount = finalAmount,
                 Message = "Coupon applied successfully"

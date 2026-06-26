@@ -16,5 +16,10 @@ namespace InframartAPI_New.DTOs
 
         public string? ShopName { get; set; }
         public string? FullName { get; set; }
+
+        public bool? RequiresKyc { get; set; }
+        public string? KycStatus { get; set; }
+        public string? VendorStatus { get; set; }
+        public string? RejectionReason { get; set; }
     }
 }
