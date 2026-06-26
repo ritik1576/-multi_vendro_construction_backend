@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.RegularExpressions;
+using System.Linq;
 using System.Threading.Tasks;
 using InframartAPI_New.Services.Interfaces;
 using Microsoft.AspNetCore.Hosting;
@@ -14,116 +14,377 @@ namespace InframartAPI_New.Services
         private readonly IWebHostEnvironment _webHostEnvironment;
         private readonly string _senderEmail;
 
-        public EmailTemplateService(IWebHostEnvironment webHostEnvironment, IConfiguration configuration)
+        // Static metadata representing default settings and configurable variables for each template
+        public static readonly Dictionary<string, (string Path, string DefaultSubject, Dictionary<string, string> DefaultVars)> TemplateMetadata = new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "WELCOME_EMAIL", ("Welcome/Welcome", "Welcome to InfraMart!", new() {
+                { "HeaderTitle", "Welcome to InfraMart!" },
+                { "IntroMessage", "We are thrilled to have you as part of our marketplace. Explore a wide variety of construction materials." },
+                { "ButtonText", "Get Started" },
+                { "FooterMessage", "Thank you for choosing InfraMart." },
+                { "SupportEmail", "support@inframart.com" },
+                { "SupportPhone", "+1-800-555-0199" },
+                { "CompanyWebsite", "https://inframart.com" },
+                { "CompanyLogo", "https://inframart.com/assets/logo.png" },
+                { "FacebookUrl", "https://facebook.com/inframart" },
+                { "InstagramUrl", "https://instagram.com/inframart" },
+                { "TwitterUrl", "https://twitter.com/inframart" },
+                { "LinkedInUrl", "https://linkedin.com/company/inframart" }
+            }) },
+            { "ORDER_CREATED", ("Orders/OrderPlaced", "Your Order Has Been Placed Successfully!", new() {
+                { "HeaderTitle", "Order Placed Successfully" },
+                { "IntroMessage", "Your order has been received and is being processed by the vendor." },
+                { "ButtonText", "View Order" },
+                { "FooterMessage", "Thank you for shopping with us." },
+                { "SupportEmail", "support@inframart.com" },
+                { "SupportPhone", "+1-800-555-0199" },
+                { "CompanyWebsite", "https://inframart.com" },
+                { "CompanyLogo", "https://inframart.com/assets/logo.png" },
+                { "FacebookUrl", "https://facebook.com/inframart" },
+                { "InstagramUrl", "https://instagram.com/inframart" },
+                { "TwitterUrl", "https://twitter.com/inframart" },
+                { "LinkedInUrl", "https://linkedin.com/company/inframart" }
+            }) },
+            { "ORDER_CANCELLED", ("Orders/OrderCancelled", "Your Order Has Been Cancelled", new() {
+                { "HeaderTitle", "Order Cancelled" },
+                { "IntroMessage", "We regret to inform you that your order has been cancelled." },
+                { "FooterMessage", "If you have any questions, please contact our support." },
+                { "SupportEmail", "support@inframart.com" },
+                { "SupportPhone", "+1-800-555-0199" },
+                { "CompanyWebsite", "https://inframart.com" },
+                { "CompanyLogo", "https://inframart.com/assets/logo.png" },
+                { "FacebookUrl", "https://facebook.com/inframart" },
+                { "InstagramUrl", "https://instagram.com/inframart" },
+                { "TwitterUrl", "https://twitter.com/inframart" },
+                { "LinkedInUrl", "https://linkedin.com/company/inframart" }
+            }) },
+            { "ORDER_DELIVERED", ("Orders/OrderDelivered", "Your Order Has Been Delivered", new() {
+                { "HeaderTitle", "Order Delivered" },
+                { "IntroMessage", "Your order has been delivered successfully to your address." },
+                { "ButtonText", "Rate Product" },
+                { "FooterMessage", "We hope you are satisfied with your purchase." },
+                { "SupportEmail", "support@inframart.com" },
+                { "SupportPhone", "+1-800-555-0199" },
+                { "CompanyWebsite", "https://inframart.com" },
+                { "CompanyLogo", "https://inframart.com/assets/logo.png" },
+                { "FacebookUrl", "https://facebook.com/inframart" },
+                { "InstagramUrl", "https://instagram.com/inframart" },
+                { "TwitterUrl", "https://twitter.com/inframart" },
+                { "LinkedInUrl", "https://linkedin.com/company/inframart" }
+            }) },
+            { "VENDOR_APPROVED", ("Vendor/VendorApproved", "Your Vendor Profile Has Been Approved!", new() {
+                { "HeaderTitle", "Vendor Application Approved" },
+                { "IntroMessage", "Congratulations! Your vendor profile application has been approved. You can now log in to your dashboard and start selling." },
+                { "ButtonText", "Go to Dashboard" },
+                { "FooterMessage", "Welcome aboard!" },
+                { "SupportEmail", "support@inframart.com" },
+                { "SupportPhone", "+1-800-555-0199" },
+                { "CompanyWebsite", "https://inframart.com" },
+                { "CompanyLogo", "https://inframart.com/assets/logo.png" },
+                { "FacebookUrl", "https://facebook.com/inframart" },
+                { "InstagramUrl", "https://instagram.com/inframart" },
+                { "TwitterUrl", "https://twitter.com/inframart" },
+                { "LinkedInUrl", "https://linkedin.com/company/inframart" }
+            }) },
+            { "VENDOR_REJECTED", ("Vendor/VendorRejected", "Your Vendor Profile Request Status", new() {
+                { "HeaderTitle", "Vendor Application Status" },
+                { "IntroMessage", "We regret to inform you that your vendor profile application has been rejected at this time." },
+                { "FooterMessage", "Please review the requirements and apply again." },
+                { "SupportEmail", "support@inframart.com" },
+                { "SupportPhone", "+1-800-555-0199" },
+                { "CompanyWebsite", "https://inframart.com" },
+                { "CompanyLogo", "https://inframart.com/assets/logo.png" },
+                { "FacebookUrl", "https://facebook.com/inframart" },
+                { "InstagramUrl", "https://instagram.com/inframart" },
+                { "TwitterUrl", "https://twitter.com/inframart" },
+                { "LinkedInUrl", "https://linkedin.com/company/inframart" }
+            }) },
+            { "KYC_APPROVED", ("KYC/Approved", "Your Vendor KYC Has Been Approved!", new() {
+                { "HeaderTitle", "KYC Approved" },
+                { "IntroMessage", "Your vendor KYC documents have been successfully verified." },
+                { "FooterMessage", "Your account is fully active." },
+                { "SupportEmail", "support@inframart.com" },
+                { "SupportPhone", "+1-800-555-0199" },
+                { "CompanyWebsite", "https://inframart.com" },
+                { "CompanyLogo", "https://inframart.com/assets/logo.png" },
+                { "FacebookUrl", "https://facebook.com/inframart" },
+                { "InstagramUrl", "https://instagram.com/inframart" },
+                { "TwitterUrl", "https://twitter.com/inframart" },
+                { "LinkedInUrl", "https://linkedin.com/company/inframart" }
+            }) },
+            { "KYC_REJECTED", ("KYC/Rejected", "Your Vendor KYC Has Been Rejected", new() {
+                { "HeaderTitle", "KYC Rejected" },
+                { "IntroMessage", "Your vendor KYC documents could not be verified." },
+                { "FooterMessage", "Please re-submit valid documents on your dashboard." },
+                { "SupportEmail", "support@inframart.com" },
+                { "SupportPhone", "+1-800-555-0199" },
+                { "CompanyWebsite", "https://inframart.com" },
+                { "CompanyLogo", "https://inframart.com/assets/logo.png" },
+                { "FacebookUrl", "https://facebook.com/inframart" },
+                { "InstagramUrl", "https://instagram.com/inframart" },
+                { "TwitterUrl", "https://twitter.com/inframart" },
+                { "LinkedInUrl", "https://linkedin.com/company/inframart" }
+            }) },
+            { "FORGOT_PASSWORD", ("Password/ForgotPassword", "Reset Your Password", new() {
+                { "HeaderTitle", "Forgot Your Password?" },
+                { "IntroMessage", "You requested a password reset. Click the button below to set a new password." },
+                { "ButtonText", "Reset Password" },
+                { "ExpiryMessage", "This link is valid for 1 hour." },
+                { "FooterMessage", "Thank you for using InfraMart." },
+                { "SupportEmail", "support@inframart.com" },
+                { "SupportPhone", "+1-800-555-0199" },
+                { "CompanyWebsite", "https://inframart.com" },
+                { "CompanyLogo", "https://inframart.com/assets/logo.png" },
+                { "FacebookUrl", "https://facebook.com/inframart" },
+                { "InstagramUrl", "https://instagram.com/inframart" },
+                { "TwitterUrl", "https://twitter.com/inframart" },
+                { "LinkedInUrl", "https://linkedin.com/company/inframart" }
+            }) },
+            { "PASSWORD_RESET", ("Password/ForgotPassword", "Your Password Has Been Reset Successfully", new() {
+                { "HeaderTitle", "Password Reset Successful" },
+                { "IntroMessage", "Your password has been reset successfully. If you did not request this, please contact support immediately." },
+                { "FooterMessage", "Thank you for using InfraMart." },
+                { "SupportEmail", "support@inframart.com" },
+                { "SupportPhone", "+1-800-555-0199" },
+                { "CompanyWebsite", "https://inframart.com" },
+                { "CompanyLogo", "https://inframart.com/assets/logo.png" },
+                { "FacebookUrl", "https://facebook.com/inframart" },
+                { "InstagramUrl", "https://instagram.com/inframart" },
+                { "TwitterUrl", "https://twitter.com/inframart" },
+                { "LinkedInUrl", "https://linkedin.com/company/inframart" }
+            }) },
+            { "OTP_EMAIL", ("Password/OTP", "Your One-Time Password (OTP)", new() {
+                { "HeaderTitle", "Your One-Time Password" },
+                { "IntroMessage", "Use the following OTP code to verify your action." },
+                { "ExpiryMessage", "This OTP is valid for 10 minutes." },
+                { "FooterMessage", "Do not share this OTP with anyone." },
+                { "SupportEmail", "support@inframart.com" },
+                { "SupportPhone", "+1-800-555-0199" },
+                { "CompanyWebsite", "https://inframart.com" },
+                { "CompanyLogo", "https://inframart.com/assets/logo.png" },
+                { "FacebookUrl", "https://facebook.com/inframart" },
+                { "InstagramUrl", "https://instagram.com/inframart" },
+                { "TwitterUrl", "https://twitter.com/inframart" },
+                { "LinkedInUrl", "https://linkedin.com/company/inframart" }
+            }) },
+            { "OTP", ("Password/OTP", "Your One-Time Password (OTP)", new() {
+                { "HeaderTitle", "Your One-Time Password" },
+                { "IntroMessage", "Use the following OTP code to verify your action." },
+                { "ExpiryMessage", "This OTP is valid for 10 minutes." },
+                { "FooterMessage", "Do not share this OTP with anyone." },
+                { "SupportEmail", "support@inframart.com" },
+                { "SupportPhone", "+1-800-555-0199" },
+                { "CompanyWebsite", "https://inframart.com" },
+                { "CompanyLogo", "https://inframart.com/assets/logo.png" },
+                { "FacebookUrl", "https://facebook.com/inframart" },
+                { "InstagramUrl", "https://instagram.com/inframart" },
+                { "TwitterUrl", "https://twitter.com/inframart" },
+                { "LinkedInUrl", "https://linkedin.com/company/inframart" }
+            }) },
+            { "ADD_MONEY", ("Wallet/AddMoney", "Money Added to Wallet Successfully", new() {
+                { "HeaderTitle", "Wallet Credited" },
+                { "IntroMessage", "Money has been successfully credited to your wallet." },
+                { "FooterMessage", "Thank you for using our wallet service." },
+                { "SupportEmail", "support@inframart.com" },
+                { "SupportPhone", "+1-800-555-0199" },
+                { "CompanyWebsite", "https://inframart.com" },
+                { "CompanyLogo", "https://inframart.com/assets/logo.png" },
+                { "FacebookUrl", "https://facebook.com/inframart" },
+                { "InstagramUrl", "https://instagram.com/inframart" },
+                { "TwitterUrl", "https://twitter.com/inframart" },
+                { "LinkedInUrl", "https://linkedin.com/company/inframart" }
+            }) },
+            { "WITHDRAW", ("Wallet/Withdraw", "Wallet Withdrawal Request Update", new() {
+                { "HeaderTitle", "Withdrawal Request Update" },
+                { "IntroMessage", "Your withdrawal request has been updated." },
+                { "FooterMessage", "If you have any questions, please contact our support." },
+                { "SupportEmail", "support@inframart.com" },
+                { "SupportPhone", "+1-800-555-0199" },
+                { "CompanyWebsite", "https://inframart.com" },
+                { "CompanyLogo", "https://inframart.com/assets/logo.png" },
+                { "FacebookUrl", "https://facebook.com/inframart" },
+                { "InstagramUrl", "https://instagram.com/inframart" },
+                { "TwitterUrl", "https://twitter.com/inframart" },
+                { "LinkedInUrl", "https://linkedin.com/company/inframart" }
+            }) },
+            { "TRANSFER", ("Wallet/Transfer", "Wallet Money Transfer Notification", new() {
+                { "HeaderTitle", "Wallet Transfer Notification" },
+                { "IntroMessage", "A transfer transaction has been processed in your wallet." },
+                { "FooterMessage", "Thank you for using our transfer service." },
+                { "SupportEmail", "support@inframart.com" },
+                { "SupportPhone", "+1-800-555-0199" },
+                { "CompanyWebsite", "https://inframart.com" },
+                { "CompanyLogo", "https://inframart.com/assets/logo.png" },
+                { "FacebookUrl", "https://facebook.com/inframart" },
+                { "InstagramUrl", "https://instagram.com/inframart" },
+                { "TwitterUrl", "https://twitter.com/inframart" },
+                { "LinkedInUrl", "https://linkedin.com/company/inframart" }
+            }) },
+            { "PAYMENT_SUCCESS", ("Payment/PaymentSuccess", "Payment Successful", new() {
+                { "HeaderTitle", "Payment Successful" },
+                { "IntroMessage", "Your payment has been successfully processed." },
+                { "FooterMessage", "Thank you for choosing InfraMart." },
+                { "SupportEmail", "support@inframart.com" },
+                { "SupportPhone", "+1-800-555-0199" },
+                { "CompanyWebsite", "https://inframart.com" },
+                { "CompanyLogo", "https://inframart.com/assets/logo.png" },
+                { "FacebookUrl", "https://facebook.com/inframart" },
+                { "InstagramUrl", "https://instagram.com/inframart" },
+                { "TwitterUrl", "https://twitter.com/inframart" },
+                { "LinkedInUrl", "https://linkedin.com/company/inframart" }
+            }) },
+            { "PAYMENT_FAILED", ("Payment/PaymentFailed", "Payment Failed", new() {
+                { "HeaderTitle", "Payment Failed" },
+                { "IntroMessage", "Your payment attempt could not be processed." },
+                { "FooterMessage", "Please try again or use another payment method." },
+                { "SupportEmail", "support@inframart.com" },
+                { "SupportPhone", "+1-800-555-0199" },
+                { "CompanyWebsite", "https://inframart.com" },
+                { "CompanyLogo", "https://inframart.com/assets/logo.png" },
+                { "FacebookUrl", "https://facebook.com/inframart" },
+                { "InstagramUrl", "https://instagram.com/inframart" },
+                { "TwitterUrl", "https://twitter.com/inframart" },
+                { "LinkedInUrl", "https://linkedin.com/company/inframart" }
+            }) },
+            { "REFUND_COMPLETED", ("Payment/RefundCompleted", "Refund Completed Successfully", new() {
+                { "HeaderTitle", "Refund Completed" },
+                { "IntroMessage", "Your refund has been successfully completed and credited back to your account." },
+                { "FooterMessage", "Thank you for using InfraMart." },
+                { "SupportEmail", "support@inframart.com" },
+                { "SupportPhone", "+1-800-555-0199" },
+                { "CompanyWebsite", "https://inframart.com" },
+                { "CompanyLogo", "https://inframart.com/assets/logo.png" },
+                { "FacebookUrl", "https://facebook.com/inframart" },
+                { "InstagramUrl", "https://instagram.com/inframart" },
+                { "TwitterUrl", "https://twitter.com/inframart" },
+                { "LinkedInUrl", "https://linkedin.com/company/inframart" }
+            }) }
+        };
+
+        public EmailTemplateService(ApplicationDbContext dbContext)
         {
             _webHostEnvironment = webHostEnvironment;
             // Get sender email from settings, default to inframart102@gmail.com if not configured
             _senderEmail = configuration["EmailSettings:SenderEmail"] ?? "inframart102@gmail.com";
         }
 
-        public async Task<string> GetRenderedTemplateAsync(string templatePath, Dictionary<string, string> variables)
+        public async Task<EmailTemplateSetting?> GetTemplateAsync(string templateKey)
         {
-            if (string.IsNullOrWhiteSpace(templatePath))
+            if (string.IsNullOrWhiteSpace(templateKey)) return null;
+
+            var setting = await _dbContext.EmailTemplateSettings
+                .Include(s => s.Variables)
+                .FirstOrDefaultAsync(s => s.TemplateKey == templateKey.ToUpper());
+
+            if (setting == null)
             {
-                throw new ArgumentException("Template path cannot be null or empty.", nameof(templatePath));
+                // Try to seed from defaults
+                if (TemplateMetadata.TryGetValue(templateKey, out var meta))
+                {
+                    setting = new EmailTemplateSetting
+                    {
+                        TemplateKey = templateKey.ToUpper(),
+                        Subject = meta.DefaultSubject,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        Variables = meta.DefaultVars.Select(v => new EmailTemplateVariable
+                        {
+                            VariableKey = v.Key,
+                            VariableValue = v.Value,
+                            CreatedAt = DateTime.UtcNow
+                        }).ToList()
+                    };
+
+                    try
+                    {
+                        _dbContext.EmailTemplateSettings.Add(setting);
+                        await _dbContext.SaveChangesAsync();
+                    }
+                    catch (DbUpdateException)
+                    {
+                        // Handle potential concurrent seeding race condition
+                        _dbContext.Entry(setting).State = EntityState.Detached;
+                        setting = await _dbContext.EmailTemplateSettings
+                            .Include(s => s.Variables)
+                            .FirstOrDefaultAsync(s => s.TemplateKey == templateKey.ToUpper());
+                    }
+                }
             }
 
-            // Standardize suffix
-            if (!templatePath.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+            return setting;
+        }
+
+        public async Task<(string subject, string body)> RenderTemplateAsync(string templateKey, Dictionary<string, string> variables)
+        {
+            var setting = await GetTemplateAsync(templateKey);
+            if (setting == null)
             {
                 templatePath += ".html";
             }
 
-            // Resolve path to the specific email template
-            string contentRoot = _webHostEnvironment.ContentRootPath;
-            string templateFullPath = Path.Combine(contentRoot, "EmailTemplates", templatePath);
+            // Find file path from metadata mapping
+            var subPath = TemplateMetadata.TryGetValue(templateKey, out var meta) ? meta.Path : templateKey;
+            var templateFilePath = Path.Combine(Directory.GetCurrentDirectory(), "EmailTemplates", subPath + ".html");
+            var baseLayoutFilePath = Path.Combine(Directory.GetCurrentDirectory(), "EmailTemplates", "Layouts", "BaseLayout.html");
 
-            if (!File.Exists(templateFullPath))
+            if (!File.Exists(templateFilePath))
             {
-                // Fallback to AppContext.BaseDirectory or current directory if ContentRootPath didn't work as expected
-                templateFullPath = Path.Combine(AppContext.BaseDirectory, "EmailTemplates", templatePath);
-                if (!File.Exists(templateFullPath))
+                throw new FileNotFoundException($"Template file not found at path: {templateFilePath}");
+            }
+
+            if (!File.Exists(baseLayoutFilePath))
+            {
+                throw new FileNotFoundException($"Base layout file not found at path: {baseLayoutFilePath}");
+            }
+
+            string templateContent = await File.ReadAllTextAsync(templateFilePath);
+            string baseLayoutContent = await File.ReadAllTextAsync(baseLayoutFilePath);
+
+            // Merge variables: DB settings first, then overwrite with runtime parameters
+            var mergedVariables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (setting.Variables != null)
+            {
+                foreach (var v in setting.Variables)
                 {
-                    templateFullPath = Path.Combine(Directory.GetCurrentDirectory(), "EmailTemplates", templatePath);
-                    if (!File.Exists(templateFullPath))
-                    {
-                        throw new FileNotFoundException($"Email template not found at path: {templateFullPath}");
-                    }
+                    mergedVariables[v.VariableKey] = v.VariableValue;
                 }
             }
 
-            // Resolve path to base layout
-            string layoutFullPath = Path.Combine(Path.GetDirectoryName(templateFullPath) ?? contentRoot, "..", "Layouts", "BaseLayout.html");
-            layoutFullPath = Path.GetFullPath(layoutFullPath); // Normalize the .. path
-
-            if (!File.Exists(layoutFullPath))
+            if (variables != null)
             {
-                layoutFullPath = Path.Combine(contentRoot, "EmailTemplates", "Layouts", "BaseLayout.html");
-                if (!File.Exists(layoutFullPath))
+                foreach (var v in variables)
                 {
-                    layoutFullPath = Path.Combine(AppContext.BaseDirectory, "EmailTemplates", "Layouts", "BaseLayout.html");
-                    if (!File.Exists(layoutFullPath))
-                    {
-                        layoutFullPath = Path.Combine(Directory.GetCurrentDirectory(), "EmailTemplates", "Layouts", "BaseLayout.html");
-                    }
+                    mergedVariables[v.Key] = v.Value;
                 }
             }
 
-            string baseLayout = "";
-            if (File.Exists(layoutFullPath))
+            // Replace Body placeholder in base layout with template body
+            var finalHtml = baseLayoutContent.Replace("{{Body}}", templateContent, StringComparison.OrdinalIgnoreCase);
+
+            // Replace Subject placeholder in base layout
+            finalHtml = finalHtml.Replace("{{Subject}}", setting.Subject, StringComparison.OrdinalIgnoreCase);
+
+            var renderedSubject = setting.Subject;
+
+            // Replace all placeholders in both subject and HTML body
+            foreach (var kvp in mergedVariables)
             {
-                baseLayout = await File.ReadAllTextAsync(layoutFullPath);
-            }
-            else
-            {
-                // Fallback layout if layout file is missing
-                baseLayout = "<!DOCTYPE html><html><body>{{EmailBody}}</body></html>";
-            }
+                string placeholder = "{?" + kvp.Key + "?}"; // support {Variable} or {{Variable}} or {?Variable?} format
+                string placeholderDoubleCurly = "{{" + kvp.Key + "}}";
+                string placeholderSingleCurly = "{" + kvp.Key + "}";
+                string val = kvp.Value ?? string.Empty;
 
-            string templateContent = await File.ReadAllTextAsync(templateFullPath);
+                renderedSubject = renderedSubject
+                    .Replace(placeholderDoubleCurly, val, StringComparison.OrdinalIgnoreCase)
+                    .Replace(placeholderSingleCurly, val, StringComparison.OrdinalIgnoreCase);
 
-            // Merge variables dictionary with standard variables if not already overridden
-            var allVariables = variables != null ? new Dictionary<string, string>(variables, StringComparer.OrdinalIgnoreCase) : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            
-            if (!allVariables.ContainsKey("SupportEmail"))
-            {
-                allVariables["SupportEmail"] = _senderEmail;
-            }
-            if (!allVariables.ContainsKey("CurrentYear"))
-            {
-                allVariables["CurrentYear"] = DateTime.UtcNow.Year.ToString();
-            }
-
-            // Replace placeholders in the specific template first
-            templateContent = ReplacePlaceholders(templateContent, allVariables);
-
-            // Inject the rendered template content into the base layout
-            string finalHtml = baseLayout.Replace("{{EmailBody}}", templateContent, StringComparison.OrdinalIgnoreCase);
-
-            // Replace placeholders in the layout (like {{CurrentYear}} or {{SupportEmail}})
-            finalHtml = ReplacePlaceholders(finalHtml, allVariables);
-
-            return finalHtml;
-        }
-
-        private string ReplacePlaceholders(string content, Dictionary<string, string> variables)
-        {
-            if (string.IsNullOrEmpty(content)) return content;
-
-            foreach (var variable in variables)
-            {
-                string value = variable.Value ?? string.Empty;
-                
-                // Replace {{VariableName}}
-                string doubleBracePlaceholder = "{{" + variable.Key + "}}";
-                content = Regex.Replace(content, Regex.Escape(doubleBracePlaceholder), value, RegexOptions.IgnoreCase);
-
-                // Replace {VariableName}
-                string singleBracePlaceholder = "{" + variable.Key + "}";
-                content = Regex.Replace(content, Regex.Escape(singleBracePlaceholder), value, RegexOptions.IgnoreCase);
+                finalHtml = finalHtml
+                    .Replace(placeholder, val, StringComparison.OrdinalIgnoreCase)
+                    .Replace(placeholderDoubleCurly, val, StringComparison.OrdinalIgnoreCase)
+                    .Replace(placeholderSingleCurly, val, StringComparison.OrdinalIgnoreCase);
             }
 
-            return content;
+            return (renderedSubject, finalHtml);
         }
     }
 }

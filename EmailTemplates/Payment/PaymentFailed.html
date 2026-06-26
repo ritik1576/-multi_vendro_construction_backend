@@ -1,11 +1,7 @@
-<h2>Payment Transaction Failed</h2>
+<h2>{{HeaderTitle}}</h2>
 <p>Hello {{CustomerName}},</p>
-<p>We attempted to process your payment for order <strong>#{{OrderNumber}}</strong>, but the transaction was unsuccessful.</p>
-<div class="info-box" style="border-left-color: #d9534f;">
-    <strong>Transaction Info:</strong><br>
-    Order Reference: <strong>#{{OrderNumber}}</strong><br>
-    Attempted Amount: <strong>₹{{Amount}}</strong><br>
-    Status: <strong>Failed / Declined</strong>
+<p>{{IntroMessage}}</p>
+<div style="background-color: #f8fafc; padding: 20px; border-radius: 6px; margin: 20px 0;">
+    Order/Transaction: {{OrderNumber}}<br>
+    Amount: {{Amount}} INR
 </div>
-<p>Please check your payment credentials and retry, or choose an alternative payment option. No funds have been debited from your account.</p>
-<p>Best regards,<br>The InfraMart Team</p>

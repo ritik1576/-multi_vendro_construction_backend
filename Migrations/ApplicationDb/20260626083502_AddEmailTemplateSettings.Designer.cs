@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MultiVendorAPI.Data;
 
@@ -11,9 +12,11 @@ using MultiVendorAPI.Data;
 namespace MultiVendorAPI.Migrations.ApplicationDb
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260626083502_AddEmailTemplateSettings")]
+    partial class AddEmailTemplateSettings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -749,142 +752,6 @@ namespace MultiVendorAPI.Migrations.ApplicationDb
                     b.Property<decimal?>("MinimumOrderAmount")
                         .HasColumnType("decimal(65,30)")
                         .HasColumnName("minimum_order_amount");
-
-                    b.Property<DateTime?>("StartDate")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("start_date");
-
-                    b.Property<string>("Status")
-                        .HasColumnType("longtext")
-                        .HasColumnName("status");
-
-                    b.Property<int?>("UsageLimit")
-                        .HasColumnType("int")
-                        .HasColumnName("usage_limit");
-
-                    b.Property<int?>("UsedCount")
-                        .HasColumnType("int")
-                        .HasColumnName("used_count");
-
-                    b.Property<long?>("VendorId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("vendor_id");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("coupons", (string)null);
-                });
-
-            modelBuilder.Entity("MultiVendorAPI.Models.CouponUsage", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<long?>("CouponId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("coupon_id");
-
-                    b.Property<long?>("OrderId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("order_id");
-
-                    b.Property<DateTime?>("UsedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("used_at");
-
-                    b.Property<long?>("UserId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("coupon_usages", (string)null);
-                });
-
-            modelBuilder.Entity("MultiVendorAPI.Models.ImageFile", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)")
-                        .HasColumnName("content_type");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("file_name");
-
-                    b.Property<string>("StorageKey")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)")
-                        .HasColumnName("storage_key");
-
-                    b.Property<long>("VendorId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("vendor_id");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("image_files");
-                });
-
-            modelBuilder.Entity("MultiVendorAPI.Models.Coupon", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("Code")
-                        .HasColumnType("longtext")
-                        .HasColumnName("code");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("DiscountType")
-                        .HasColumnType("longtext")
-                        .HasColumnName("discount_type");
-
-                    b.Property<decimal?>("DiscountValue")
-                        .HasColumnType("decimal(65,30)")
-                        .HasColumnName("discount_value");
-
-                    b.Property<DateTime?>("EndDate")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("end_date");
-
-                    b.Property<decimal?>("MaxDiscount")
-                        .HasColumnType("decimal(65,30)")
-                        .HasColumnName("max_discount");
-
-                    b.Property<decimal?>("MinimumOrderAmount")
-                        .HasColumnType("decimal(65,30)")
-                        .HasColumnName("minimum_order_amount");
-
-                    b.Property<int?>("PerUserLimit")
-                        .HasColumnType("int")
-                        .HasColumnName("per_user_limit");
 
                     b.Property<DateTime?>("StartDate")
                         .HasColumnType("datetime(6)")

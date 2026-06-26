@@ -1,11 +1,8 @@
-<h2>Refund Processed & Completed</h2>
+<h2>{{HeaderTitle}}</h2>
 <p>Hello {{CustomerName}},</p>
-<p>We have successfully processed a refund of <strong>₹{{Amount}}</strong> for your order <strong>#{{OrderNumber}}</strong>.</p>
-<div class="info-box" style="border-left-color: #5bc0de;">
-    <strong>Refund Summary:</strong><br>
-    Order Reference: <strong>#{{OrderNumber}}</strong><br>
-    Refunded Amount: <strong>₹{{Amount}}</strong><br>
-    Refund Status: <strong>Completed</strong>
+<p>{{IntroMessage}}</p>
+<div style="background-color: #f8fafc; padding: 20px; border-radius: 6px; margin: 20px 0;">
+    Refund Amount: {{RefundAmount}} INR<br>
+    Transaction ID: {{TransactionId}}<br>
+    Order Number: {{OrderNumber}}
 </div>
-<p>Depending on your bank's routing cycles, the credit should appear in your statement within 5-7 business days.</p>
-<p>Best regards,<br>The InfraMart Team</p>

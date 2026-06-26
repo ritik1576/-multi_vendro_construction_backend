@@ -1,10 +1,8 @@
-<h2>Wallet Withdrawal Processed</h2>
-<p>Hello {{CustomerName}}{{VendorName}},</p>
-<p>We are writing to confirm that a withdrawal has been successfully processed from your InfraMart wallet.</p>
-<div class="info-box" style="border-left-color: #f0ad4e;">
-    <strong>Transaction Details:</strong><br>
-    Amount Withdrawn: <strong>₹{{Amount}}</strong><br>
-    Remaining Wallet Balance: <strong>₹{{WalletBalance}}</strong>
+<h2>{{HeaderTitle}}</h2>
+<p>Hello {{CustomerName}},</p>
+<p>{{IntroMessage}}</p>
+<div style="background-color: #f8fafc; padding: 20px; border-radius: 6px; margin: 20px 0;">
+    Amount Requested: {{Amount}} INR<br>
+    Transaction ID: {{TransactionId}}<br>
+    Current Wallet Balance: {{WalletBalance}} INR
 </div>
-<p>The withdrawn amount should be credited to your linked bank account within 2-3 business days depending on your bank's processing cycles.</p>
-<p>Best regards,<br>The InfraMart Team</p>

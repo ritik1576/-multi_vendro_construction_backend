@@ -1,12 +1,11 @@
-<h2>Order Placed Successfully!</h2>
+<h2>{{HeaderTitle}}</h2>
 <p>Hello {{CustomerName}},</p>
-<p>Thank you for shopping with InfraMart. Your order has been successfully placed and is being processed by the vendor.</p>
-<div class="info-box">
+<p>{{IntroMessage}}</p>
+<div style="background-color: #f8fafc; padding: 20px; border-radius: 6px; margin: 20px 0;">
     <strong>Order Details:</strong><br>
-    Order Number: <strong>#{{OrderNumber}}</strong><br>
-    Order Date: {{OrderDate}}<br>
-    Total Amount: <strong>₹{{Amount}}</strong>
+    Order Number: {{OrderNumber}}<br>
+    Total Amount: {{OrderAmount}} INR
 </div>
-<p>You can track the status of your order on your dashboard at any time. We will notify you as soon as the order is shipped.</p>
-<p>Thank you for choosing InfraMart!</p>
-<p>Best regards,<br>The InfraMart Team</p>
+<div style="text-align: center;">
+    <a href="{{TrackOrderUrl}}" class="button">{{ButtonText}}</a>
+</div>
