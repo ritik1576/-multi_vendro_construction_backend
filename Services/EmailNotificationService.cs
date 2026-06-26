@@ -38,65 +38,8 @@ namespace InframartAPI_New.Services
 
         public async Task<bool> SendTemplateEmailAsync(string templateKey, string email, Dictionary<string, string> variables)
         {
-            EmailTemplateSetting? template = null;
-            string subject = string.Empty;
-            string body = string.Empty;
-            string status = "Failed";
-            string? errorMessage = null;
-            string? providerResponse = null;
-            DateTime? sentAt = null;
-
-            try
+            if (string.IsNullOrWhiteSpace(templateKey))
             {
-                template = await _templateService.GetTemplateAsync(templateKey);
-                
-                if (template == null)
-                {
-                    errorMessage = $"Template with key '{templateKey}' not found.";
-                    return false;
-                }
-
-                if (!template.IsActive)
-                {
-                    errorMessage = $"Template with key '{templateKey}' is inactive.";
-                    return false;
-                }
-
-                var (renderedSubject, renderedBody) = await _templateService.RenderTemplateAsync(templateKey, variables);
-                subject = renderedSubject;
-                body = renderedBody;
-
-                // Send via Resend Email Sender
-                var result = await _emailSender.SendEmailAsync(email, subject, body);
-                
-                providerResponse = result.ProviderResponse;
-                if (result.Success)
-                {
-                    status = "Success"; // Requirement says Status = Success (or Sent, let's use Success as requested)
-                    sentAt = DateTime.UtcNow;
-                    return true;
-                }
-                else
-                {
-                    status = "Failed";
-                    errorMessage = result.ErrorMessage;
-                    // Prepend stack trace to error message or keep it structured
-                    if (!string.IsNullOrEmpty(result.StackTrace))
-                    {
-                        errorMessage += $"\nStack Trace: {result.StackTrace}";
-                    }
-                    return false;
-                }
-            }
-            catch (Exception ex)
-            {
-                errorMessage = ex.ToString();
-                // If rendering succeeded but sending failed, we still want to log subject/body
-                if (string.IsNullOrEmpty(subject) && template != null)
-                {
-                    subject = template.Subject;
-                    body = "Failed to render body or template missing.";
-                }
                 return false;
             }
 

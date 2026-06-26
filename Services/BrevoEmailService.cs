@@ -119,8 +119,9 @@ namespace InframartAPI_New.Services
             try
             {
                 // Render HTML template using the template service
-                string renderedBody = await _templateService.GetRenderedTemplateAsync(templatePath, variables);
-                return await SendAsync(recipientEmail, subject, renderedBody);
+                var (renderedSubject, renderedBody) = await _templateService.RenderTemplateAsync(templatePath, variables);
+                var finalSubject = string.IsNullOrWhiteSpace(renderedSubject) ? subject : renderedSubject;
+                return await SendAsync(recipientEmail, finalSubject, renderedBody);
             }
             catch (Exception ex)
             {
