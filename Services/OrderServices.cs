@@ -235,7 +235,9 @@ public class OrderServices : IOrderService
                 {
                     var item = dto.Items[i];
                     var product = products[i];
-                    var price = product.Price.GetValueOrDefault();
+                    var price = product.DiscountPrice.HasValue && product.DiscountPrice.Value > 0
+                        ? product.DiscountPrice.Value
+                        : product.Price.GetValueOrDefault();
 
                     await _orderRepository.CreateOrderItemAsync(new OrderItem
                     {
@@ -401,6 +403,10 @@ public class OrderServices : IOrderService
         }
         else
         {
+            decimal orderAmount = subtotal - discountAmount + DeliveryCharge;
+            decimal commissionAmount = orderAmount * 0.10m;
+            decimal vendorAmount = orderAmount - commissionAmount;
+
             order = new Order
             {
                 UserId = dto.UserId,
@@ -408,13 +414,17 @@ public class OrderServices : IOrderService
                 Subtotal = subtotal,
                 DiscountAmount = discountAmount,
                 ShippingCharge = DeliveryCharge,
-                TotalAmount = subtotal - discountAmount + DeliveryCharge,
+                TotalAmount = orderAmount,
                 CouponId = couponId,
                 CouponCode = dto.CouponCode,
                 PaymentStatus = "pending",
                 OrderStatus = "pending",
                 PlacedAt = now,
-                CreatedAt = now
+                CreatedAt = now,
+                SubtotalAmount = subtotal,
+                CommissionAmount = commissionAmount,
+                VendorAmount = vendorAmount,
+                FinalAmount = orderAmount
             };
 
             await _orderRepository.CreateOrderAsync(order);
@@ -426,7 +436,9 @@ public class OrderServices : IOrderService
             {
                 var item = dto.Items[i];
                 var product = products[i];
-                var price = product.Price.GetValueOrDefault();
+                var price = product.DiscountPrice.HasValue && product.DiscountPrice.Value > 0
+                    ? product.DiscountPrice.Value
+                    : product.Price.GetValueOrDefault();
 
                 await _orderRepository.CreateOrderItemAsync(new OrderItem
                 {

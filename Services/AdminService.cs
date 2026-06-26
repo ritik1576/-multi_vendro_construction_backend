@@ -513,6 +513,62 @@ namespace InframartAPI_New.Services
                 return (false, $"An error occurred while deleting review: {ex.Message}");
             }
         }
+
+        public async Task<(bool success, string? error)> SuspendUserAsync(long userId, string reason, long adminId)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null)
+            {
+                return (false, "User not found");
+            }
+
+            user.IsSuspended = true;
+            user.SuspendedAt = DateTime.UtcNow;
+            user.SuspensionReason = reason;
+
+            if (string.Equals(user.Role, "vendor", StringComparison.OrdinalIgnoreCase))
+            {
+                var vendor = await _context.Vendors.FirstOrDefaultAsync(v => v.UserId == user.Id);
+                if (vendor != null)
+                {
+                    vendor.Status = VendorStatus.Suspended;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            Console.WriteLine($"[User Suspended] AdminId: {adminId}, EntityId: {userId}, Timestamp: {DateTime.UtcNow:o}, Reason: {reason}");
+
+            return (true, null);
+        }
+
+        public async Task<(bool success, string? error)> UnsuspendUserAsync(long userId, long adminId)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null)
+            {
+                return (false, "User not found");
+            }
+
+            user.IsSuspended = false;
+            user.SuspendedAt = null;
+            user.SuspensionReason = null;
+
+            if (string.Equals(user.Role, "vendor", StringComparison.OrdinalIgnoreCase))
+            {
+                var vendor = await _context.Vendors.FirstOrDefaultAsync(v => v.UserId == user.Id);
+                if (vendor != null)
+                {
+                    vendor.Status = VendorStatus.Approved;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            Console.WriteLine($"[User Unsuspended] AdminId: {adminId}, EntityId: {userId}, Timestamp: {DateTime.UtcNow:o}, Reason: Unsuspended");
+
+            return (true, null);
+        }
     }
 }
 

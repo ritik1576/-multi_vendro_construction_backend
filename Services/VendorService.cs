@@ -110,6 +110,15 @@ namespace InframartAPI_New.Services
                 };
             }
 
+            if (user.IsSuspended)
+            {
+                return new AuthResponseDto
+                {
+                    Success = false,
+                    Message = "Your account has been suspended. Please contact the administrator."
+                };
+            }
+
             if (!string.Equals(user.Status ?? "active", "active", StringComparison.OrdinalIgnoreCase))
             {
                 return new AuthResponseDto

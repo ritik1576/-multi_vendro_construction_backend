@@ -89,14 +89,21 @@ namespace InframartAPI_New.Controllers
                 });
             }
 
+            int totalRecords = result.Value.totalCount;
+            int totalPages = (int)Math.Ceiling((double)totalRecords / pageSize);
+            bool hasNext = page < totalPages;
+            bool hasPrevious = page > 1;
+
             return Ok(new
             {
                 success = true,
-                message = "Wallet transactions retrieved successfully.",
-                data = result.Value.items,
-                totalCount = result.Value.totalCount,
                 page,
-                pageSize
+                pageSize,
+                totalRecords,
+                totalPages,
+                hasNext,
+                hasPrevious,
+                data = result.Value.items
             });
         }
 

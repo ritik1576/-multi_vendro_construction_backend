@@ -82,6 +82,9 @@ namespace MultiVendorAPI.Data
             modelBuilder.Entity<Product>().Property(p => p.Quantity).HasColumnName("quantity");
             modelBuilder.Entity<Product>().Property(p => p.CreatedAt).HasColumnName("created_at");
             modelBuilder.Entity<Product>().Property(p => p.UpdatedAt).HasColumnName("updated_at");
+            modelBuilder.Entity<Product>().Property(p => p.IsBlocked).HasColumnName("is_blocked");
+            modelBuilder.Entity<Product>().Property(p => p.BlockedAt).HasColumnName("blocked_at");
+            modelBuilder.Entity<Product>().Property(p => p.BlockReason).HasColumnName("block_reason");
             modelBuilder.Entity<Product>()
                 .HasOne(p => p.Vendor)
                 .WithMany()
@@ -248,6 +251,9 @@ namespace MultiVendorAPI.Data
                 entity.Property(u => u.Phone).HasColumnName("phone");
                 entity.Property(u => u.Role).HasColumnName("role");
                 entity.Property(u => u.Status).HasColumnName("status");
+                entity.Property(u => u.IsSuspended).HasColumnName("is_suspended");
+                entity.Property(u => u.SuspendedAt).HasColumnName("suspended_at");
+                entity.Property(u => u.SuspensionReason).HasColumnName("suspension_reason");
             });
 
             modelBuilder.Entity<VendorKyc>(entity =>

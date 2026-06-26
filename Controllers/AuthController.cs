@@ -130,6 +130,15 @@ namespace InframartAPI_New.Controllers
                 });
             }
 
+            if (user.IsSuspended)
+            {
+                return Ok(new DTOs.AuthResponseDto
+                {
+                    Success = false,
+                    Message = "Your account has been suspended. Please contact the administrator."
+                });
+            }
+
             if (!string.Equals(user.Status ?? "active", "active", StringComparison.OrdinalIgnoreCase))
             {
                 return Unauthorized(new DTOs.AuthResponseDto
@@ -299,6 +308,15 @@ namespace InframartAPI_New.Controllers
                 return Unauthorized(new DTOs.AuthResponseDto
                 {
                     Message = "Invalid email or password"
+                });
+            }
+
+            if (user.IsSuspended)
+            {
+                return Unauthorized(new DTOs.AuthResponseDto
+                {
+                    Success = false,
+                    Message = "Your account has been suspended. Please contact the administrator."
                 });
             }
 

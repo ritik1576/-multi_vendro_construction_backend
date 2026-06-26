@@ -17,5 +17,7 @@ namespace InframartAPI_New.Services.Interfaces
         Task<(bool success, string? error)> CreateAnnouncementAsync(string title, string message);
         Task<(bool success, string? error, AdminReviewListDto? data)> GetAllReviewsAsync();
         Task<(bool success, string? error)> DeleteReviewAsync(long reviewId);
+        Task<(bool success, string? error)> SuspendUserAsync(long userId, string reason, long adminId);
+        Task<(bool success, string? error)> UnsuspendUserAsync(long userId, long adminId);
     }
 }

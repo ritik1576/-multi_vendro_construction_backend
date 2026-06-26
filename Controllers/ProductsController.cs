@@ -8,6 +8,11 @@ using InframartAPI_New.Middlewares;
 
 namespace MultiVendorAPI.Controllers
 {
+    public class BlockProductRequestDto
+    {
+        public string Reason { get; set; } = string.Empty;
+    }
+
     [ApiController]
     [Route("products")]
     public class ProductsController : ControllerBase
@@ -41,7 +46,8 @@ namespace MultiVendorAPI.Controllers
         [HttpGet("{id:long}")]
         public async Task<IActionResult> GetProductById(long id)
         {
-            var response = await _productService.GetProductByIdAsync(id);
+            var (vendorId, role) = GetCurrentUser();
+            var response = await _productService.GetProductByIdAsync(id, vendorId, role);
             return StatusCode(response.StatusCode, response);
         }
 
@@ -86,11 +92,25 @@ namespace MultiVendorAPI.Controllers
             return StatusCode(response.StatusCode, response);
         }
 
-        [HttpPut("{id:long}/block")]
+        [HttpPut("/admin/products/{productId:long}/block")]
         [Authorize(Roles = "admin")]
-        public async Task<IActionResult> BlockProduct(long id)
+        public async Task<IActionResult> BlockProductAdmin(long productId, [FromBody] BlockProductRequestDto dto)
         {
-            var response = await _productService.BlockProductByIdAsync(id);
+            var adminIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            long adminId = string.IsNullOrEmpty(adminIdClaim) ? 0 : long.Parse(adminIdClaim);
+
+            var response = await _productService.BlockProductAsync(productId, dto?.Reason ?? "Restricted product.", adminId);
+            return StatusCode(response.StatusCode, response);
+        }
+
+        [HttpPut("/admin/products/{productId:long}/unblock")]
+        [Authorize(Roles = "admin")]
+        public async Task<IActionResult> UnblockProductAdmin(long productId)
+        {
+            var adminIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            long adminId = string.IsNullOrEmpty(adminIdClaim) ? 0 : long.Parse(adminIdClaim);
+
+            var response = await _productService.UnblockProductAsync(productId, adminId);
             return StatusCode(response.StatusCode, response);
         }
 

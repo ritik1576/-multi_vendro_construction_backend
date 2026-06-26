@@ -7,7 +7,7 @@ namespace MultiVendorAPI.Services.Interfaces
     {
         Task<List<ProductDto>> GetProductsAsync();
         Task<ServiceResponse<ProductDto>> CreateProductAsync(CreateProductDto dto);
-        Task<ServiceResponse<GetDetailedProductDto>> GetProductByIdAsync(long id);
+        Task<ServiceResponse<GetDetailedProductDto>> GetProductByIdAsync(long id, long? currentVendorId = null, string? currentRole = null);
         Task<ServiceResponse<ProductDto>> UpdateProductAsync(
             long id,
             UpdateProductDto dto,
@@ -18,5 +18,7 @@ namespace MultiVendorAPI.Services.Interfaces
         Task<ServiceResponse<List<ProductDto>>> SearchProductsAsync(string searchTerm);
         Task<ServiceResponse<bool>> BlockProductByIdAsync(long id);
         Task<ServiceResponse<List<ProductDto>>> GetBlockedProductsAsync();
+        Task<ServiceResponse<bool>> BlockProductAsync(long productId, string reason, long adminId);
+        Task<ServiceResponse<bool>> UnblockProductAsync(long productId, long adminId);
     }
 }

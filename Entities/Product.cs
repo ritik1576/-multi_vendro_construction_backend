@@ -1,4 +1,7 @@
 
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 using InframartAPI_New.Models;
 
 namespace MultiVendorAPI.Models
@@ -42,5 +45,14 @@ namespace MultiVendorAPI.Models
         public DateTime? UpdatedAt { get; set; }
 
         public List<string>? Images { get; set; }
+
+        [Column("is_blocked")]
+        public bool IsBlocked { get; set; }
+
+        [Column("blocked_at")]
+        public DateTime? BlockedAt { get; set; }
+
+        [Column("block_reason")]
+        public string? BlockReason { get; set; }
     }
 }

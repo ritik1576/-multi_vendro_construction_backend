@@ -6,6 +6,7 @@ using MultiVendorAPI.Services.Interfaces;
 using MultiVendorAPI.Models;
 using MultiVendorAPI.Common;
 using InframartAPI_New.Services.Interfaces;
+using InframartAPI_New.Models;
 
 namespace MultiVendorAPI.Services
 {
@@ -48,8 +49,14 @@ namespace MultiVendorAPI.Services
         {
 
 
-            var products = await _context.Products
-                .Where(p => p.Status != "inactive" && p.Status != "deleted")
+            var products = await (from p in _context.Products
+                                  join v in _context.Vendors on p.VendorId equals v.Id
+                                  join u in _context.Users on v.UserId equals u.Id
+                                  where p.Status != "inactive" && p.Status != "deleted"
+                                     && !p.IsBlocked
+                                     && v.Status == VendorStatus.Approved
+                                     && !u.IsSuspended
+                                  select p)
                 .Select(p => new ProductDto
                 {
                     Id = p.Id,
@@ -167,7 +174,7 @@ namespace MultiVendorAPI.Services
                     201);
         }
 
-        public async Task<ServiceResponse<GetDetailedProductDto>> GetProductByIdAsync(long id)
+        public async Task<ServiceResponse<GetDetailedProductDto>> GetProductByIdAsync(long id, long? currentVendorId = null, string? currentRole = null)
         {
             if (id <= 0)
             {
@@ -183,6 +190,37 @@ namespace MultiVendorAPI.Services
                     p.Status != "deleted");
 
             if (product == null)
+            {
+                return ServiceResponse<GetDetailedProductDto>
+                    .FailureResponse(
+                        "Product not found",
+                        404);
+            }
+
+            bool isAllowed = false;
+            if (currentRole == "admin")
+            {
+                isAllowed = true;
+            }
+            else if (currentRole == "vendor" && product.VendorId == currentVendorId)
+            {
+                isAllowed = true;
+            }
+            else
+            {
+                var vendorInfo = await (from v in _context.Vendors
+                                        join u in _context.Users on v.UserId equals u.Id
+                                        where v.Id == product.VendorId
+                                        select new { v.Status, u.IsSuspended })
+                                        .FirstOrDefaultAsync();
+
+                if (vendorInfo != null && !product.IsBlocked && vendorInfo.Status == VendorStatus.Approved && !vendorInfo.IsSuspended)
+                {
+                    isAllowed = true;
+                }
+            }
+
+            if (!isAllowed)
             {
                 return ServiceResponse<GetDetailedProductDto>
                     .FailureResponse(
@@ -424,10 +462,18 @@ namespace MultiVendorAPI.Services
         }
         public async Task<ServiceResponse<List<ProductDto>>> SearchProductsAsync(string searchTerm)
         {
-            var products = await _context.Products
-                .Where(p => p.Name != null && p.Name.Contains(searchTerm) && p.Status != "inactive" && p.Status != "deleted")
+            var products = await (from p in _context.Products
+                                  join v in _context.Vendors on p.VendorId equals v.Id
+                                  join u in _context.Users on v.UserId equals u.Id
+                                  where p.Name != null && p.Name.Contains(searchTerm)
+                                     && p.Status != "inactive" && p.Status != "deleted"
+                                     && !p.IsBlocked
+                                     && v.Status == VendorStatus.Approved
+                                     && !u.IsSuspended
+                                  select p)
                 .Select(p => new ProductDto
                 {
+                    Id = p.Id,
                     Name = p.Name,
                     Price = p.Price,
                     DiscountPrice = p.DiscountPrice,
@@ -465,6 +511,8 @@ namespace MultiVendorAPI.Services
                 return ServiceResponse<bool>.FailureResponse("Product not found", 404);
             }
 
+            product.IsBlocked = true;
+            product.BlockedAt = DateTime.UtcNow;
             product.Status = "inactive";
             product.UpdatedAt = DateTime.Now;
 
@@ -502,6 +550,48 @@ namespace MultiVendorAPI.Services
             }
 
             return ServiceResponse<List<ProductDto>>.SuccessResponse(products, "Blocked products retrieved successfully", 200);
+        }
+
+        public async Task<ServiceResponse<bool>> BlockProductAsync(long productId, string reason, long adminId)
+        {
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == productId);
+            if (product == null)
+            {
+                return ServiceResponse<bool>.FailureResponse("Product not found", 404);
+            }
+
+            product.IsBlocked = true;
+            product.BlockedAt = DateTime.UtcNow;
+            product.BlockReason = reason;
+            product.Status = "inactive";
+            product.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            Console.WriteLine($"[Product Blocked] AdminId: {adminId}, EntityId: {productId}, Timestamp: {DateTime.UtcNow:o}, Reason: {reason}");
+
+            return ServiceResponse<bool>.SuccessResponse(true, "Product blocked successfully", 200);
+        }
+
+        public async Task<ServiceResponse<bool>> UnblockProductAsync(long productId, long adminId)
+        {
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == productId);
+            if (product == null)
+            {
+                return ServiceResponse<bool>.FailureResponse("Product not found", 404);
+            }
+
+            product.IsBlocked = false;
+            product.BlockedAt = null;
+            product.BlockReason = null;
+            product.Status = "active";
+            product.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            Console.WriteLine($"[Product Unblocked] AdminId: {adminId}, EntityId: {productId}, Timestamp: {DateTime.UtcNow:o}, Reason: Unblocked");
+
+            return ServiceResponse<bool>.SuccessResponse(true, "Product unblocked successfully", 200);
         }
     }
 }

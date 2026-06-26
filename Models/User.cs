@@ -17,5 +17,14 @@ namespace InframartAPI_New.Models
         public string? Phone { get; set; }
         public string? Role { get; set; }
         public string? Status { get; set; }
+
+        [Column("is_suspended")]
+        public bool IsSuspended { get; set; }
+
+        [Column("suspended_at")]
+        public DateTime? SuspendedAt { get; set; }
+
+        [Column("suspension_reason")]
+        public string? SuspensionReason { get; set; }
     }
 }

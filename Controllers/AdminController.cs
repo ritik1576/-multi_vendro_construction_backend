@@ -11,6 +11,11 @@ namespace InframartAPI_New.Controllers
         public string Status { get; set; } = string.Empty;
     }
 
+    public class SuspendUserRequestDto
+    {
+        public string Reason { get; set; } = string.Empty;
+    }
+
     [Route("admin")]
     [ApiController]
     [Authorize(Roles = "admin")]
@@ -72,15 +77,30 @@ namespace InframartAPI_New.Controllers
             return Ok(new { success = true, data });
         }
 
-        [HttpPut("users/suspend/{id:long}")]
-        public async Task<IActionResult> SuspendUser(long id, [FromBody] UpdateUserStatusDto? dto)
+        [HttpPut("users/{userId:long}/suspend")]
+        public async Task<IActionResult> SuspendUser(long userId, [FromBody] SuspendUserRequestDto dto)
         {
-            string status = dto?.Status ?? "toggle";
-            var (success, error) = await _adminService.UpdateUserStatusAsync(id, status);
-            if (!success)
-                return BadRequest(new { message = error });
+            var adminIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            long adminId = string.IsNullOrEmpty(adminIdClaim) ? 0 : long.Parse(adminIdClaim);
 
-            return Ok(new { success = true, message = $"User status updated successfully", userId = id });
+            var (success, error) = await _adminService.SuspendUserAsync(userId, dto?.Reason ?? "Violation of marketplace policies.", adminId);
+            if (!success)
+                return BadRequest(new { success = false, message = error });
+
+            return Ok(new { success = true, message = "User suspended successfully" });
+        }
+
+        [HttpPut("users/{userId:long}/unsuspend")]
+        public async Task<IActionResult> UnsuspendUser(long userId)
+        {
+            var adminIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            long adminId = string.IsNullOrEmpty(adminIdClaim) ? 0 : long.Parse(adminIdClaim);
+
+            var (success, error) = await _adminService.UnsuspendUserAsync(userId, adminId);
+            if (!success)
+                return BadRequest(new { success = false, message = error });
+
+            return Ok(new { success = true, message = "User unsuspended successfully" });
         }
 
         [HttpGet("vendors/{id:long}")]
