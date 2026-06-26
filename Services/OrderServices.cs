@@ -98,7 +98,7 @@ public class OrderServices : IOrderService
                         400);
             }
 
-            var price = product.DiscountPrice.HasValue && product.DiscountPrice.Value > 0
+            var price = (product.DiscountPrice.HasValue && product.DiscountPrice.Value > 0)
                 ? product.DiscountPrice.Value
                 : product.Price.GetValueOrDefault();
             subtotal += price * item.Quantity;
@@ -141,13 +141,13 @@ public class OrderServices : IOrderService
             }
             Console.WriteLine($"[DEBUG CreateOrderAsync] Customer wallet found. Available Balance: {customerWallet.AvailableBalance}");
 
-            if (customerWallet.AvailableBalance < orderAmount)
-            {
-                Console.WriteLine($"[DEBUG CreateOrderAsync] Insufficient balance. Required: {orderAmount}, Available: {customerWallet.AvailableBalance}");
-                await _notificationService.CreateNotificationAsync(dto.UserId, "Wallet Payment Failed", "Wallet payment failed due to insufficient balance.", "payment");
-                await _notificationService.CreateNotificationAsync(dto.UserId, "Order Payment Failed", "Payment failed for your order.", "payment");
-                return ServiceResponse<PlaceOrderResponseDto>.FailureResponse("Insufficient Balance", 400);
-            }
+        for (var i = 0; i < dto.Items.Count; i++)
+        {
+            var item = dto.Items[i];
+            var product = products[i];
+            var price = (product.DiscountPrice.HasValue && product.DiscountPrice.Value > 0)
+                ? product.DiscountPrice.Value
+                : product.Price.GetValueOrDefault();
 
             var vendorId = products.FirstOrDefault(p => p.VendorId.HasValue)?.VendorId;
             if (vendorId == null)
