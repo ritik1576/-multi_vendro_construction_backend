@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{{Subject}}</title>
+    <style>
+        body {
+            font-family: 'Inter', Helvetica, Arial, sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .header {
+            background-color: #1e293b;
+            padding: 24px;
+            text-align: center;
+        }
+        .header img {
+            max-height: 40px;
+        }
+        .content {
+            padding: 40px 30px;
+            color: #334155;
+            line-height: 1.6;
+        }
+        .footer {
+            background-color: #f8fafc;
+            padding: 30px;
+            text-align: center;
+            font-size: 13px;
+            color: #64748b;
+            border-top: 1px solid #e2e8f0;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #0284c7;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            margin-top: 20px;
+        }
+        .social-links {
+            margin-top: 15px;
+        }
+        .social-links a {
+            margin: 0 8px;
+            color: #64748b;
+            text-decoration: none;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="{{CompanyLogo}}" alt="InfraMart Logo" onerror="this.src='https://placehold.co/150x40/1e293b/ffffff?text=InfraMart'">
+        </div>
+        <div class="content">
+            {{Body}}
+        </div>
+        <div class="footer">
+            <p>{{FooterMessage}}</p>
+            <p>
+                Support: <a href="mailto:{{SupportEmail}}" style="color: #0284c7;">{{SupportEmail}}</a> | Phone: {{SupportPhone}} | Website: <a href="{{CompanyWebsite}}" style="color: #0284c7;">{{CompanyWebsite}}</a>
+            </p>
+            <div class="social-links">
+                <a href="{{FacebookUrl}}">Facebook</a>
+                <a href="{{InstagramUrl}}">Instagram</a>
+                <a href="{{TwitterUrl}}">Twitter</a>
+                <a href="{{LinkedInUrl}}">LinkedIn</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

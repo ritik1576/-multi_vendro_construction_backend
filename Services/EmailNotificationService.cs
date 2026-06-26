@@ -25,7 +25,7 @@ namespace InframartAPI_New.Services
 
         public async Task<bool> SendTemplateEmailAsync(string templateKey, string email, Dictionary<string, string> variables)
         {
-            EmailTemplate? template = null;
+            EmailTemplateSetting? template = null;
             string subject = string.Empty;
             string body = string.Empty;
             string status = "Failed";
@@ -82,7 +82,7 @@ namespace InframartAPI_New.Services
                 if (string.IsNullOrEmpty(subject) && template != null)
                 {
                     subject = template.Subject;
-                    body = template.HtmlContent;
+                    body = "Failed to render body or template missing.";
                 }
                 return false;
             }

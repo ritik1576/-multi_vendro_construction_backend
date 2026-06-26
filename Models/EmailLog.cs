@@ -15,7 +15,7 @@ namespace InframartAPI_New.Models
         public long? TemplateId { get; set; }
 
         [ForeignKey("TemplateId")]
-        public EmailTemplate? Template { get; set; }
+        public EmailTemplateSetting? Template { get; set; }
 
         [Required]
         [Column("recipient_email")]
