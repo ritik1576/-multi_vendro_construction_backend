@@ -98,7 +98,7 @@ public class OrderServices : IOrderService
                         400);
             }
 
-            var price = product.DiscountPrice.HasValue && product.DiscountPrice.Value > 0
+            var price = (product.DiscountPrice.HasValue && product.DiscountPrice.Value > 0)
                 ? product.DiscountPrice.Value
                 : product.Price.GetValueOrDefault();
             subtotal += price * item.Quantity;
@@ -233,7 +233,12 @@ public class OrderServices : IOrderService
                 {
                     var item = dto.Items[i];
                     var product = products[i];
-                    var price = product.Price.GetValueOrDefault();
+                    var cartItem = cart.CartItems.FirstOrDefault(ci => ci.Id == item.CartItemId);
+                    var price = (product.DiscountPrice.HasValue && product.DiscountPrice.Value > 0)
+                        ? product.DiscountPrice.Value
+                        : product.Price.GetValueOrDefault();
+
+                    var finalPrice = cartItem?.Price ?? price;
 
                     await _orderRepository.CreateOrderItemAsync(new OrderItem
                     {
@@ -241,8 +246,8 @@ public class OrderServices : IOrderService
                         ProductId = product.Id,
                         Quantity = item.Quantity,
                         ProductName = product.Name ?? string.Empty,
-                        Price = price,
-                        TotalPrice = price * item.Quantity,
+                        Price = finalPrice,
+                        TotalPrice = finalPrice * item.Quantity,
                         CreatedAt = now
                     });
 
@@ -355,6 +360,30 @@ public class OrderServices : IOrderService
 
                 await dbTransaction.CommitAsync();
 
+                // Trigger Wallet Payment Success Notifications
+                try
+                {
+                    // Customer
+                    await _notificationService.CreateNotificationAsync(order.UserId, "Wallet Payment Successful", $"Wallet payment of {orderAmount} INR was successful for order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
+                    await _notificationService.CreateNotificationAsync(order.UserId, "Order Payment Successful", $"Payment of {orderAmount} INR was successful for order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
+
+                    // Vendor
+                    await _notificationService.CreateNotificationAsync(vendorUserId, "Payment Received", $"Payment of {vendorAmount} INR received for order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
+                    await _notificationService.CreateNotificationAsync(vendorUserId, "Commission Deducted", $"Commission of {commissionAmount} INR deducted for order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
+                    await _notificationService.CreateNotificationAsync(vendorUserId, "Order Payment Received", $"Order payment of {vendorAmount} INR received for order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
+
+                    // Admin
+                    if (adminUser != null)
+                    {
+                        await _notificationService.CreateNotificationAsync(adminUser.Id, "New Payment Received", $"Payment of {orderAmount} INR received for order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
+                        await _notificationService.CreateNotificationAsync(adminUser.Id, "Commission Received", $"Commission of {commissionAmount} INR received for order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
+                    }
+                }
+                catch (Exception exVal)
+                {
+                    Console.WriteLine($"[DEBUG CreateOrderAsync] Notification trigger failed for wallet payment success: {exVal.Message}");
+                }
+
                 // Assign the local variable so that code after block can return correctly
                 dto.UserId = order.UserId;
             }
@@ -362,6 +391,14 @@ public class OrderServices : IOrderService
             {
                 Console.WriteLine($"[DEBUG CreateOrderAsync] EXCEPTION CAUGHT during wallet transaction processing: {ex}");
                 await dbTransaction.RollbackAsync();
+
+                try
+                {
+                    await _notificationService.CreateNotificationAsync(dto.UserId, "Wallet Payment Failed", $"Wallet payment failed: {ex.Message}", "payment");
+                    await _notificationService.CreateNotificationAsync(dto.UserId, "Order Payment Failed", "Payment failed for your order.", "payment");
+                }
+                catch {}
+
                 return ServiceResponse<PlaceOrderResponseDto>.FailureResponse($"Failed to place order using Wallet: {ex.Message}", 500);
             }
         }
@@ -392,7 +429,12 @@ public class OrderServices : IOrderService
             {
                 var item = dto.Items[i];
                 var product = products[i];
-                var price = product.Price.GetValueOrDefault();
+                var cartItem = cart.CartItems.FirstOrDefault(ci => ci.Id == item.CartItemId);
+                var price = (product.DiscountPrice.HasValue && product.DiscountPrice.Value > 0)
+                    ? product.DiscountPrice.Value
+                    : product.Price.GetValueOrDefault();
+
+                var finalPrice = cartItem?.Price ?? price;
 
                 await _orderRepository.CreateOrderItemAsync(new OrderItem
                 {
@@ -400,8 +442,8 @@ public class OrderServices : IOrderService
                     ProductId = product.Id,
                     Quantity = item.Quantity,
                     ProductName = product.Name ?? string.Empty,
-                    Price = price,
-                    TotalPrice = price * item.Quantity,
+                    Price = finalPrice,
+                    TotalPrice = finalPrice * item.Quantity,
                     CreatedAt = now
                 });
 
@@ -507,7 +549,7 @@ public class OrderServices : IOrderService
             TotalAmount = order.TotalAmount,
             OrderStatus = order.OrderStatus,
             PaymentStatus = order.PaymentStatus,
-            PlacedAt = order.PlacedAt
+            PlacedAt = InframartAPI_New.Helpers.TimezoneHelper.ConvertToIst(order.PlacedAt)
         };
 
         return ServiceResponse<PlaceOrderResponseDto>
@@ -526,7 +568,7 @@ public class OrderServices : IOrderService
             TotalAmount = order.TotalAmount,
             OrderStatus = order.OrderStatus,
             DisplayStatus = ToDisplayStatus(order.OrderStatus),
-            CreatedAt = order.PlacedAt == default ? order.CreatedAt : order.PlacedAt,
+            CreatedAt = InframartAPI_New.Helpers.TimezoneHelper.ConvertToIst(order.PlacedAt == default ? order.CreatedAt : order.PlacedAt),
             ItemCount = order.OrderItems.Count
         }).ToList();
 
@@ -653,7 +695,7 @@ public class OrderServices : IOrderService
             Id = order.Id,
             OrderNumber = orderNumber,
             VendorName = AssumedVendorName,
-            PlacedAt = order.PlacedAt == default ? order.CreatedAt : order.PlacedAt,
+            PlacedAt = InframartAPI_New.Helpers.TimezoneHelper.ConvertToIst(order.PlacedAt == default ? order.CreatedAt : order.PlacedAt),
             OrderStatus = order.OrderStatus,
             DisplayStatus = ToDisplayStatus(order.OrderStatus),
             Items = order.OrderItems.Select(item => new OrderItemDetailsDto
@@ -844,8 +886,8 @@ public class OrderServices : IOrderService
                 ShippingCharge = order.ShippingCharge,
                 PaymentStatus = order.PaymentStatus,
                 OrderStatus = order.OrderStatus,
-                PlacedAt = order.PlacedAt == default ? order.CreatedAt : order.PlacedAt,
-                CreatedAt = order.CreatedAt,
+                PlacedAt = InframartAPI_New.Helpers.TimezoneHelper.ConvertToIst(order.PlacedAt == default ? order.CreatedAt : order.PlacedAt),
+                CreatedAt = InframartAPI_New.Helpers.TimezoneHelper.ConvertToIst(order.CreatedAt),
                 CustomerId = order.UserId,
                 CustomerName = customer?.FullName,
                 CustomerEmail = customer?.Email,

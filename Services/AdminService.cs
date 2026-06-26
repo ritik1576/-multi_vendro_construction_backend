@@ -219,23 +219,24 @@ namespace InframartAPI_New.Services
 
             var orders = await _appContext.Orders
                 .Where(o => o.UserId == userId)
-                .Select(o => new AdminOrderResponseDto
-                {
-                    Id = o.Id,
-                    OrderNumber = o.OrderNumber,
-                    Subtotal = o.Subtotal,
-                    TotalAmount = o.TotalAmount,
-                    DiscountAmount = o.DiscountAmount,
-                    ShippingCharge = o.ShippingCharge,
-                    PaymentStatus = o.PaymentStatus,
-                    OrderStatus = o.OrderStatus,
-                    PlacedAt = o.PlacedAt,
-                    CreatedAt = o.CreatedAt,
-                    UserId = o.UserId,
-                    CustomerName = user.FullName,
-                    CustomerEmail = user.Email
-                })
                 .ToListAsync();
+
+            var orderDtos = orders.Select(o => new AdminOrderResponseDto
+            {
+                Id = o.Id,
+                OrderNumber = o.OrderNumber,
+                Subtotal = o.Subtotal,
+                TotalAmount = o.TotalAmount,
+                DiscountAmount = o.DiscountAmount,
+                ShippingCharge = o.ShippingCharge,
+                PaymentStatus = o.PaymentStatus,
+                OrderStatus = o.OrderStatus,
+                PlacedAt = Helpers.TimezoneHelper.ConvertToIst(o.PlacedAt),
+                CreatedAt = Helpers.TimezoneHelper.ConvertToIst(o.CreatedAt),
+                UserId = o.UserId,
+                CustomerName = user.FullName,
+                CustomerEmail = user.Email
+            }).ToList();
 
             var details = new UserDetailsResponseDto
             {
@@ -249,7 +250,7 @@ namespace InframartAPI_New.Services
                     Status = user.Status
                 },
                 Addresses = addresses,
-                Orders = orders
+                Orders = orderDtos
             };
 
             return (true, null, details);
@@ -347,8 +348,8 @@ namespace InframartAPI_New.Services
                     ShippingCharge = o.ShippingCharge,
                     PaymentStatus = o.PaymentStatus,
                     OrderStatus = o.OrderStatus,
-                    PlacedAt = o.PlacedAt,
-                    CreatedAt = o.CreatedAt,
+                    PlacedAt = Helpers.TimezoneHelper.ConvertToIst(o.PlacedAt),
+                    CreatedAt = Helpers.TimezoneHelper.ConvertToIst(o.CreatedAt),
                     UserId = o.UserId,
                     CustomerName = user?.FullName,
                     CustomerEmail = user?.Email

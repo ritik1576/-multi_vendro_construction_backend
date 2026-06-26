@@ -75,6 +75,19 @@ builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<ICouponService, CouponService>();
 builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+builder.Services.Configure<BrevoSettings>(builder.Configuration.GetSection("BrevoSettings"));
+builder.Services.AddHttpClient<IEmailService, BrevoEmailService>((sp, client) =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    var apiKey = config["BrevoSettings:ApiKey"];
+    if (string.IsNullOrEmpty(apiKey) || apiKey == "YOUR_BREVO_API_KEY")
+    {
+        apiKey = config["BREVO_API_KEY"] ?? Environment.GetEnvironmentVariable("BREVO_API_KEY");
+    }
+    client.BaseAddress = new Uri("https://api.brevo.com/v3/");
+    client.DefaultRequestHeaders.Add("api-key", apiKey);
+    client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+});
 builder.Services.AddScoped<IEmailNotificationService, EmailNotificationService>();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -311,6 +324,11 @@ using (var scope = app.Services.CreateScope())
             
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `wallet_transactions` ADD COLUMN `title` VARCHAR(255) NULL;"); } catch {}
             Console.WriteLine("Successfully ensured `wallet_transactions` title column exists.");
+
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `coupons` ADD COLUMN `per_user_limit` INT NULL;"); } catch {}
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `notifications` ADD COLUMN `reference_type` VARCHAR(100) NULL;"); } catch {}
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `notifications` ADD COLUMN `reference_id` VARCHAR(100) NULL;"); } catch {}
+            Console.WriteLine("Successfully ensured `coupons` and `notifications` columns exist.");
         }
         catch (Exception ex)
         {

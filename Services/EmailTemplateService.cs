@@ -3,16 +3,16 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using InframartAPI_New.Models;
 using InframartAPI_New.Services.Interfaces;
-using Microsoft.EntityFrameworkCore;
-using MultiVendorAPI.Data;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
 
 namespace InframartAPI_New.Services
 {
     public class EmailTemplateService : IEmailTemplateService
     {
-        private readonly ApplicationDbContext _dbContext;
+        private readonly IWebHostEnvironment _webHostEnvironment;
+        private readonly string _senderEmail;
 
         // Static metadata representing default settings and configurable variables for each template
         public static readonly Dictionary<string, (string Path, string DefaultSubject, Dictionary<string, string> DefaultVars)> TemplateMetadata = new(StringComparer.OrdinalIgnoreCase)
@@ -263,7 +263,9 @@ namespace InframartAPI_New.Services
 
         public EmailTemplateService(ApplicationDbContext dbContext)
         {
-            _dbContext = dbContext;
+            _webHostEnvironment = webHostEnvironment;
+            // Get sender email from settings, default to inframart102@gmail.com if not configured
+            _senderEmail = configuration["EmailSettings:SenderEmail"] ?? "inframart102@gmail.com";
         }
 
         public async Task<EmailTemplateSetting?> GetTemplateAsync(string templateKey)
@@ -317,7 +319,7 @@ namespace InframartAPI_New.Services
             var setting = await GetTemplateAsync(templateKey);
             if (setting == null)
             {
-                throw new KeyNotFoundException($"Email template with key '{templateKey}' not found.");
+                templatePath += ".html";
             }
 
             // Find file path from metadata mapping

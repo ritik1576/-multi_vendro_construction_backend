@@ -167,6 +167,7 @@ namespace MultiVendorAPI.Data
                 entity.Property(c => c.MinimumOrderAmount).HasColumnName("minimum_order_amount");
                 entity.Property(c => c.UsageLimit).HasColumnName("usage_limit");
                 entity.Property(c => c.UsedCount).HasColumnName("used_count");
+                entity.Property(c => c.PerUserLimit).HasColumnName("per_user_limit");
                 entity.Property(c => c.StartDate).HasColumnName("start_date");
                 entity.Property(c => c.EndDate).HasColumnName("end_date");
                 entity.Property(c => c.Status).HasColumnName("status");
@@ -192,6 +193,7 @@ namespace MultiVendorAPI.Data
                 entity.Property(ci => ci.CartId).HasColumnName("cart_id");
                 entity.Property(ci => ci.ProductId).HasColumnName("product_id");
                 entity.Property(ci => ci.Quantity).HasColumnName("quantity");
+                entity.Property(ci => ci.Price).HasColumnName("price");
                 entity.HasOne(ci => ci.Product)
                     .WithMany()
                     .HasForeignKey(ci => ci.ProductId)

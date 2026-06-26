@@ -102,6 +102,16 @@ namespace MultiVendorAPI.Services
                 }
             }
 
+            // Per User Usage Limit
+            if (coupon.PerUserLimit.HasValue && coupon.PerUserLimit.Value > 0)
+            {
+                var userUsages = await _context.CouponUsages.CountAsync(cu => cu.CouponId == coupon.Id && cu.UserId == userId);
+                if (userUsages >= coupon.PerUserLimit.Value)
+                {
+                    return new CouponValidationResult { Valid = false, Message = "You have reached the usage limit for this coupon" };
+                }
+            }
+
             // Cart Minimum Amount Satisfied
             var cart = await _context.Carts
                 .Include(c => c.CartItems)
@@ -113,7 +123,9 @@ namespace MultiVendorAPI.Services
             {
                 foreach (var item in cart.CartItems)
                 {
-                    var price = item.Product?.Price ?? 0;
+                    var price = (item.Product?.DiscountPrice.HasValue == true && item.Product.DiscountPrice.Value > 0)
+                        ? item.Product.DiscountPrice.Value
+                        : (item.Product?.Price ?? 0);
                     cartTotal += price * item.Quantity;
                 }
             }
@@ -182,6 +194,15 @@ namespace MultiVendorAPI.Services
                 }
             }
 
+            if (coupon.PerUserLimit.HasValue && coupon.PerUserLimit.Value > 0)
+            {
+                var userUsages = await _context.CouponUsages.CountAsync(cu => cu.CouponId == couponId && cu.UserId == userId);
+                if (userUsages >= coupon.PerUserLimit.Value)
+                {
+                    return false;
+                }
+            }
+
             return true;
         }
 
@@ -195,6 +216,7 @@ namespace MultiVendorAPI.Services
                 MaxDiscount = dto.MaxDiscount,
                 MinimumOrderAmount = dto.MinimumAmount,
                 UsageLimit = dto.UsageLimit,
+                PerUserLimit = dto.PerUserLimit,
                 StartDate = dto.StartDate,
                 EndDate = dto.EndDate,
                 Status = "active",
@@ -220,6 +242,7 @@ namespace MultiVendorAPI.Services
             coupon.MaxDiscount = dto.MaxDiscount;
             coupon.MinimumOrderAmount = dto.MinimumAmount;
             coupon.UsageLimit = dto.UsageLimit;
+            coupon.PerUserLimit = dto.PerUserLimit;
             coupon.StartDate = dto.StartDate;
             coupon.EndDate = dto.EndDate;
 
@@ -272,6 +295,7 @@ namespace MultiVendorAPI.Services
                 MaxDiscount = c.MaxDiscount,
                 MinimumOrderAmount = c.MinimumOrderAmount,
                 UsageLimit = c.UsageLimit,
+                PerUserLimit = c.PerUserLimit,
                 UsedCount = c.UsedCount ?? 0,
                 StartDate = c.StartDate,
                 EndDate = c.EndDate,

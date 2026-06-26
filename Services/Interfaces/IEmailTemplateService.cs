@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using InframartAPI_New.Models;
 
 namespace InframartAPI_New.Services.Interfaces
 {

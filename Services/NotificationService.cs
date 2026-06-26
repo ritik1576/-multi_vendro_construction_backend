@@ -41,7 +41,9 @@ namespace InframartAPI_New.Services
                     Message = n.Message,
                     Type = n.Type,
                     IsRead = n.IsRead,
-                    CreatedAt = n.CreatedAt
+                    ReferenceType = n.ReferenceType,
+                    ReferenceId = n.ReferenceId,
+                    CreatedAt = Helpers.TimezoneHelper.ConvertToIst(n.CreatedAt)
                 }).ToList();
 
                 return ServiceResponse<List<NotificationDto>>.SuccessResponse(dtos, "Notifications retrieved successfully");
@@ -77,7 +79,9 @@ namespace InframartAPI_New.Services
                     Message = notification.Message,
                     Type = notification.Type,
                     IsRead = notification.IsRead,
-                    CreatedAt = notification.CreatedAt
+                    ReferenceType = notification.ReferenceType,
+                    ReferenceId = notification.ReferenceId,
+                    CreatedAt = Helpers.TimezoneHelper.ConvertToIst(notification.CreatedAt)
                 };
 
                 return ServiceResponse<NotificationDto>.SuccessResponse(dto, "Notification retrieved successfully");
@@ -216,7 +220,7 @@ namespace InframartAPI_New.Services
             }
         }
 
-        public async Task CreateNotificationAsync(long userId, string title, string message, string type)
+        public async Task CreateNotificationAsync(long userId, string title, string message, string type, string? referenceType = null, string? referenceId = null)
         {
             try
             {
@@ -227,6 +231,8 @@ namespace InframartAPI_New.Services
                     Message = message,
                     Type = type.ToLower(),
                     IsRead = false,
+                    ReferenceType = referenceType,
+                    ReferenceId = referenceId,
                     CreatedAt = DateTime.Now
                 };
 
@@ -240,7 +246,7 @@ namespace InframartAPI_New.Services
             }
         }
 
-        public async Task CreateNotificationsBulkAsync(List<long> userIds, string title, string message, string type)
+        public async Task CreateNotificationsBulkAsync(List<long> userIds, string title, string message, string type, string? referenceType = null, string? referenceId = null)
         {
             try
             {
@@ -253,6 +259,8 @@ namespace InframartAPI_New.Services
                     Message = message,
                     Type = type.ToLower(),
                     IsRead = false,
+                    ReferenceType = referenceType,
+                    ReferenceId = referenceId,
                     CreatedAt = DateTime.Now
                 }).ToList();
 

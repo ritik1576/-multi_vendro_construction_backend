@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MultiVendorAPI.Data;
 
@@ -11,9 +12,11 @@ using MultiVendorAPI.Data;
 namespace MultiVendorAPI.Migrations.ApplicationDb
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260626070951_AddPriceToCartItem")]
+    partial class AddPriceToCartItem
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -165,83 +168,6 @@ namespace MultiVendorAPI.Migrations.ApplicationDb
                         .IsUnique();
 
                     b.ToTable("email_templates", (string)null);
-                });
-
-            modelBuilder.Entity("InframartAPI_New.Models.EmailTemplateSetting", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("is_active");
-
-                    b.Property<string>("Subject")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("subject");
-
-                    b.Property<string>("TemplateKey")
-                        .IsRequired()
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("template_key");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TemplateKey")
-                        .IsUnique();
-
-                    b.ToTable("email_template_settings", (string)null);
-                });
-
-            modelBuilder.Entity("InframartAPI_New.Models.EmailTemplateVariable", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<long>("TemplateSettingId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("template_setting_id");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("updated_at");
-
-                    b.Property<string>("VariableKey")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("variable_key");
-
-                    b.Property<string>("VariableValue")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("variable_value");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TemplateSettingId");
-
-                    b.ToTable("email_template_variables", (string)null);
                 });
 
             modelBuilder.Entity("InframartAPI_New.Models.User", b =>
@@ -695,6 +621,10 @@ namespace MultiVendorAPI.Migrations.ApplicationDb
                         .HasColumnType("int")
                         .HasColumnName("cart_id");
 
+                    b.Property<decimal?>("Price")
+                        .HasColumnType("decimal(65,30)")
+                        .HasColumnName("price");
+
                     b.Property<long>("ProductId")
                         .HasColumnType("bigint")
                         .HasColumnName("product_id");
@@ -711,138 +641,6 @@ namespace MultiVendorAPI.Migrations.ApplicationDb
                         .IsUnique();
 
                     b.ToTable("cart_items", (string)null);
-                });
-
-            modelBuilder.Entity("MultiVendorAPI.Models.Coupon", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("Code")
-                        .HasColumnType("longtext")
-                        .HasColumnName("code");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("DiscountType")
-                        .HasColumnType("longtext")
-                        .HasColumnName("discount_type");
-
-                    b.Property<decimal?>("DiscountValue")
-                        .HasColumnType("decimal(65,30)")
-                        .HasColumnName("discount_value");
-
-                    b.Property<DateTime?>("EndDate")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("end_date");
-
-                    b.Property<decimal?>("MaxDiscount")
-                        .HasColumnType("decimal(65,30)")
-                        .HasColumnName("max_discount");
-
-                    b.Property<decimal?>("MinimumOrderAmount")
-                        .HasColumnType("decimal(65,30)")
-                        .HasColumnName("minimum_order_amount");
-
-                    b.Property<DateTime?>("StartDate")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("start_date");
-
-                    b.Property<string>("Status")
-                        .HasColumnType("longtext")
-                        .HasColumnName("status");
-
-                    b.Property<int?>("UsageLimit")
-                        .HasColumnType("int")
-                        .HasColumnName("usage_limit");
-
-                    b.Property<int?>("UsedCount")
-                        .HasColumnType("int")
-                        .HasColumnName("used_count");
-
-                    b.Property<long?>("VendorId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("vendor_id");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("coupons", (string)null);
-                });
-
-            modelBuilder.Entity("MultiVendorAPI.Models.CouponUsage", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<long?>("CouponId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("coupon_id");
-
-                    b.Property<long?>("OrderId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("order_id");
-
-                    b.Property<DateTime?>("UsedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("used_at");
-
-                    b.Property<long?>("UserId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("coupon_usages", (string)null);
-                });
-
-            modelBuilder.Entity("MultiVendorAPI.Models.ImageFile", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)")
-                        .HasColumnName("content_type");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("file_name");
-
-                    b.Property<string>("StorageKey")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)")
-                        .HasColumnName("storage_key");
-
-                    b.Property<long>("VendorId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("vendor_id");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("image_files");
                 });
 
             modelBuilder.Entity("MultiVendorAPI.Models.Coupon", b =>
@@ -1240,17 +1038,6 @@ namespace MultiVendorAPI.Migrations.ApplicationDb
                     b.Navigation("Template");
                 });
 
-            modelBuilder.Entity("InframartAPI_New.Models.EmailTemplateVariable", b =>
-                {
-                    b.HasOne("InframartAPI_New.Models.EmailTemplateSetting", "TemplateSetting")
-                        .WithMany("Variables")
-                        .HasForeignKey("TemplateSettingId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("TemplateSetting");
-                });
-
             modelBuilder.Entity("InframartAPI_New.Models.VendorKyc", b =>
                 {
                     b.HasOne("InframartAPI_New.Models.Vendor", null)
@@ -1322,11 +1109,6 @@ namespace MultiVendorAPI.Migrations.ApplicationDb
                         .IsRequired();
 
                     b.Navigation("Order");
-                });
-
-            modelBuilder.Entity("InframartAPI_New.Models.EmailTemplateSetting", b =>
-                {
-                    b.Navigation("Variables");
                 });
 
             modelBuilder.Entity("MultiVendorAPI.Models.Cart", b =>
