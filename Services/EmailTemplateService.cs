@@ -270,18 +270,29 @@ namespace InframartAPI_New.Services
         {
             if (string.IsNullOrWhiteSpace(templateKey)) return null;
 
+            // Resolve actual key if path is passed (e.g. "Welcome/Welcome" -> "WELCOME_EMAIL")
+            var resolvedKey = templateKey.ToUpper();
+            var matchedMetadata = TemplateMetadata.FirstOrDefault(m => 
+                string.Equals(m.Value.Path, templateKey, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(m.Key, templateKey, StringComparison.OrdinalIgnoreCase));
+
+            if (matchedMetadata.Key != null)
+            {
+                resolvedKey = matchedMetadata.Key.ToUpper();
+            }
+
             var setting = await _dbContext.EmailTemplateSettings
                 .Include(s => s.Variables)
-                .FirstOrDefaultAsync(s => s.TemplateKey == templateKey.ToUpper());
+                .FirstOrDefaultAsync(s => s.TemplateKey == resolvedKey);
 
             if (setting == null)
             {
                 // Try to seed from defaults
-                if (TemplateMetadata.TryGetValue(templateKey, out var meta))
+                if (TemplateMetadata.TryGetValue(resolvedKey, out var meta))
                 {
                     setting = new EmailTemplateSetting
                     {
-                        TemplateKey = templateKey.ToUpper(),
+                        TemplateKey = resolvedKey,
                         Subject = meta.DefaultSubject,
                         IsActive = true,
                         CreatedAt = DateTime.UtcNow,
@@ -304,7 +315,7 @@ namespace InframartAPI_New.Services
                         _dbContext.Entry(setting).State = EntityState.Detached;
                         setting = await _dbContext.EmailTemplateSettings
                             .Include(s => s.Variables)
-                            .FirstOrDefaultAsync(s => s.TemplateKey == templateKey.ToUpper());
+                            .FirstOrDefaultAsync(s => s.TemplateKey == resolvedKey);
                     }
                 }
             }
@@ -320,8 +331,10 @@ namespace InframartAPI_New.Services
                 throw new KeyNotFoundException($"Email template with key '{templateKey}' not found.");
             }
 
+            var resolvedKey = setting.TemplateKey;
+
             // Find file path from metadata mapping
-            var subPath = TemplateMetadata.TryGetValue(templateKey, out var meta) ? meta.Path : templateKey;
+            var subPath = TemplateMetadata.TryGetValue(resolvedKey, out var meta) ? meta.Path : templateKey;
             var templateFilePath = Path.Combine(Directory.GetCurrentDirectory(), "EmailTemplates", subPath + ".html");
             var baseLayoutFilePath = Path.Combine(Directory.GetCurrentDirectory(), "EmailTemplates", "Layouts", "BaseLayout.html");
 
