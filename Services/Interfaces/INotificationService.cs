@@ -17,7 +17,7 @@ namespace InframartAPI_New.Services.Interfaces
         Task<ServiceResponse<bool>> DeleteAllNotificationsAsync(long userId);
 
         // Internal methods for business triggers
-        Task CreateNotificationAsync(long userId, string title, string message, string type);
-        Task CreateNotificationsBulkAsync(List<long> userIds, string title, string message, string type);
+        Task CreateNotificationAsync(long userId, string title, string message, string type, string? referenceType = null, string? referenceId = null);
+        Task CreateNotificationsBulkAsync(List<long> userIds, string title, string message, string type, string? referenceType = null, string? referenceId = null);
     }
 }

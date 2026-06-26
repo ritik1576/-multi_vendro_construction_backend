@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.Http;
+using System.Collections.Generic;
+
 public class UpdateProductDto
 {
     public string? Name { get; set; }
@@ -25,4 +28,6 @@ public class UpdateProductDto
     public int? Quantity { get; set; }
 
     public string? Unit { get; set; }
+
+    public List<IFormFile>? Images { get; set; }
 }

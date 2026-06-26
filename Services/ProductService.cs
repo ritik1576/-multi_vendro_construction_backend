@@ -5,6 +5,7 @@ using MultiVendorAPI.DTOs;
 using MultiVendorAPI.Services.Interfaces;
 using MultiVendorAPI.Models;
 using MultiVendorAPI.Common;
+using InframartAPI_New.Services.Interfaces;
 
 namespace MultiVendorAPI.Services
 {
@@ -12,11 +13,13 @@ namespace MultiVendorAPI.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IFileUploadService _fileUploadService;
 
-        public ProductService(ApplicationDbContext context, IHttpContextAccessor httpContextAccessor)
+        public ProductService(ApplicationDbContext context, IHttpContextAccessor httpContextAccessor, IFileUploadService fileUploadService)
         {
             _context = context;
             _httpContextAccessor = httpContextAccessor;
+            _fileUploadService = fileUploadService;
         }
 
         private string? FormatThumbnailUrl(string? thumbnail)
@@ -54,6 +57,7 @@ namespace MultiVendorAPI.Services
                     Price = p.Price,
                     DiscountPrice = p.DiscountPrice,
                     Thumbnail = p.Thumbnail,
+                    Images = p.Images,
                     CategoryId = p.CategoryId,
                     ShortDescription = p.ShortDescription,
                     Unit = p.Unit,
@@ -67,6 +71,7 @@ namespace MultiVendorAPI.Services
             foreach (var prod in products)
             {
                 prod.Thumbnail = FormatThumbnailUrl(prod.Thumbnail);
+                prod.Images = prod.Images?.Select(img => FormatThumbnailUrl(img)!).ToList() ?? new List<string>();
             }
 
             return products;
@@ -102,6 +107,23 @@ namespace MultiVendorAPI.Services
             }
 
 
+            var uploadedUrls = new List<string>();
+            if (dto.Images != null && dto.Images.Any())
+            {
+                try
+                {
+                    foreach (var file in dto.Images)
+                    {
+                        var url = await _fileUploadService.UploadProductImageAsync(file);
+                        uploadedUrls.Add(url);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    return ServiceResponse<ProductDto>.FailureResponse($"Image upload failed: {ex.Message}", 500);
+                }
+            }
+
             var product = new Product
             {
                 VendorId = dto.VendorId,
@@ -113,7 +135,8 @@ namespace MultiVendorAPI.Services
                 Price = dto.Price,
                 DiscountPrice = dto.DiscountPrice,
                 Sku = dto.Sku,
-                Thumbnail = dto.Thumbnail,
+                Thumbnail = string.IsNullOrEmpty(dto.Thumbnail) && uploadedUrls.Any() ? uploadedUrls.First() : dto.Thumbnail,
+                Images = uploadedUrls,
                 InStock = dto.InStock,
                 Quantity = dto.Quantity,
                 Unit = dto.Unit,
@@ -131,6 +154,7 @@ namespace MultiVendorAPI.Services
                 Price = product.Price,
                 DiscountPrice = product.DiscountPrice,
                 Thumbnail = FormatThumbnailUrl(product.Thumbnail),
+                Images = product.Images.Select(img => FormatThumbnailUrl(img)!).ToList(),
                 CategoryId = product.CategoryId,
                 ShortDescription = product.ShortDescription,
                 Category = category.Name
@@ -203,9 +227,9 @@ namespace MultiVendorAPI.Services
                 Unit = product.Unit,
                 CreatedAt = product.CreatedAt,
                 UpdatedAt = product.UpdatedAt,
-                Images = string.IsNullOrWhiteSpace(formattedThumbnail)
-                    ? new List<string>()
-                    : new List<string> { formattedThumbnail },
+                Images = product.Images != null && product.Images.Any()
+                    ? product.Images.Select(img => FormatThumbnailUrl(img)!).ToList()
+                    : (string.IsNullOrWhiteSpace(formattedThumbnail) ? new List<string>() : new List<string> { formattedThumbnail }),
                 Category = categoryName,
                 VendorName = vendorName
             };
@@ -291,6 +315,28 @@ namespace MultiVendorAPI.Services
 
             product.Thumbnail = dto.Thumbnail;
 
+            if (dto.Images != null && dto.Images.Any())
+            {
+                try
+                {
+                    var uploadedUrls = new List<string>();
+                    foreach (var file in dto.Images)
+                    {
+                        var url = await _fileUploadService.UploadProductImageAsync(file);
+                        uploadedUrls.Add(url);
+                    }
+                    product.Images = uploadedUrls;
+                    if (string.IsNullOrEmpty(product.Thumbnail))
+                    {
+                        product.Thumbnail = uploadedUrls.First();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    return ServiceResponse<ProductDto>.FailureResponse($"Image upload failed: {ex.Message}", 500);
+                }
+            }
+
             product.Status = dto.Status;
 
             product.InStock = dto.InStock;
@@ -312,6 +358,7 @@ namespace MultiVendorAPI.Services
                         Price = product.Price,
                         DiscountPrice = product.DiscountPrice,
                         Thumbnail = FormatThumbnailUrl(product.Thumbnail),
+                        Images = product.Images.Select(img => FormatThumbnailUrl(img)!).ToList(),
                         CategoryId = product.CategoryId,
                         ShortDescription = product.ShortDescription,
                         Category = _context.Categories
@@ -378,13 +425,14 @@ namespace MultiVendorAPI.Services
         public async Task<ServiceResponse<List<ProductDto>>> SearchProductsAsync(string searchTerm)
         {
             var products = await _context.Products
-                .Where(p => p.Name.Contains(searchTerm) && p.Status != "inactive" && p.Status != "deleted")
+                .Where(p => p.Name != null && p.Name.Contains(searchTerm) && p.Status != "inactive" && p.Status != "deleted")
                 .Select(p => new ProductDto
                 {
                     Name = p.Name,
                     Price = p.Price,
                     DiscountPrice = p.DiscountPrice,
                     Thumbnail = p.Thumbnail,
+                    Images = p.Images,
                     CategoryId = p.CategoryId,
                     ShortDescription = p.ShortDescription,
                     Unit = p.Unit,
@@ -398,6 +446,7 @@ namespace MultiVendorAPI.Services
             foreach (var prod in products)
             {
                 prod.Thumbnail = FormatThumbnailUrl(prod.Thumbnail);
+                prod.Images = prod.Images?.Select(img => FormatThumbnailUrl(img)!).ToList() ?? new List<string>();
             }
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
 
@@ -435,6 +484,7 @@ namespace MultiVendorAPI.Services
                     Price = p.Price,
                     DiscountPrice = p.DiscountPrice,
                     Thumbnail = p.Thumbnail,
+                    Images = p.Images,
                     CategoryId = p.CategoryId,
                     ShortDescription = p.ShortDescription,
                     Unit = p.Unit,
@@ -448,6 +498,7 @@ namespace MultiVendorAPI.Services
             foreach (var prod in products)
             {
                 prod.Thumbnail = FormatThumbnailUrl(prod.Thumbnail);
+                prod.Images = prod.Images?.Select(img => FormatThumbnailUrl(img)!).ToList() ?? new List<string>();
             }
 
             return ServiceResponse<List<ProductDto>>.SuccessResponse(products, "Blocked products retrieved successfully", 200);

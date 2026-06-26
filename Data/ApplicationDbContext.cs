@@ -25,6 +25,11 @@ namespace MultiVendorAPI.Data
         public DbSet<User> Users { get; set; }
         public DbSet<Coupon> Coupons { get; set; }
         public DbSet<CouponUsage> CouponUsages { get; set; }
+        public DbSet<VendorKyc> VendorKycs { get; set; }
+        public DbSet<Wallet> Wallets { get; set; }
+        public DbSet<WalletTransaction> WalletTransactions { get; set; }
+        public DbSet<EmailTemplate> EmailTemplates { get; set; }
+        public DbSet<EmailLog> EmailLogs { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -45,6 +50,7 @@ namespace MultiVendorAPI.Data
                 entity.Property(v => v.GstNumber).HasColumnName("gst_number");
                 entity.Property(v => v.CommissionRate).HasColumnName("commission_rate");
                 entity.Property(v => v.Status).HasColumnName("status");
+                entity.Property(v => v.KycStatus).HasColumnName("kyc_status");
                 entity.Property(v => v.CreatedAt).HasColumnName("created_at");
                 entity.Property(v => v.UpdatedAt).HasColumnName("updated_at");
             });
@@ -60,6 +66,17 @@ namespace MultiVendorAPI.Data
             modelBuilder.Entity<Product>().Property(p => p.DiscountPrice).HasColumnName("discount_price");
             modelBuilder.Entity<Product>().Property(p => p.Sku).HasColumnName("sku");
             modelBuilder.Entity<Product>().Property(p => p.Thumbnail).HasColumnName("thumbnail");
+            modelBuilder.Entity<Product>().Property(p => p.Images)
+                .HasColumnName("images")
+                .HasConversion(
+                    v => v == null ? null : System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions)null),
+                    v => string.IsNullOrEmpty(v) ? new List<string>() : System.Text.Json.JsonSerializer.Deserialize<List<string>>(v, (System.Text.Json.JsonSerializerOptions)null) ?? new List<string>()
+                )
+                .Metadata.SetValueComparer(new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<string>>(
+                    (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == c2,
+                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                    c => c.ToList()
+                ));
             modelBuilder.Entity<Product>().Property(p => p.Status).HasColumnName("status");
             modelBuilder.Entity<Product>().Property(p => p.InStock).HasColumnName("in_stock");
             modelBuilder.Entity<Product>().Property(p => p.Quantity).HasColumnName("quantity");
@@ -125,6 +142,10 @@ namespace MultiVendorAPI.Data
                 entity.Property(o => o.OrderStatus).HasColumnName("order_status");
                 entity.Property(o => o.PlacedAt).HasColumnName("placed_at");
                 entity.Property(o => o.CreatedAt).HasColumnName("created_at");
+                entity.Property(o => o.SubtotalAmount).HasColumnName("subtotal_amount");
+                entity.Property(o => o.CommissionAmount).HasColumnName("commission_amount");
+                entity.Property(o => o.VendorAmount).HasColumnName("vendor_amount");
+                entity.Property(o => o.FinalAmount).HasColumnName("final_amount");
                 entity.Ignore(o => o.OrderDate);
                 entity.HasMany(o => o.OrderItems)
                     .WithOne(oi => oi.Order)
@@ -144,6 +165,7 @@ namespace MultiVendorAPI.Data
                 entity.Property(c => c.MinimumOrderAmount).HasColumnName("minimum_order_amount");
                 entity.Property(c => c.UsageLimit).HasColumnName("usage_limit");
                 entity.Property(c => c.UsedCount).HasColumnName("used_count");
+                entity.Property(c => c.PerUserLimit).HasColumnName("per_user_limit");
                 entity.Property(c => c.StartDate).HasColumnName("start_date");
                 entity.Property(c => c.EndDate).HasColumnName("end_date");
                 entity.Property(c => c.Status).HasColumnName("status");
@@ -226,6 +248,74 @@ namespace MultiVendorAPI.Data
                 entity.Property(u => u.Phone).HasColumnName("phone");
                 entity.Property(u => u.Role).HasColumnName("role");
                 entity.Property(u => u.Status).HasColumnName("status");
+            });
+
+            modelBuilder.Entity<VendorKyc>(entity =>
+            {
+                entity.ToTable("vendor_kyc");
+                entity.HasKey(k => k.Id);
+                entity.Property(k => k.Id).HasColumnName("id");
+                entity.Property(k => k.VendorId).HasColumnName("vendor_id");
+                entity.Property(k => k.BusinessLegalName).HasColumnName("business_legal_name");
+                entity.Property(k => k.BankAccountName).HasColumnName("bank_account_name");
+                entity.Property(k => k.AadhaarDocumentUrl).HasColumnName("aadhaar_document_url");
+                entity.Property(k => k.GstNumber).HasColumnName("gst_number");
+                entity.Property(k => k.PanNumber).HasColumnName("pan_number");
+                entity.Property(k => k.BusinessAddress).HasColumnName("business_address");
+                entity.Property(k => k.BankAccountNumber).HasColumnName("bank_account_number");
+                entity.Property(k => k.IfscCode).HasColumnName("ifsc_code");
+                entity.Property(k => k.GstCertificateUrl).HasColumnName("gst_certificate_url");
+                entity.Property(k => k.PanCardUrl).HasColumnName("pan_card_url");
+                entity.Property(k => k.BankStatementUrl).HasColumnName("bank_statement_url");
+                entity.Property(k => k.Status).HasColumnName("status");
+                entity.Property(k => k.RejectionReason).HasColumnName("rejection_reason");
+                entity.Property(k => k.SubmittedAt).HasColumnName("submitted_at");
+                entity.Property(k => k.VerifiedAt).HasColumnName("verified_at");
+                entity.Property(k => k.VerifiedBy).HasColumnName("verified_by");
+                entity.Property(k => k.CreatedAt).HasColumnName("created_at");
+                entity.Property(k => k.UpdatedAt).HasColumnName("updated_at");
+
+                entity.HasOne<Vendor>()
+                      .WithMany()
+                      .HasForeignKey(k => k.VendorId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<EmailTemplate>(entity =>
+            {
+                entity.ToTable("email_templates");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TemplateKey).HasColumnName("template_key").IsRequired();
+                entity.HasIndex(e => e.TemplateKey).IsUnique();
+                entity.Property(e => e.TemplateName).HasColumnName("template_name").IsRequired();
+                entity.Property(e => e.Subject).HasColumnName("subject").IsRequired();
+                entity.Property(e => e.HtmlContent).HasColumnName("html_content").IsRequired();
+                entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+                entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+            });
+
+            modelBuilder.Entity<EmailLog>(entity =>
+            {
+                entity.ToTable("email_logs");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TemplateId).HasColumnName("template_id");
+                entity.Property(e => e.RecipientEmail).HasColumnName("recipient_email").IsRequired();
+                entity.Property(e => e.Subject).HasColumnName("subject").IsRequired();
+                entity.Property(e => e.Body).HasColumnName("body").IsRequired();
+                entity.Property(e => e.Status).HasColumnName("status").IsRequired();
+                entity.Property(e => e.ErrorMessage).HasColumnName("error_message");
+                entity.Property(e => e.SentAt).HasColumnName("sent_at");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+
+                entity.HasOne(e => e.Template)
+                      .WithMany()
+                      .HasForeignKey(e => e.TemplateId)
+                      .OnDelete(DeleteBehavior.SetNull);
             });
         }
     }

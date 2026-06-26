@@ -31,6 +31,14 @@ namespace InframartAPI_New.Models
         [Column("is_read")]
         public bool IsRead { get; set; }
 
+        [Column("reference_type")]
+        [MaxLength(100)]
+        public string? ReferenceType { get; set; }
+
+        [Column("reference_id")]
+        [MaxLength(100)]
+        public string? ReferenceId { get; set; }
+
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 

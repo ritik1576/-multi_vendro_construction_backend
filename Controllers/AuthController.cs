@@ -23,13 +23,20 @@ namespace InframartAPI_New.Controllers
         private readonly IConfiguration _configuration;
         private readonly IVendorService _vendorService;
         private readonly INotificationService _notificationService;
+        private readonly IEmailNotificationService _emailNotificationService;
 
-        public AuthController(AppDbContext context, IConfiguration configuration, IVendorService vendorService, INotificationService notificationService)
+        public AuthController(
+            AppDbContext context,
+            IConfiguration configuration,
+            IVendorService vendorService,
+            INotificationService notificationService,
+            IEmailNotificationService emailNotificationService)
         {
             _context = context;
             _configuration = configuration;
             _vendorService = vendorService;
             _notificationService = notificationService;
+            _emailNotificationService = emailNotificationService;
         }
 
         // ================= REGISTER =================
@@ -64,8 +71,39 @@ namespace InframartAPI_New.Controllers
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
+            // Create customer wallet
+            var wallet = new Wallet
+            {
+                UserId = user.Id,
+                WalletType = WalletType.Customer,
+                AvailableBalance = 0.00m,
+                LockedBalance = 0.00m,
+                TotalCredits = 0.00m,
+                TotalDebits = 0.00m,
+                Status = "Active",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                RowVersion = 1
+            };
+            _context.Wallets.Add(wallet);
+            await _context.SaveChangesAsync();
+
             // Trigger welcome notification
             await _notificationService.CreateNotificationAsync(user.Id, "Welcome to InfraMart", "Welcome to InfraMart!", "customer");
+
+            // Send WELCOME_EMAIL
+            try
+            {
+                await _emailNotificationService.SendTemplateEmailAsync(
+                    "WELCOME_EMAIL",
+                    user.Email ?? "",
+                    new Dictionary<string, string> { { "customer_name", user.FullName ?? "Customer" } }
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to send welcome email: {ex.Message}");
+            }
 
             return Ok(new
             {
@@ -116,6 +154,70 @@ namespace InframartAPI_New.Controllers
                 new Claim(ClaimTypes.Role, user.Role!)
             };
 
+            // Custom checks for vendor role
+            Vendor? vendor = null;
+            if (string.Equals(user.Role, "vendor", StringComparison.OrdinalIgnoreCase))
+            {
+                vendor = await _context.Vendors.FirstOrDefaultAsync(v => v.UserId == user.Id);
+                if (vendor == null)
+                {
+                    return Unauthorized(new DTOs.AuthResponseDto
+                    {
+                        Success = false,
+                        Message = "Vendor profile not found."
+                    });
+                }
+
+                // Check KYC Status
+                if (vendor.KycStatus == KycStatus.NotSubmitted)
+                {
+                    return Ok(new DTOs.AuthResponseDto
+                    {
+                        Success = false,
+                        RequiresKyc = true,
+                        Message = "Please complete KYC verification."
+                    });
+                }
+                else if (vendor.KycStatus == KycStatus.Submitted || vendor.KycStatus == KycStatus.UnderReview)
+                {
+                    return Ok(new DTOs.AuthResponseDto
+                    {
+                        Success = false,
+                        Message = "Your KYC is under review."
+                    });
+                }
+                else if (vendor.KycStatus == KycStatus.Rejected)
+                {
+                    var kyc = await _context.VendorKycs.FirstOrDefaultAsync(k => k.VendorId == vendor.Id);
+                    return Ok(new DTOs.AuthResponseDto
+                    {
+                        Success = false,
+                        Message = "KYC rejected.",
+                        RejectionReason = kyc?.RejectionReason ?? "Invalid GST Certificate"
+                    });
+                }
+
+                // Check Vendor Approval Status
+                if (vendor.Status == VendorStatus.Pending)
+                {
+                    return Ok(new DTOs.AuthResponseDto
+                    {
+                        Success = false,
+                        Message = "Your account is awaiting admin approval."
+                    });
+                }
+                else if (vendor.Status == VendorStatus.Rejected)
+                {
+                    return Ok(new DTOs.AuthResponseDto
+                    {
+                        Success = false,
+                        Message = "Vendor account rejected."
+                    });
+                }
+
+                claims.Add(new Claim("vendorId", vendor.Id.ToString()));
+            }
+
             var key = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!)
             );
@@ -142,14 +244,18 @@ namespace InframartAPI_New.Controllers
                 Success = true,
                 Message = "Login successful",
                 UserId = user.Id,
+                VendorId = vendor?.Id ?? 0,
                 Role = user.Role,
                 FullName = user.FullName,
-                Token = new JwtSecurityTokenHandler().WriteToken(token)
+                Token = new JwtSecurityTokenHandler().WriteToken(token),
+                VendorStatus = vendor?.Status.ToString(),
+                KycStatus = vendor?.KycStatus.ToString()
             };
 
             return Ok(response);
         }
         [HttpPost("vendor/register")]
+        [HttpPost("/vendor/register")]
         public async Task<IActionResult> RegisterVendor(
     [FromBody] VendorRegisterDto dto)
         {
@@ -275,6 +381,20 @@ namespace InframartAPI_New.Controllers
 
             // Trigger password reset notification
             await _notificationService.CreateNotificationAsync(user.Id, "Password Reset Successful", "Your password has been reset successfully.", "system");
+
+            // Send PASSWORD_RESET email
+            try
+            {
+                await _emailNotificationService.SendTemplateEmailAsync(
+                    "PASSWORD_RESET",
+                    user.Email ?? "",
+                    new Dictionary<string, string> { { "customer_name", user.FullName ?? "Customer" } }
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to send password reset email: {ex.Message}");
+            }
 
             return Ok(new { message = "Password reset successfully." });
         }

@@ -24,4 +24,15 @@ public class Order
     public DateTime CreatedAt { get; set; }
     public long UserId { get; set; }
 
+    [Column("subtotal_amount")]
+    public decimal? SubtotalAmount { get; set; }
+
+    [Column("commission_amount")]
+    public decimal? CommissionAmount { get; set; }
+
+    [Column("vendor_amount")]
+    public decimal? VendorAmount { get; set; }
+
+    [Column("final_amount")]
+    public decimal? FinalAmount { get; set; }
 }
