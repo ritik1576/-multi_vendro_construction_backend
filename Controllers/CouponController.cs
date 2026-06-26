@@ -80,6 +80,24 @@ namespace MultiVendorAPI.Controllers
             }
 
             var discount = await _couponService.CalculateDiscountAsync(validationResult.Coupon, cartTotal);
+
+            if (cart.CartItems != null && cart.CartItems.Count > 0 && cartTotal > 0)
+            {
+                foreach (var item in cart.CartItems)
+                {
+                    var originalPrice = (item.Product?.DiscountPrice.HasValue == true && item.Product.DiscountPrice.Value > 0)
+                        ? item.Product.DiscountPrice.Value
+                        : (item.Product?.Price ?? 0);
+
+                    var itemDiscount = discount * (originalPrice * item.Quantity) / cartTotal;
+                    var discountedPrice = originalPrice - (itemDiscount / item.Quantity);
+                    if (discountedPrice < 0) discountedPrice = 0;
+
+                    item.Price = Math.Round(discountedPrice, 2);
+                }
+                await _context.SaveChangesAsync();
+            }
+
             decimal shippingCharge = dto.ShippingCharge ?? 99m;
             var finalAmount = cartTotal + shippingCharge - discount;
 
@@ -99,8 +117,26 @@ namespace MultiVendorAPI.Controllers
 
         [HttpPost("remove")]
         [Authorize(Roles = "customer")]
-        public IActionResult RemoveCoupon()
+        public async Task<IActionResult> RemoveCoupon()
         {
+            var userId = GetCurrentUserId();
+            var cart = await _context.Carts
+                .Include(c => c.CartItems)
+                .ThenInclude(ci => ci.Product)
+                .FirstOrDefaultAsync(c => c.UserId == userId);
+
+            if (cart != null && cart.CartItems != null)
+            {
+                foreach (var item in cart.CartItems)
+                {
+                    var originalPrice = (item.Product?.DiscountPrice.HasValue == true && item.Product.DiscountPrice.Value > 0)
+                        ? item.Product.DiscountPrice.Value
+                        : (item.Product?.Price ?? 0);
+                    item.Price = originalPrice;
+                }
+                await _context.SaveChangesAsync();
+            }
+
             return Ok(new { message = "Coupon removed" });
         }
 

@@ -191,6 +191,7 @@ namespace MultiVendorAPI.Data
                 entity.Property(ci => ci.CartId).HasColumnName("cart_id");
                 entity.Property(ci => ci.ProductId).HasColumnName("product_id");
                 entity.Property(ci => ci.Quantity).HasColumnName("quantity");
+                entity.Property(ci => ci.Price).HasColumnName("price");
                 entity.HasOne(ci => ci.Product)
                     .WithMany()
                     .HasForeignKey(ci => ci.ProductId)

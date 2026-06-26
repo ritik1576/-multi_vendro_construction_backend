@@ -67,9 +67,14 @@ namespace MultiVendorAPI.Services
             var existingItem = cart.CartItems
                 .FirstOrDefault(ci => ci.ProductId == product.Id);
 
+            var itemPrice = (product.DiscountPrice.HasValue && product.DiscountPrice.Value > 0)
+                ? product.DiscountPrice.Value
+                : (product.Price ?? 0);
+
             if (existingItem != null)
             {
                 existingItem.Quantity += dto.Quantity;
+                existingItem.Price = itemPrice;
 
                 await _cartRepository.UpdateCartItemAsync(existingItem);
 
@@ -81,7 +86,8 @@ namespace MultiVendorAPI.Services
                 {
                     CartId = cart.Id,
                     ProductId = product.Id,
-                    Quantity = dto.Quantity
+                    Quantity = dto.Quantity,
+                    Price = itemPrice
                 };
 
                 await _cartRepository.AddCartItemAsync(cartItem);
@@ -131,6 +137,9 @@ namespace MultiVendorAPI.Services
 
             cartItem.ProductId = product.Id;
             cartItem.Quantity = dto.Quantity;
+            cartItem.Price = (product.DiscountPrice.HasValue && product.DiscountPrice.Value > 0)
+                ? product.DiscountPrice.Value
+                : (product.Price ?? 0);
 
             await _cartRepository.UpdateCartItemAsync(cartItem);
             await _cartRepository.SaveChangesAsync();
@@ -193,9 +202,9 @@ namespace MultiVendorAPI.Services
                 CartItemId = ci.Id,
                 ProductName = ci.Product?.Name ?? string.Empty,
                 Quantity = ci.Quantity,
-                Price = (ci.Product?.DiscountPrice.HasValue == true && ci.Product.DiscountPrice.Value > 0)
+                Price = ci.Price ?? ((ci.Product?.DiscountPrice.HasValue == true && ci.Product.DiscountPrice.Value > 0)
                     ? ci.Product.DiscountPrice.Value
-                    : (ci.Product?.Price ?? 0)
+                    : (ci.Product?.Price ?? 0))
             }).ToList();
 
             return new CartDto

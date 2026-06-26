@@ -233,9 +233,12 @@ public class OrderServices : IOrderService
                 {
                     var item = dto.Items[i];
                     var product = products[i];
+                    var cartItem = cart.CartItems.FirstOrDefault(ci => ci.Id == item.CartItemId);
                     var price = (product.DiscountPrice.HasValue && product.DiscountPrice.Value > 0)
                         ? product.DiscountPrice.Value
                         : product.Price.GetValueOrDefault();
+
+                    var finalPrice = cartItem?.Price ?? price;
 
                     await _orderRepository.CreateOrderItemAsync(new OrderItem
                     {
@@ -243,8 +246,8 @@ public class OrderServices : IOrderService
                         ProductId = product.Id,
                         Quantity = item.Quantity,
                         ProductName = product.Name ?? string.Empty,
-                        Price = price,
-                        TotalPrice = price * item.Quantity,
+                        Price = finalPrice,
+                        TotalPrice = finalPrice * item.Quantity,
                         CreatedAt = now
                     });
 
@@ -426,9 +429,12 @@ public class OrderServices : IOrderService
             {
                 var item = dto.Items[i];
                 var product = products[i];
+                var cartItem = cart.CartItems.FirstOrDefault(ci => ci.Id == item.CartItemId);
                 var price = (product.DiscountPrice.HasValue && product.DiscountPrice.Value > 0)
                     ? product.DiscountPrice.Value
                     : product.Price.GetValueOrDefault();
+
+                var finalPrice = cartItem?.Price ?? price;
 
                 await _orderRepository.CreateOrderItemAsync(new OrderItem
                 {
@@ -436,8 +442,8 @@ public class OrderServices : IOrderService
                     ProductId = product.Id,
                     Quantity = item.Quantity,
                     ProductName = product.Name ?? string.Empty,
-                    Price = price,
-                    TotalPrice = price * item.Quantity,
+                    Price = finalPrice,
+                    TotalPrice = finalPrice * item.Quantity,
                     CreatedAt = now
                 });
 
