@@ -193,7 +193,9 @@ namespace MultiVendorAPI.Services
                 CartItemId = ci.Id,
                 ProductName = ci.Product?.Name ?? string.Empty,
                 Quantity = ci.Quantity,
-                Price = ci.Product?.Price
+                Price = (ci.Product?.DiscountPrice.HasValue == true && ci.Product.DiscountPrice.Value > 0)
+                    ? ci.Product.DiscountPrice.Value
+                    : (ci.Product?.Price ?? 0)
             }).ToList();
 
             return new CartDto
