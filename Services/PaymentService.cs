@@ -20,17 +20,20 @@ namespace InframartAPI_New.Services
         private readonly MultiVendorAPI.Data.ApplicationDbContext _appContext;
         private readonly RazorpaySettings _razorpay;
         private readonly INotificationService _notificationService;
+        private readonly IEmailNotificationService _emailNotificationService;
 
         public PaymentService(
             AppDbContext context,
             MultiVendorAPI.Data.ApplicationDbContext appContext,
             IOptions<RazorpaySettings> razorpay,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            IEmailNotificationService emailNotificationService)
         {
             _context = context;
             _appContext = appContext;
             _razorpay = razorpay.Value;
             _notificationService = notificationService;
+            _emailNotificationService = emailNotificationService;
         }
 
         public async Task<ServiceResponse<object>> CreatePaymentAsync(CreatePaymentDto request, long userId)
@@ -127,6 +130,31 @@ namespace InframartAPI_New.Services
                         // Trigger Payment Failed Notification
                         await _notificationService.CreateNotificationAsync(order.UserId, "Payment Failed", $"Payment failed for your order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
                         await _notificationService.CreateNotificationAsync(order.UserId, "Order Payment Failed", $"Payment failed for your order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
+                        
+                        var customerUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == order.UserId);
+                        if (customerUser != null && !string.IsNullOrEmpty(customerUser.Email))
+                        {
+                            try
+                            {
+                                await _emailNotificationService.SendTemplateEmailAsync(
+                                    "PAYMENT_FAILED",
+                                    customerUser.Email,
+                                    new Dictionary<string, string>
+                                    {
+                                        { "CustomerName", customerUser.FullName ?? "Customer" },
+                                        { "OrderNumber", order.OrderNumber ?? $"INFR-LOCAL-{order.Id:000}" },
+                                        { "Amount", order.TotalAmount.ToString("F2") },
+                                        { "FailureReason", "Payment was not captured by processor." },
+                                        { "RetryPaymentUrl", $"https://inframart.com/checkout/retry/{order.Id}" }
+                                    }
+                                );
+                            }
+                            catch (Exception emailEx)
+                            {
+                                Console.WriteLine($"Failed to send payment failed email: {emailEx.Message}");
+                            }
+                        }
+                        
                         return ServiceResponse<object>.FailureResponse("Payment not captured", 400);
                     }
                 }
@@ -135,6 +163,31 @@ namespace InframartAPI_New.Services
                     // Trigger Payment Failed Notification
                     await _notificationService.CreateNotificationAsync(order.UserId, "Payment Failed", $"Payment failed for your order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
                     await _notificationService.CreateNotificationAsync(order.UserId, "Order Payment Failed", $"Payment failed for your order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
+                    
+                    var customerUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == order.UserId);
+                    if (customerUser != null && !string.IsNullOrEmpty(customerUser.Email))
+                    {
+                        try
+                        {
+                            await _emailNotificationService.SendTemplateEmailAsync(
+                                "PAYMENT_FAILED",
+                                customerUser.Email,
+                                new Dictionary<string, string>
+                                {
+                                    { "CustomerName", customerUser.FullName ?? "Customer" },
+                                    { "OrderNumber", order.OrderNumber ?? $"INFR-LOCAL-{order.Id:000}" },
+                                    { "Amount", order.TotalAmount.ToString("F2") },
+                                    { "FailureReason", ex.Message },
+                                    { "RetryPaymentUrl", $"https://inframart.com/checkout/retry/{order.Id}" }
+                                }
+                            );
+                        }
+                        catch (Exception emailEx)
+                        {
+                            Console.WriteLine($"Failed to send payment failed email on exception: {emailEx.Message}");
+                        }
+                    }
+                    
                     return ServiceResponse<object>.FailureResponse($"Invalid Razorpay Payment ID or check failed: {ex.Message}", 400);
                 }
 
@@ -153,6 +206,32 @@ namespace InframartAPI_New.Services
                 order.PaymentStatus = "paid";
 
                 await _context.SaveChangesAsync();
+
+                // Trigger Customer Email
+                var customerUserObj = await _context.Users.FirstOrDefaultAsync(u => u.Id == order.UserId);
+                if (customerUserObj != null && !string.IsNullOrEmpty(customerUserObj.Email))
+                {
+                    try
+                    {
+                        await _emailNotificationService.SendTemplateEmailAsync(
+                            "PAYMENT_SUCCESS",
+                            customerUserObj.Email,
+                            new Dictionary<string, string>
+                            {
+                                { "CustomerName", customerUserObj.FullName ?? "Customer" },
+                                { "OrderNumber", order.OrderNumber ?? $"INFR-LOCAL-{order.Id:000}" },
+                                { "TransactionId", dbPayment.Razorpay_Payment_Id ?? "N/A" },
+                                { "PaymentMethod", dbPayment.Payment_Method ?? "Razorpay" },
+                                { "PaidAmount", dbPayment.Amount.ToString("F2") },
+                                { "InvoiceUrl", $"https://inframart.com/invoices/{order.Id}" }
+                            }
+                        );
+                    }
+                    catch (Exception emailEx)
+                    {
+                        Console.WriteLine($"Failed to send payment success email: {emailEx.Message}");
+                    }
+                }
 
                 // Trigger Customer Notifications
                 await _notificationService.CreateNotificationAsync(order.UserId, "Payment Successful", $"Payment of {order.TotalAmount} INR was successful for order {order.OrderNumber}.", "payment", "Order", order.Id.ToString());
@@ -271,6 +350,30 @@ namespace InframartAPI_New.Services
                 {
                     await _notificationService.CreateNotificationAsync(dbPayment.User_Id.Value, "Refund Processed", $"Refund of {request.Amount} INR was successfully processed for your payment.", "payment", "Order", order?.Id.ToString());
                     await _notificationService.CreateNotificationAsync(dbPayment.User_Id.Value, "Refund Completed", $"Refund of {request.Amount} INR has been completed for order {order?.OrderNumber}.", "payment", "Order", order?.Id.ToString());
+
+                    var customerUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == dbPayment.User_Id.Value);
+                    if (customerUser != null && !string.IsNullOrEmpty(customerUser.Email))
+                    {
+                        try
+                        {
+                            await _emailNotificationService.SendTemplateEmailAsync(
+                                "REFUND_COMPLETED",
+                                customerUser.Email,
+                                new Dictionary<string, string>
+                                {
+                                    { "CustomerName", customerUser.FullName ?? "Customer" },
+                                    { "RefundAmount", request.Amount.ToString("F2") },
+                                    { "RefundDate", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss") },
+                                    { "TransactionId", dbPayment.Razorpay_Payment_Id ?? "N/A" },
+                                    { "OrderNumber", order?.OrderNumber ?? $"INFR-LOCAL-{order?.Id:000}" }
+                                }
+                            );
+                        }
+                        catch (Exception emailEx)
+                        {
+                            Console.WriteLine($"Failed to send refund completed email: {emailEx.Message}");
+                        }
+                    }
                 }
 
                 // Vendor and Admin notifications

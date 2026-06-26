@@ -1,6 +1,11 @@
-<h2>Order Delivered!</h2>
+<h2>{{HeaderTitle}}</h2>
 <p>Hello {{CustomerName}},</p>
-<p>Great news! Your order <strong>#{{OrderNumber}}</strong> has been successfully delivered.</p>
-<p>We hope you are satisfied with your purchase. Please take a moment to leave a review for the products and services to help others in our community.</p>
-<p>If you face any issues with the delivered items, please get in touch with support.</p>
-<p>Best regards,<br>The InfraMart Team</p>
+<p>{{IntroMessage}}</p>
+<div style="background-color: #f8fafc; padding: 20px; border-radius: 6px; margin: 20px 0;">
+    <strong>Delivered Order details:</strong><br>
+    Order Number: {{OrderNumber}}<br>
+    Delivered Date: {{DeliveredDate}}
+</div>
+<div style="text-align: center;">
+    <a href="{{ReviewProductUrl}}" class="button">{{ButtonText}}</a>
+</div>

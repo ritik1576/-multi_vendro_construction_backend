@@ -30,6 +30,8 @@ namespace MultiVendorAPI.Data
         public DbSet<WalletTransaction> WalletTransactions { get; set; }
         public DbSet<EmailTemplate> EmailTemplates { get; set; }
         public DbSet<EmailLog> EmailLogs { get; set; }
+        public DbSet<EmailTemplateSetting> EmailTemplateSettings { get; set; }
+        public DbSet<EmailTemplateVariable> EmailTemplateVariables { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -194,6 +196,7 @@ namespace MultiVendorAPI.Data
                 entity.Property(ci => ci.CartId).HasColumnName("cart_id");
                 entity.Property(ci => ci.ProductId).HasColumnName("product_id");
                 entity.Property(ci => ci.Quantity).HasColumnName("quantity");
+                entity.Property(ci => ci.Price).HasColumnName("price");
                 entity.HasOne(ci => ci.Product)
                     .WithMany()
                     .HasForeignKey(ci => ci.ProductId)
@@ -322,6 +325,23 @@ namespace MultiVendorAPI.Data
                       .WithMany()
                       .HasForeignKey(e => e.TemplateId)
                       .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<EmailTemplateSetting>(entity =>
+            {
+                entity.ToTable("email_template_settings");
+                entity.HasKey(s => s.Id);
+                entity.HasIndex(s => s.TemplateKey).IsUnique();
+            });
+
+            modelBuilder.Entity<EmailTemplateVariable>(entity =>
+            {
+                entity.ToTable("email_template_variables");
+                entity.HasKey(v => v.Id);
+                entity.HasOne(v => v.TemplateSetting)
+                      .WithMany(s => s.Variables)
+                      .HasForeignKey(v => v.TemplateSettingId)
+                      .OnDelete(DeleteBehavior.Cascade);
             });
         }
     }

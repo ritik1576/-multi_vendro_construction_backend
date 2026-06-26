@@ -98,7 +98,7 @@ public class OrderServices : IOrderService
                         400);
             }
 
-            var price = product.DiscountPrice.HasValue && product.DiscountPrice.Value > 0
+            var price = (product.DiscountPrice.HasValue && product.DiscountPrice.Value > 0)
                 ? product.DiscountPrice.Value
                 : product.Price.GetValueOrDefault();
             subtotal += price * item.Quantity;
@@ -144,8 +144,6 @@ public class OrderServices : IOrderService
             if (customerWallet.AvailableBalance < orderAmount)
             {
                 Console.WriteLine($"[DEBUG CreateOrderAsync] Insufficient balance. Required: {orderAmount}, Available: {customerWallet.AvailableBalance}");
-                await _notificationService.CreateNotificationAsync(dto.UserId, "Wallet Payment Failed", "Wallet payment failed due to insufficient balance.", "payment");
-                await _notificationService.CreateNotificationAsync(dto.UserId, "Order Payment Failed", "Payment failed for your order.", "payment");
                 return ServiceResponse<PlaceOrderResponseDto>.FailureResponse("Insufficient Balance", 400);
             }
 
@@ -245,8 +243,8 @@ public class OrderServices : IOrderService
                         ProductId = product.Id,
                         Quantity = item.Quantity,
                         ProductName = product.Name ?? string.Empty,
-                        Price = price,
-                        TotalPrice = price * item.Quantity,
+                        Price = finalPrice,
+                        TotalPrice = finalPrice * item.Quantity,
                         CreatedAt = now
                     });
 
@@ -446,8 +444,8 @@ public class OrderServices : IOrderService
                     ProductId = product.Id,
                     Quantity = item.Quantity,
                     ProductName = product.Name ?? string.Empty,
-                    Price = price,
-                    TotalPrice = price * item.Quantity,
+                    Price = finalPrice,
+                    TotalPrice = finalPrice * item.Quantity,
                     CreatedAt = now
                 });
 
@@ -502,9 +500,14 @@ public class OrderServices : IOrderService
                         customerUser.Email,
                         new Dictionary<string, string>
                         {
-                            { "customer_name", customerUser.FullName ?? "Customer" },
-                            { "order_number", order.OrderNumber ?? $"INFR-LOCAL-{order.Id:000}" },
-                            { "order_amount", order.TotalAmount.ToString("F2") }
+                            { "CustomerName", customerUser.FullName ?? "Customer" },
+                            { "OrderNumber", order.OrderNumber ?? $"INFR-LOCAL-{order.Id:000}" },
+                            { "OrderDate", order.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss") },
+                            { "TotalAmount", order.TotalAmount.ToString("F2") },
+                            { "ShippingCharge", order.ShippingCharge.ToString("F2") },
+                            { "Discount", order.DiscountAmount.ToString("F2") },
+                            { "FinalAmount", order.TotalAmount.ToString("F2") },
+                            { "TrackOrderUrl", $"https://inframart.com/orders/track/{order.Id}" }
                         }
                     );
                 }

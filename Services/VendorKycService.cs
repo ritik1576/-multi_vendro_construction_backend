@@ -289,7 +289,8 @@ namespace InframartAPI_New.Services
                             vendorUser.Email,
                             new Dictionary<string, string>
                             {
-                                { "vendor_name", vendorUser.FullName ?? "Vendor" }
+                                { "VendorName", vendorUser.FullName ?? "Vendor" },
+                                { "ApprovalDate", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss") }
                             }
                         );
                     }
@@ -347,8 +348,9 @@ namespace InframartAPI_New.Services
                             vendorUser.Email,
                             new Dictionary<string, string>
                             {
-                                { "vendor_name", vendorUser.FullName ?? "Vendor" },
-                                { "rejection_reason", reason }
+                                { "VendorName", vendorUser.FullName ?? "Vendor" },
+                                { "RejectReason", reason },
+                                { "ResubmitUrl", "https://inframart.com/vendor/kyc/resubmit" }
                             }
                         );
                     }
@@ -422,7 +424,8 @@ namespace InframartAPI_New.Services
                             vendorUser.Email,
                             new Dictionary<string, string>
                             {
-                                { "vendor_name", vendorUser.FullName ?? "Vendor" }
+                                { "VendorName", vendorUser.FullName ?? "Vendor" },
+                                { "DashboardUrl", "https://inframart.com/vendor/dashboard" }
                             }
                         );
                     }
@@ -459,6 +462,22 @@ namespace InframartAPI_New.Services
                         $"Your Vendor account application was rejected. Reason: {reason}",
                         "vendor"
                     );
+
+                    // Send VENDOR_REJECTED email
+                    var vendorUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == vendor.UserId.Value);
+                    if (vendorUser != null && !string.IsNullOrEmpty(vendorUser.Email))
+                    {
+                        await _emailNotificationService.SendTemplateEmailAsync(
+                            "VENDOR_REJECTED",
+                            vendorUser.Email,
+                            new Dictionary<string, string>
+                            {
+                                { "VendorName", vendorUser.FullName ?? "Vendor" },
+                                { "RejectReason", reason },
+                                { "ResubmitUrl", "https://inframart.com/vendor/kyc/resubmit" }
+                            }
+                        );
+                    }
                 }
                 catch (Exception ex)
                 {
