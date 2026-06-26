@@ -141,13 +141,11 @@ public class OrderServices : IOrderService
             }
             Console.WriteLine($"[DEBUG CreateOrderAsync] Customer wallet found. Available Balance: {customerWallet.AvailableBalance}");
 
-        for (var i = 0; i < dto.Items.Count; i++)
-        {
-            var item = dto.Items[i];
-            var product = products[i];
-            var price = (product.DiscountPrice.HasValue && product.DiscountPrice.Value > 0)
-                ? product.DiscountPrice.Value
-                : product.Price.GetValueOrDefault();
+            if (customerWallet.AvailableBalance < orderAmount)
+            {
+                Console.WriteLine($"[DEBUG CreateOrderAsync] Insufficient balance. Required: {orderAmount}, Available: {customerWallet.AvailableBalance}");
+                return ServiceResponse<PlaceOrderResponseDto>.FailureResponse("Insufficient Balance", 400);
+            }
 
             var vendorId = products.FirstOrDefault(p => p.VendorId.HasValue)?.VendorId;
             if (vendorId == null)
@@ -235,7 +233,9 @@ public class OrderServices : IOrderService
                 {
                     var item = dto.Items[i];
                     var product = products[i];
-                    var price = product.Price.GetValueOrDefault();
+                    var price = (product.DiscountPrice.HasValue && product.DiscountPrice.Value > 0)
+                        ? product.DiscountPrice.Value
+                        : product.Price.GetValueOrDefault();
 
                     await _orderRepository.CreateOrderItemAsync(new OrderItem
                     {
@@ -426,7 +426,9 @@ public class OrderServices : IOrderService
             {
                 var item = dto.Items[i];
                 var product = products[i];
-                var price = product.Price.GetValueOrDefault();
+                var price = (product.DiscountPrice.HasValue && product.DiscountPrice.Value > 0)
+                    ? product.DiscountPrice.Value
+                    : product.Price.GetValueOrDefault();
 
                 await _orderRepository.CreateOrderItemAsync(new OrderItem
                 {
