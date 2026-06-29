@@ -65,6 +65,21 @@ namespace InframartAPI_New.Models
         [Column("status")]
         public TransactionStatus Status { get; set; }
 
+        [Column("gateway_order_id")]
+        public string? GatewayOrderId { get; set; }
+
+        [Column("gateway_payment_id")]
+        public string? GatewayPaymentId { get; set; }
+
+        [Column("gateway_signature")]
+        public string? GatewaySignature { get; set; }
+
+        [Column("payment_gateway")]
+        public string? PaymentGateway { get; set; }
+
+        [Column("payment_method")]
+        public string? PaymentMethod { get; set; }
+
         [Column("created_by")]
         public string CreatedBy { get; set; } = "System";
 

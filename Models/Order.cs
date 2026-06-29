@@ -35,4 +35,22 @@ public class Order
 
     [Column("final_amount")]
     public decimal? FinalAmount { get; set; }
+
+    [Column("razorpay_order_id")]
+    public string? RazorpayOrderId { get; set; }
+
+    [Column("razorpay_payment_id")]
+    public string? RazorpayPaymentId { get; set; }
+
+    [Column("razorpay_signature")]
+    public string? RazorpaySignature { get; set; }
+
+    [Column("payment_gateway")]
+    public string? PaymentGateway { get; set; }
+
+    [Column("payment_method")]
+    public string? PaymentMethod { get; set; }
+
+    [Column("paid_at")]
+    public DateTime? PaidAt { get; set; }
 }

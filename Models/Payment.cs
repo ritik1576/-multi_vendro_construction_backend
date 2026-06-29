@@ -19,5 +19,9 @@ namespace InframartAPI_New.Models
 
         public string? Razorpay_Payment_Id { get; set; }
         public string? Razorpay_Order_Id { get; set; }
+
+        public long? AddressId { get; set; }
+        public int? CartId { get; set; }
+        public string? CouponCode { get; set; }
     }
 }

@@ -1,5 +1,6 @@
 using InframartAPI_New.DTOs;
 using System.Threading.Tasks;
+using MultiVendorAPI.Common;
 
 namespace InframartAPI_New.Services.Interfaces
 {
@@ -10,5 +11,7 @@ namespace InframartAPI_New.Services.Interfaces
         Task<(bool success, string message, WalletBalanceResponseDto? wallet)> AddMoneyAsync(long userId, AddMoneyRequestDto dto);
         Task<(bool success, string message, WalletBalanceResponseDto? wallet)> WithdrawMoneyAsync(long userId, WithdrawMoneyRequestDto dto);
         Task<(bool success, string message, WalletBalanceResponseDto? wallet)> TransferMoneyAsync(long userId, TransferMoneyRequestDto dto);
+        Task<ServiceResponse<object>> CreateAddMoneyPaymentAsync(long userId, CreateWalletRechargeDto dto);
+        Task<ServiceResponse<object>> VerifyAddMoneyAsync(long userId, VerifyWalletRechargeDto dto);
     }
 }

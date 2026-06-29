@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Options;
+using InframartAPI_New.Models;
+using MultiVendorAPI.Common;
 
 namespace InframartAPI_New.Services
 {
@@ -14,15 +17,21 @@ namespace InframartAPI_New.Services
         private readonly IWalletRepository _walletRepository;
         private readonly AppDbContext _context;
         private readonly IEmailNotificationService _emailNotificationService;
+        private readonly INotificationService _notificationService;
+        private readonly RazorpaySettings _razorpaySettings;
 
         public WalletService(
             IWalletRepository walletRepository,
             AppDbContext context,
-            IEmailNotificationService emailNotificationService)
+            IEmailNotificationService emailNotificationService,
+            INotificationService notificationService,
+            IOptions<RazorpaySettings> razorpaySettings)
         {
             _walletRepository = walletRepository;
             _context = context;
             _emailNotificationService = emailNotificationService;
+            _notificationService = notificationService;
+            _razorpaySettings = razorpaySettings.Value;
         }
 
         public async Task<WalletBalanceResponseDto?> GetWalletBalanceAsync(long userId)
@@ -384,6 +393,173 @@ namespace InframartAPI_New.Services
             };
 
             return (true, "Money transferred successfully.", response);
+        }
+
+        public async Task<ServiceResponse<object>> CreateAddMoneyPaymentAsync(long userId, CreateWalletRechargeDto dto)
+        {
+            await Task.CompletedTask;
+            if (string.IsNullOrEmpty(_razorpaySettings.KeyId) || string.IsNullOrEmpty(_razorpaySettings.KeySecret))
+            {
+                Console.WriteLine("[ERROR] Razorpay configuration is missing or incomplete.");
+                return ServiceResponse<object>.FailureResponse("Razorpay Payment Gateway is not configured.", 500);
+            }
+
+            if (dto.Amount <= 0)
+            {
+                return ServiceResponse<object>.FailureResponse("Amount must be greater than zero.", 400);
+            }
+
+            long amountInPaise = Convert.ToInt64(dto.Amount * 100);
+
+            try
+            {
+                var client = new Razorpay.Api.RazorpayClient(_razorpaySettings.KeyId, _razorpaySettings.KeySecret);
+                Dictionary<string, object> options = new()
+                {
+                    { "amount", amountInPaise },
+                    { "currency", "INR" },
+                    { "receipt", $"WAL-{Guid.NewGuid().ToString("N").Substring(0, 10).ToUpper()}" }
+                };
+
+                var razorpayOrder = client.Order.Create(options);
+                var razorpayOrderId = razorpayOrder["id"].ToString();
+
+                // Log
+                Console.WriteLine($"[INFO] Razorpay Wallet Add Money Order Created: RazorpayOrderId={razorpayOrderId}, UserId={userId}, Amount={dto.Amount}, Timestamp={DateTime.UtcNow}");
+
+                var responseData = new
+                {
+                    razorpayOrderId = razorpayOrderId,
+                    amount = amountInPaise,
+                    currency = "INR",
+                    key = _razorpaySettings.KeyId
+                };
+
+                return ServiceResponse<object>.SuccessResponse(responseData, "Add money payment order created", 201);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] Razorpay wallet recharge order creation failed: {ex.Message}");
+                return ServiceResponse<object>.FailureResponse($"Razorpay order creation failed: {ex.Message}", 500);
+            }
+        }
+
+        public async Task<ServiceResponse<object>> VerifyAddMoneyAsync(long userId, VerifyWalletRechargeDto dto)
+        {
+            if (string.IsNullOrEmpty(_razorpaySettings.KeyId) || string.IsNullOrEmpty(_razorpaySettings.KeySecret))
+            {
+                Console.WriteLine("[ERROR] Razorpay configuration is missing or incomplete.");
+                return ServiceResponse<object>.FailureResponse("Razorpay Payment Gateway is not configured.", 500);
+            }
+
+            // Prevent Duplicate Verification: Check if this RazorpayOrderId/PaymentId has already been successfully verified.
+            var existingTxn = await _context.WalletTransactions
+                .FirstOrDefaultAsync(t => t.GatewayOrderId == dto.RazorpayOrderId || t.GatewayPaymentId == dto.RazorpayPaymentId);
+            if (existingTxn != null)
+            {
+                Console.WriteLine($"[WARNING] Duplicate Verification Attempt: Wallet recharge transaction already exists. RazorpayOrderId={dto.RazorpayOrderId}, UserId={userId}, Timestamp={DateTime.UtcNow}");
+                return ServiceResponse<object>.FailureResponse("Payment already verified and wallet credited.", 400);
+            }
+
+            // Verify Razorpay Signature
+            string secret = _razorpaySettings.KeySecret;
+            string payload = dto.RazorpayOrderId + "|" + dto.RazorpayPaymentId;
+            string calculatedSignature = "";
+            using (var hmac = new System.Security.Cryptography.HMACSHA256(System.Text.Encoding.UTF8.GetBytes(secret)))
+            {
+                var hash = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(payload));
+                calculatedSignature = BitConverter.ToString(hash).Replace("-", "").ToLower();
+            }
+
+            if (calculatedSignature != dto.RazorpaySignature.ToLower())
+            {
+                Console.WriteLine($"[ERROR] Wallet Recharge Signature Validation Failed: RazorpayOrderId={dto.RazorpayOrderId}, RazorpayPaymentId={dto.RazorpayPaymentId}, UserId={userId}, Timestamp={DateTime.UtcNow}");
+                
+                try
+                {
+                    await _notificationService.CreateNotificationAsync(userId, "Wallet Recharge Failed", $"Wallet recharge of {dto.Amount} INR failed.", "wallet");
+                }
+                catch {}
+
+                return ServiceResponse<object>.FailureResponse("Signature verification failed.", 400);
+            }
+
+            // Credit wallet
+            var wallet = await _walletRepository.GetWalletByUserIdAsync(userId);
+            if (wallet == null)
+            {
+                return ServiceResponse<object>.FailureResponse("Wallet not found.", 404);
+            }
+
+            var balanceBefore = wallet.AvailableBalance;
+            var balanceAfter = wallet.AvailableBalance + dto.Amount;
+
+            wallet.AvailableBalance = balanceAfter;
+            wallet.TotalCredits += dto.Amount;
+            wallet.UpdatedAt = DateTime.UtcNow;
+
+            await _walletRepository.UpdateWalletAsync(wallet);
+
+            var txn = new Models.WalletTransaction
+            {
+                TransactionId = "DEP" + Guid.NewGuid().ToString("N").Substring(0, 10).ToUpper(),
+                WalletId = wallet.Id,
+                TransactionType = Models.TransactionType.Deposit,
+                Direction = Models.TransactionDirection.Credit,
+                Amount = dto.Amount,
+                BalanceBefore = balanceBefore,
+                BalanceAfter = balanceAfter,
+                AvailableBefore = balanceBefore,
+                AvailableAfter = balanceAfter,
+                LockedBefore = wallet.LockedBalance,
+                LockedAfter = wallet.LockedBalance,
+                Status = Models.TransactionStatus.Success,
+                Title = "Wallet Recharge",
+                Description = "Money added to wallet via Razorpay",
+                GatewayOrderId = dto.RazorpayOrderId,
+                GatewayPaymentId = dto.RazorpayPaymentId,
+                GatewaySignature = dto.RazorpaySignature,
+                PaymentGateway = "Razorpay",
+                PaymentMethod = "UPI",
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = "System"
+            };
+
+            await _walletRepository.AddTransactionAsync(txn);
+            await _walletRepository.SaveChangesAsync();
+
+            // Logs
+            Console.WriteLine($"[INFO] Wallet Recharge Payment Verified: RazorpayOrderId={dto.RazorpayOrderId}, RazorpayPaymentId={dto.RazorpayPaymentId}, UserId={userId}, Amount={dto.Amount}, Timestamp={DateTime.UtcNow}");
+            Console.WriteLine($"[INFO] Wallet Credited: WalletId={wallet.Id}, UserId={userId}, Amount={dto.Amount}, Timestamp={DateTime.UtcNow}");
+
+            // Send notification & email
+            try
+            {
+                await _notificationService.CreateNotificationAsync(userId, "Wallet Recharge Success", $"Successfully added {dto.Amount} INR to your wallet.", "wallet");
+                
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+                if (user != null && !string.IsNullOrEmpty(user.Email))
+                {
+                    await _emailNotificationService.SendTemplateEmailAsync(
+                        "ADD_MONEY",
+                        user.Email,
+                        new Dictionary<string, string>
+                        {
+                            { "CustomerName", user.FullName ?? "Customer" },
+                            { "Amount", dto.Amount.ToString("F2") },
+                            { "WalletBalance", wallet.AvailableBalance.ToString("F2") },
+                            { "TransactionId", txn.TransactionId },
+                            { "WalletUrl", "https://inframart.com/wallet" }
+                        }
+                    );
+                }
+            }
+            catch (Exception exVal)
+            {
+                Console.WriteLine($"[DEBUG] Notification/Email sending failed for wallet recharge: {exVal.Message}");
+            }
+
+            return ServiceResponse<object>.SuccessResponse(new { message = "Wallet recharged successfully.", balance = wallet.AvailableBalance }, "Wallet recharged successfully.");
         }
     }
 }
