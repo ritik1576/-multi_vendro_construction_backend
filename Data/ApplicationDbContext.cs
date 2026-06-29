@@ -17,6 +17,7 @@ namespace MultiVendorAPI.Data
         public DbSet<CartItem> CartItems { get; set; }
         public DbSet<Vendor> Vendors { get; set; }
         public DbSet<Order> Orders { get; set; }
+        public DbSet<Payment> Payments { get; set; }
 
         public DbSet<OrderItem> OrderItems { get; set; }
         public DbSet<Address> Addresses { get; set; }
@@ -37,6 +38,7 @@ namespace MultiVendorAPI.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Product>().ToTable("products");
+            modelBuilder.Entity<Payment>().ToTable("payments");
 
             modelBuilder.Entity<Vendor>(entity =>
             {

@@ -46,6 +46,8 @@ namespace InframartAPI_New.Data
                       .HasForeignKey(k => k.VendorId)
                       .OnDelete(DeleteBehavior.Cascade);
             });
+
+            modelBuilder.Entity<Payment>().ToTable("payments");
         }
     }
 }

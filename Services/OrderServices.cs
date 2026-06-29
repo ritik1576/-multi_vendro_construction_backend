@@ -226,7 +226,8 @@ public class OrderServices : IOrderService
                     SubtotalAmount = subtotal,
                     CommissionAmount = commissionAmount,
                     VendorAmount = vendorAmount,
-                    FinalAmount = orderAmount
+                    FinalAmount = orderAmount,
+                    PaymentMethod = "Wallet"
                 };
 
                 await _orderRepository.CreateOrderAsync(order);
@@ -422,7 +423,8 @@ public class OrderServices : IOrderService
                 PaymentStatus = "pending",
                 OrderStatus = "pending",
                 PlacedAt = now,
-                CreatedAt = now
+                CreatedAt = now,
+                PaymentMethod = string.IsNullOrWhiteSpace(dto.PaymentMethod) ? "COD" : dto.PaymentMethod
             };
 
             await _orderRepository.CreateOrderAsync(order);
@@ -732,11 +734,33 @@ public class OrderServices : IOrderService
             },
             PaymentMethod = new PaymentMethodDto
             {
+                Method = string.IsNullOrWhiteSpace(order.PaymentMethod) ? "COD" : order.PaymentMethod,
+                Description = GetPaymentMethodDescription(order.PaymentMethod),
                 PaymentStatus = order.PaymentStatus
             },
             Vendors = new List<string> { AssumedVendorName },
             Tracking = MapToTracking(order)
         };
+    }
+
+    private static string GetPaymentMethodDescription(string? paymentMethod)
+    {
+        if (string.IsNullOrWhiteSpace(paymentMethod))
+            return "Pay on delivery";
+
+        switch (paymentMethod.Trim().ToUpperInvariant())
+        {
+            case "COD":
+                return "Pay on delivery";
+            case "WALLET":
+                return "Paid via Wallet";
+            case "UPI":
+                return "Paid via UPI";
+            case "RAZORPAY":
+                return "Paid via Online Gateway";
+            default:
+                return $"Paid via {paymentMethod}";
+        }
     }
 
     private static OrderTrackingDto MapToTracking(Order order)
@@ -1039,8 +1063,8 @@ public class OrderServices : IOrderService
                 CouponCode = request.CouponCode
             };
 
-            _appDbContext.Payments.Add(payment);
-            await _appDbContext.SaveChangesAsync();
+            _applicationDbContext.Payments.Add(payment);
+            await _applicationDbContext.SaveChangesAsync();
 
             // Log
             Console.WriteLine($"[INFO] Razorpay Order Created: RazorpayOrderId={razorpayOrderId}, PaymentId={payment.Id}, UserId={userId}, Amount={totalAmount}, Timestamp={DateTime.UtcNow}");
@@ -1072,7 +1096,7 @@ public class OrderServices : IOrderService
         }
 
         // Prevent Duplicate Verification: Check if payment already processed
-        var payment = await _appDbContext.Payments.FirstOrDefaultAsync(p => p.Id == request.OrderId);
+        var payment = await _applicationDbContext.Payments.FirstOrDefaultAsync(p => p.Id == request.OrderId);
         if (payment == null)
         {
             Console.WriteLine($"[WARNING] Payment record not found for OrderId={request.OrderId}");
@@ -1098,13 +1122,13 @@ public class OrderServices : IOrderService
         if (calculatedSignature != request.RazorpaySignature.ToLower())
         {
             payment.Status = "failed";
-            await _appDbContext.SaveChangesAsync();
+            await _applicationDbContext.SaveChangesAsync();
 
             // Trigger payment failed notification/emails
             try
             {
                 await _notificationService.CreateNotificationAsync(userId, "Order Payment Failed", $"Payment failed for your order checkout transaction {payment.Id}.", "payment");
-                var user = await _appDbContext.Users.FirstOrDefaultAsync(u => u.Id == userId);
+                var user = await _applicationDbContext.Users.FirstOrDefaultAsync(u => u.Id == userId);
                 if (user != null && !string.IsNullOrEmpty(user.Email))
                 {
                     await _emailNotificationService.SendTemplateEmailAsync(
@@ -1197,7 +1221,7 @@ public class OrderServices : IOrderService
         {
             return ServiceResponse<object>.FailureResponse("Vendor not found for the ordered items.", 400);
         }
-        var vendorObj = await _appDbContext.Vendors.FirstOrDefaultAsync(v => v.Id == vendorId.Value);
+        var vendorObj = await _applicationDbContext.Vendors.FirstOrDefaultAsync(v => v.Id == vendorId.Value);
         if (vendorObj == null || !vendorObj.UserId.HasValue)
         {
             return ServiceResponse<object>.FailureResponse("Vendor user ID not found.", 400);
@@ -1210,7 +1234,7 @@ public class OrderServices : IOrderService
             return ServiceResponse<object>.FailureResponse("Vendor wallet not found.", 400);
         }
 
-        var adminUser = await _appDbContext.Users.FirstOrDefaultAsync(u => u.Role == "admin");
+        var adminUser = await _applicationDbContext.Users.FirstOrDefaultAsync(u => u.Role == "admin");
         if (adminUser == null)
         {
             return ServiceResponse<object>.FailureResponse("Admin user not found.", 500);
@@ -1272,8 +1296,8 @@ public class OrderServices : IOrderService
 
             // Link the Order ID to the payment record
             payment.Order_Id = order.Id;
-            _appDbContext.Payments.Update(payment);
-            await _appDbContext.SaveChangesAsync();
+            _applicationDbContext.Payments.Update(payment);
+            await _applicationDbContext.SaveChangesAsync();
 
             // Add items and deduct stock
             for (var i = 0; i < cart.CartItems.Count; i++)
@@ -1335,7 +1359,7 @@ public class OrderServices : IOrderService
 
             // Wallet Transactions for Vendor and Admin (Since vendor and admin received credit from online checkout)
             var transactionId = "ORD" + Guid.NewGuid().ToString("N").Substring(0, 10).ToUpper();
-            var customerUser = await _appDbContext.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            var customerUser = await _applicationDbContext.Users.FirstOrDefaultAsync(u => u.Id == userId);
             string customerName = customerUser?.FullName ?? "Customer";
 
             var vendTxn = new InframartAPI_New.Models.WalletTransaction

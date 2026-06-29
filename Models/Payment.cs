@@ -3,7 +3,7 @@ namespace InframartAPI_New.Models
     public class Payment
     {
         public long Id { get; set; }
-        public long Order_Id { get; set; }
+        public long? Order_Id { get; set; }
 
         public long? User_Id { get; set; }
         public string? Payment_Method { get; set; }

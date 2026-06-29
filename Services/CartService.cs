@@ -209,6 +209,7 @@ namespace MultiVendorAPI.Services
 
             return new CartDto
             {
+                CartId = cart.Id,
                 UserId = cart.UserId,
                 Items = items,
                 TotalPrice = items.Sum(i => i.TotalPrice)
