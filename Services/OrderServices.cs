@@ -226,7 +226,8 @@ public class OrderServices : IOrderService
                     SubtotalAmount = subtotal,
                     CommissionAmount = commissionAmount,
                     VendorAmount = vendorAmount,
-                    FinalAmount = orderAmount
+                    FinalAmount = orderAmount,
+                    PaymentMethod = "Wallet"
                 };
 
                 await _orderRepository.CreateOrderAsync(order);
@@ -422,7 +423,8 @@ public class OrderServices : IOrderService
                 PaymentStatus = "pending",
                 OrderStatus = "pending",
                 PlacedAt = now,
-                CreatedAt = now
+                CreatedAt = now,
+                PaymentMethod = string.IsNullOrWhiteSpace(dto.PaymentMethod) ? "COD" : dto.PaymentMethod
             };
 
             await _orderRepository.CreateOrderAsync(order);
@@ -732,11 +734,33 @@ public class OrderServices : IOrderService
             },
             PaymentMethod = new PaymentMethodDto
             {
+                Method = string.IsNullOrWhiteSpace(order.PaymentMethod) ? "COD" : order.PaymentMethod,
+                Description = GetPaymentMethodDescription(order.PaymentMethod),
                 PaymentStatus = order.PaymentStatus
             },
             Vendors = new List<string> { AssumedVendorName },
             Tracking = MapToTracking(order)
         };
+    }
+
+    private static string GetPaymentMethodDescription(string? paymentMethod)
+    {
+        if (string.IsNullOrWhiteSpace(paymentMethod))
+            return "Pay on delivery";
+
+        switch (paymentMethod.Trim().ToUpperInvariant())
+        {
+            case "COD":
+                return "Pay on delivery";
+            case "WALLET":
+                return "Paid via Wallet";
+            case "UPI":
+                return "Paid via UPI";
+            case "RAZORPAY":
+                return "Paid via Online Gateway";
+            default:
+                return $"Paid via {paymentMethod}";
+        }
     }
 
     private static OrderTrackingDto MapToTracking(Order order)
