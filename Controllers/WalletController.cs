@@ -225,5 +225,47 @@ namespace InframartAPI_New.Controllers
                 data = wallet
             });
         }
+
+        /// <summary>
+        /// Create Wallet Add Money Razorpay Order
+        /// </summary>
+        [HttpPost("create-add-money-payment")]
+        public async Task<IActionResult> CreateAddMoneyPayment([FromBody] CreateWalletRechargeDto dto)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !long.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized(new { success = false, message = "Unauthorized." });
+            }
+
+            var result = await _walletService.CreateAddMoneyPaymentAsync(userId, dto);
+            if (!result.Success)
+            {
+                return StatusCode(result.StatusCode, new { message = result.Message });
+            }
+
+            return StatusCode(result.StatusCode, result.Data);
+        }
+
+        /// <summary>
+        /// Verify Wallet Add Money Signature
+        /// </summary>
+        [HttpPost("verify-add-money")]
+        public async Task<IActionResult> VerifyAddMoney([FromBody] VerifyWalletRechargeDto dto)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !long.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized(new { success = false, message = "Unauthorized." });
+            }
+
+            var result = await _walletService.VerifyAddMoneyAsync(userId, dto);
+            if (!result.Success)
+            {
+                return StatusCode(result.StatusCode, new { message = result.Message });
+            }
+
+            return StatusCode(result.StatusCode, result.Data);
+        }
     }
 }

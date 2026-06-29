@@ -88,4 +88,26 @@ public class OrdersController : ControllerBase
         var result = await _service.GetOrderTrackingAsync(id, currentUserId, role);
         return StatusCode(result.StatusCode, result);
     }
+
+    [HttpPost("create-online-payment")]
+    [Authorize(Roles = "customer")]
+    public async Task<IActionResult> CreateOnlinePayment([FromBody] InframartAPI_New.DTOs.CreateOnlinePaymentDto request)
+    {
+        var (userId, _) = GetCurrentUser();
+        var result = await _service.CreateOnlinePaymentAsync(request, userId);
+        if (!result.Success)
+            return StatusCode(result.StatusCode, new { message = result.Message });
+        return StatusCode(result.StatusCode, result.Data);
+    }
+
+    [HttpPost("verify-payment")]
+    [Authorize(Roles = "customer")]
+    public async Task<IActionResult> VerifyOnlinePayment([FromBody] InframartAPI_New.DTOs.VerifyOnlinePaymentDto request)
+    {
+        var (userId, _) = GetCurrentUser();
+        var result = await _service.VerifyOnlinePaymentAsync(request, userId);
+        if (!result.Success)
+            return StatusCode(result.StatusCode, new { message = result.Message });
+        return StatusCode(result.StatusCode, result.Data);
+    }
 }

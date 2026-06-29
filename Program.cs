@@ -37,9 +37,13 @@ builder.Services.AddScoped<IVendorService, VendorService>();
 builder.Services.AddScoped<IVendorKycService, VendorKycService>();
 
 // ================= RAZORPAY CONFIG =================
-builder.Services.Configure<RazorpaySettings>(
-    builder.Configuration.GetSection("Razorpay")
-);
+builder.Services.Configure<RazorpaySettings>(options =>
+{
+    var keyId = builder.Configuration["RAZORPAY_KEY_ID"] ?? builder.Configuration["Razorpay:KeyId"];
+    var keySecret = builder.Configuration["RAZORPAY_KEY_SECRET"] ?? builder.Configuration["Razorpay:KeySecret"];
+    options.KeyId = keyId ?? string.Empty;
+    options.KeySecret = keySecret ?? string.Empty;
+});
 
 // ================= CLOUDFLARE R2 CONFIG =================
 builder.Services.Configure<InframartAPI_New.Models.CloudflareR2Settings>(
@@ -320,10 +324,26 @@ using (var scope = app.Services.CreateScope())
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `orders` ADD COLUMN `commission_amount` DECIMAL(18,2) NULL;"); } catch {}
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `orders` ADD COLUMN `vendor_amount` DECIMAL(18,2) NULL;"); } catch {}
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `orders` ADD COLUMN `final_amount` DECIMAL(18,2) NULL;"); } catch {}
-            Console.WriteLine("Successfully ensured `orders` wallet columns exist.");
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `orders` ADD COLUMN `razorpay_order_id` VARCHAR(255) NULL;"); } catch {}
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `orders` ADD COLUMN `razorpay_payment_id` VARCHAR(255) NULL;"); } catch {}
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `orders` ADD COLUMN `razorpay_signature` VARCHAR(255) NULL;"); } catch {}
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `orders` ADD COLUMN `payment_gateway` VARCHAR(100) NULL;"); } catch {}
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `orders` ADD COLUMN `payment_method` VARCHAR(100) NULL;"); } catch {}
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `orders` ADD COLUMN `paid_at` DATETIME NULL;"); } catch {}
+            Console.WriteLine("Successfully ensured `orders` wallet and Razorpay columns exist.");
             
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `wallet_transactions` ADD COLUMN `title` VARCHAR(255) NULL;"); } catch {}
-            Console.WriteLine("Successfully ensured `wallet_transactions` title column exists.");
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `wallet_transactions` ADD COLUMN `gateway_order_id` VARCHAR(255) NULL;"); } catch {}
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `wallet_transactions` ADD COLUMN `gateway_payment_id` VARCHAR(255) NULL;"); } catch {}
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `wallet_transactions` ADD COLUMN `gateway_signature` VARCHAR(255) NULL;"); } catch {}
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `wallet_transactions` ADD COLUMN `payment_gateway` VARCHAR(100) NULL;"); } catch {}
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `wallet_transactions` ADD COLUMN `payment_method` VARCHAR(100) NULL;"); } catch {}
+            Console.WriteLine("Successfully ensured `wallet_transactions` title and Razorpay columns exist.");
+
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `payments` ADD COLUMN `AddressId` BIGINT NULL;"); } catch {}
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `payments` ADD COLUMN `CartId` INT NULL;"); } catch {}
+            try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `payments` ADD COLUMN `CouponCode` VARCHAR(255) NULL;"); } catch {}
+            Console.WriteLine("Successfully ensured `payments` state tracking columns exist.");
 
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `coupons` ADD COLUMN `per_user_limit` INT NULL;"); } catch {}
             try { await db.Database.ExecuteSqlRawAsync("ALTER TABLE `notifications` ADD COLUMN `reference_type` VARCHAR(100) NULL;"); } catch {}
