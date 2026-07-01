@@ -42,5 +42,9 @@ namespace MultiVendorAPI.Models
         public DateTime? UpdatedAt { get; set; }
 
         public List<string>? Images { get; set; }
+
+        public string? OriginalImageUrl { get; set; }
+
+        public string? ThumbnailImageUrl { get; set; }
     }
 }

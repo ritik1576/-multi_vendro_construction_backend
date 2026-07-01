@@ -17,10 +17,14 @@ namespace InframartAPI_New.Controllers
     public class AdminController : ControllerBase
     {
         private readonly IAdminService _adminService;
+        private readonly MultiVendorAPI.Services.Interfaces.IProductService _productService;
 
-        public AdminController(IAdminService adminService)
+        public AdminController(
+            IAdminService adminService,
+            MultiVendorAPI.Services.Interfaces.IProductService productService)
         {
             _adminService = adminService;
+            _productService = productService;
         }
 
         [HttpPost("login")]
@@ -211,5 +215,31 @@ namespace InframartAPI_New.Controllers
                 message = "Review deleted successfully"
             });
         }
+
+        [HttpPost("categories")]
+        public async Task<IActionResult> CreateCategory([FromBody] CategoryDto dto)
+        {
+            var response = await _productService.CreateCategoryAsync(dto.Name);
+            return StatusCode(response.StatusCode, response);
+        }
+
+        [HttpPut("categories/{id:long}")]
+        public async Task<IActionResult> UpdateCategory(long id, [FromBody] CategoryDto dto)
+        {
+            var response = await _productService.UpdateCategoryAsync(id, dto.Name);
+            return StatusCode(response.StatusCode, response);
+        }
+
+        [HttpDelete("categories/{id:long}")]
+        public async Task<IActionResult> DeleteCategory(long id)
+        {
+            var response = await _productService.DeleteCategoryAsync(id);
+            return StatusCode(response.StatusCode, response);
+        }
+    }
+
+    public class CategoryDto
+    {
+        public string Name { get; set; } = string.Empty;
     }
 }

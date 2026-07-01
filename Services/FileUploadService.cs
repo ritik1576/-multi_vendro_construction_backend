@@ -19,22 +19,21 @@ namespace InframartAPI_New.Services
             _configuration = configuration;
         }
 
-        public async Task<string> UploadProductImageAsync(IFormFile file)
+        public async Task<InframartAPI_New.DTOs.ProductImageUploadResult> UploadProductImageAsync(IFormFile file)
         {
             if (file == null || file.Length == 0)
             {
                 throw new ArgumentException("No file was uploaded.");
             }
 
-            // Validate image types
-            var allowedContentTypes = new[] { "image/jpeg", "image/png", "image/webp", "image/jpg" };
-            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+            Console.WriteLine($"[Image Upload] Starting upload for file: {file.FileName}");
 
-            var contentType = file.ContentType.ToLower();
             var extension = Path.GetExtension(file.FileName).ToLower();
+            var contentType = file.ContentType.ToLower();
 
-            if (!allowedContentTypes.Contains(contentType) || !allowedExtensions.Contains(extension))
+            if (!MultiVendorAPI.Helpers.ImageOptimizerHelper.IsSupportedFormat(extension, contentType))
             {
+                Console.WriteLine($"[Image Upload Error] Unsupported file type: {extension} / {contentType}");
                 throw new ArgumentException("Unsupported file type. Only JPEG, PNG, and WEBP images are allowed.");
             }
 
@@ -52,9 +51,25 @@ namespace InframartAPI_New.Services
                 throw new InvalidOperationException("Cloudflare R2 configuration is incomplete or missing.");
             }
 
-            // Generate unique filename: products/{guid}.{extension}
-            var cleanExtension = extension.TrimStart('.');
-            var uniqueFileName = $"products/{Guid.NewGuid()}.{cleanExtension}";
+            byte[] originalWebp;
+            byte[] thumbnailWebp;
+
+            try
+            {
+                using var uploadStream = file.OpenReadStream();
+                (originalWebp, thumbnailWebp) = MultiVendorAPI.Helpers.ImageOptimizerHelper.OptimizeImage(uploadStream);
+                Console.WriteLine("[Image Optimization Success] Compressed original image and generated thumbnail successfully.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Image Optimization Error] Failed to optimize image: {ex.Message}");
+                throw;
+            }
+
+            // Generate matching filename: products/original/product-{guid}.webp & products/thumbnails/product-{guid}.webp
+            var guid = Guid.NewGuid().ToString();
+            var originalKey = $"products/original/product-{guid}.webp";
+            var thumbnailKey = $"products/thumbnails/product-{guid}.webp";
 
             var config = new AmazonS3Config
             {
@@ -64,27 +79,66 @@ namespace InframartAPI_New.Services
             };
 
             using var client = new AmazonS3Client(accessKey, secretKey, config);
-            using var stream = file.OpenReadStream();
 
-            var putRequest = new PutObjectRequest
+            // Upload Original
+            try
             {
-                BucketName = bucketName,
-                Key = uniqueFileName,
-                InputStream = stream,
-                ContentType = contentType,
-                DisablePayloadSigning = true,
-                DisableDefaultChecksumValidation = true
-            };
+                using var originalStream = new MemoryStream(originalWebp);
+                var putOriginalRequest = new PutObjectRequest
+                {
+                    BucketName = bucketName,
+                    Key = originalKey,
+                    InputStream = originalStream,
+                    ContentType = "image/webp",
+                    DisablePayloadSigning = true,
+                    DisableDefaultChecksumValidation = true
+                };
 
-            var response = await client.PutObjectAsync(putRequest);
-
-            if (response.HttpStatusCode != System.Net.HttpStatusCode.OK)
+                var response = await client.PutObjectAsync(putOriginalRequest);
+                if (response.HttpStatusCode != System.Net.HttpStatusCode.OK)
+                {
+                    throw new Exception($"S3 original upload responded with: {response.HttpStatusCode}");
+                }
+                Console.WriteLine($"[Cloudflare Upload Success] Uploaded original image to R2 key: {originalKey}");
+            }
+            catch (Exception ex)
             {
-                throw new Exception($"Failed to upload image to Cloudflare R2. S3 Response status: {response.HttpStatusCode}");
+                Console.WriteLine($"[Cloudflare Upload Error] Failed to upload original image to R2: {ex.Message}");
+                throw;
             }
 
-            // Construct return URL using the proxy stream path
-            return $"/sys/stream/{uniqueFileName}";
+            // Upload Thumbnail
+            try
+            {
+                using var thumbnailStream = new MemoryStream(thumbnailWebp);
+                var putThumbnailRequest = new PutObjectRequest
+                {
+                    BucketName = bucketName,
+                    Key = thumbnailKey,
+                    InputStream = thumbnailStream,
+                    ContentType = "image/webp",
+                    DisablePayloadSigning = true,
+                    DisableDefaultChecksumValidation = true
+                };
+
+                var response = await client.PutObjectAsync(putThumbnailRequest);
+                if (response.HttpStatusCode != System.Net.HttpStatusCode.OK)
+                {
+                    throw new Exception($"S3 thumbnail upload responded with: {response.HttpStatusCode}");
+                }
+                Console.WriteLine($"[Cloudflare Upload Success] Uploaded thumbnail image to R2 key: {thumbnailKey}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Cloudflare Upload Error] Failed to upload thumbnail image to R2: {ex.Message}");
+                throw;
+            }
+
+            return new InframartAPI_New.DTOs.ProductImageUploadResult
+            {
+                OriginalUrl = $"/sys/stream/{originalKey}",
+                ThumbnailUrl = $"/sys/stream/{thumbnailKey}"
+            };
         }
 
         public async Task<string> UploadKycDocumentAsync(IFormFile file)

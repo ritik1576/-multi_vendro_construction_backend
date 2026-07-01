@@ -149,41 +149,68 @@ namespace InframartAPI_New.Middlewares
             }
 
             // 4. File Format Protections
-            var extension = Path.GetExtension(file.FileName).TrimStart('.').ToLower();
-            var allowedExtensions = new[] { "jpg", "jpeg", "png", "webp" };
-            if (!allowedExtensions.Contains(extension))
+            var extension = Path.GetExtension(file.FileName).ToLower();
+            var contentType = file.ContentType.ToLower();
+
+            if (!MultiVendorAPI.Helpers.ImageOptimizerHelper.IsSupportedFormat(extension, contentType))
             {
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await context.Response.WriteAsJsonAsync(new { success = false, message = "Unsupported file type extension." });
+                await context.Response.WriteAsJsonAsync(new { success = false, message = "Unsupported file format. Only JPG, JPEG, PNG, and WEBP are allowed." });
                 return;
             }
 
-            var allowedMimeTypes = new[] { "image/jpeg", "image/png", "image/webp" };
-            if (!allowedMimeTypes.Contains(file.ContentType.ToLower()))
+            byte[] originalWebp;
+            byte[] thumbnailWebp;
+
+            try
             {
-                context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await context.Response.WriteAsJsonAsync(new { success = false, message = "Unsupported MIME type." });
+                using (var uploadStream = file.OpenReadStream())
+                {
+                    (originalWebp, thumbnailWebp) = MultiVendorAPI.Helpers.ImageOptimizerHelper.OptimizeImage(uploadStream);
+                }
+                Console.WriteLine("[Image Optimization Success] /sys/upload compressed original image and generated thumbnail successfully.");
+            }
+            catch (Exception ex)
+            {
+                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                await context.Response.WriteAsJsonAsync(new { success = false, message = $"Image processing failed: {ex.Message}" });
                 return;
             }
 
             // 5. Stream Transport straight to Cloudflare R2 Node
             var guid = Guid.NewGuid().ToString();
-            var storageKey = $"products/{vendorId}/{guid}.{extension}";
+            var originalKey = $"products/original/product-{guid}.webp";
+            var thumbnailKey = $"products/thumbnails/product-{guid}.webp";
 
             try
             {
-                using (var stream = file.OpenReadStream())
+                // Upload Original
+                using (var originalStream = new MemoryStream(originalWebp))
                 {
                     var putRequest = new PutObjectRequest
                     {
                         BucketName = _r2Settings.BucketName,
-                        Key = storageKey,
-                        InputStream = stream,
-                        ContentType = file.ContentType,
-                        DisablePayloadSigning = true, // CRITICAL COMPATIBILITY FLAG FOR R2
+                        Key = originalKey,
+                        InputStream = originalStream,
+                        ContentType = "image/webp",
+                        DisablePayloadSigning = true,
                         DisableDefaultChecksumValidation = true
                     };
+                    await _s3Client.PutObjectAsync(putRequest);
+                }
 
+                // Upload Thumbnail
+                using (var thumbnailStream = new MemoryStream(thumbnailWebp))
+                {
+                    var putRequest = new PutObjectRequest
+                    {
+                        BucketName = _r2Settings.BucketName,
+                        Key = thumbnailKey,
+                        InputStream = thumbnailStream,
+                        ContentType = "image/webp",
+                        DisablePayloadSigning = true,
+                        DisableDefaultChecksumValidation = true
+                    };
                     await _s3Client.PutObjectAsync(putRequest);
                 }
 
@@ -191,9 +218,9 @@ namespace InframartAPI_New.Middlewares
                 var db = context.RequestServices.GetRequiredService<ApplicationDbContext>();
                 var imageFile = new ImageFile
                 {
-                    StorageKey = storageKey,
-                    FileName = file.FileName,
-                    ContentType = file.ContentType,
+                    StorageKey = originalKey,
+                    FileName = Path.ChangeExtension(file.FileName, ".webp"),
+                    ContentType = "image/webp",
                     VendorId = vendorId,
                     CreatedAt = DateTime.Now
                 };
@@ -205,8 +232,9 @@ namespace InframartAPI_New.Middlewares
                 await context.Response.WriteAsJsonAsync(new
                 {
                     success = true,
-                    key = storageKey,
-                    imageUrl = $"/sys/stream/{storageKey}"
+                    key = originalKey,
+                    imageUrl = $"/sys/stream/{originalKey}",
+                    thumbnailUrl = $"/sys/stream/{thumbnailKey}"
                 });
             }
             catch (AmazonS3Exception ex)
@@ -258,6 +286,7 @@ namespace InframartAPI_New.Middlewares
                 using (var response = await _s3Client.GetObjectAsync(getRequest))
                 {
                     context.Response.ContentType = response.Headers.ContentType;
+                    context.Response.Headers["Cache-Control"] = "public,max-age=31536000,immutable";
                     context.Response.StatusCode = StatusCodes.Status200OK;
 
                     // Directly pipes bytes downstream to the client interface connection

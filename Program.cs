@@ -31,6 +31,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseMySql(connectionString, serverVersion));
 
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddMemoryCache();
 // ================= SERVICES =================
 builder.Services.AddScoped<IEmailSender, ResendEmailSender>();
 builder.Services.AddScoped<IVendorService, VendorService>();
@@ -368,6 +369,17 @@ using (var scope = app.Services.CreateScope())
         catch (Exception ex)
         {
             Console.WriteLine($"Error checking/creating `vendor_kyc` table: {ex.Message}");
+        }
+        // Load categories into cache on startup
+        try
+        {
+            var productService = scope.ServiceProvider.GetRequiredService<MultiVendorAPI.Services.Interfaces.IProductService>();
+            await productService.GetCategoriesAsync();
+            Console.WriteLine("Pre-loaded categories into memory cache.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error pre-loading categories into cache: {ex.Message}");
         }
     }
     catch (Exception ex)
