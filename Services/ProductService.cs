@@ -42,14 +42,21 @@ namespace MultiVendorAPI.Services
             }
 
             var request = _httpContextAccessor.HttpContext?.Request;
+            
+            string path = thumbnail.TrimStart('/');
+            if (path.StartsWith("sys/stream/", StringComparison.OrdinalIgnoreCase))
+            {
+                path = path.Substring("sys/stream/".Length);
+            }
+
             if (request == null)
             {
-                return $"/sys/stream/{thumbnail}";
+                return $"/sys/stream/{path}";
             }
 
             var scheme = request.Scheme;
             var host = request.Host;
-            return $"{scheme}://{host}/sys/stream/{thumbnail}";
+            return $"{scheme}://{host}/sys/stream/{path}";
         }
 
         public async Task<List<ProductDto>> GetProductsAsync()
