@@ -30,10 +30,11 @@ namespace InframartAPI_New.Controllers
 
             try
             {
-                var fileUrl = await _fileUploadService.UploadProductImageAsync(file);
+                var uploadResult = await _fileUploadService.UploadProductImageAsync(file);
                 var response = new UploadResponseDto
                 {
-                    Url = fileUrl
+                    Url = uploadResult.OriginalUrl,
+                    ThumbnailUrl = uploadResult.ThumbnailUrl
                 };
                 return Ok(response);
             }

@@ -125,6 +125,7 @@ namespace InframartAPI_New.DTOs.VendorDTOs
         public decimal? Price { get; set; }
         public decimal? DiscountPrice { get; set; }
         public string? Thumbnail { get; set; }
+        public string? ThumbnailUrl { get; set; }
         public string? Status { get; set; }
         public bool? InStock { get; set; }
         public int? StockQuantity { get; set; }

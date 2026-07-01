@@ -1,8 +1,8 @@
 namespace InframartAPI_New.DTOs
 {
-    public class UploadResponseDto
+    public class ProductImageUploadResult
     {
-        public string Url { get; set; } = string.Empty;
+        public string OriginalUrl { get; set; } = string.Empty;
         public string ThumbnailUrl { get; set; } = string.Empty;
     }
 }

@@ -18,5 +18,8 @@ namespace MultiVendorAPI.Services.Interfaces
         Task<ServiceResponse<List<ProductDto>>> SearchProductsAsync(string searchTerm);
         Task<ServiceResponse<bool>> BlockProductByIdAsync(long id);
         Task<ServiceResponse<List<ProductDto>>> GetBlockedProductsAsync();
+        Task<ServiceResponse<Category>> CreateCategoryAsync(string name);
+        Task<ServiceResponse<Category>> UpdateCategoryAsync(long id, string name);
+        Task<ServiceResponse<bool>> DeleteCategoryAsync(long id);
     }
 }

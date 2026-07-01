@@ -26,6 +26,10 @@ namespace MultiVendorAPI.DTOs
 
         public string? Thumbnail { get; set; }
 
+        public string? FullImageUrl { get; set; }
+
+        public string? ThumbnailUrl { get; set; }
+
         public string? Status { get; set; }
 
         public bool? InStock { get; set; }

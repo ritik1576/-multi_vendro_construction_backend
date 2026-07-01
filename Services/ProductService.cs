@@ -4,6 +4,7 @@ using MultiVendorAPI.Data;
 using MultiVendorAPI.DTOs;
 using MultiVendorAPI.Services.Interfaces;
 using MultiVendorAPI.Models;
+using Microsoft.Extensions.Caching.Memory;
 using MultiVendorAPI.Common;
 using InframartAPI_New.Services.Interfaces;
 
@@ -14,12 +15,19 @@ namespace MultiVendorAPI.Services
         private readonly ApplicationDbContext _context;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IFileUploadService _fileUploadService;
+        private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _cache;
+        private const string CategoriesCacheKey = "categories_list";
 
-        public ProductService(ApplicationDbContext context, IHttpContextAccessor httpContextAccessor, IFileUploadService fileUploadService)
+        public ProductService(
+            ApplicationDbContext context,
+            IHttpContextAccessor httpContextAccessor,
+            IFileUploadService fileUploadService,
+            Microsoft.Extensions.Caching.Memory.IMemoryCache cache)
         {
             _context = context;
             _httpContextAccessor = httpContextAccessor;
             _fileUploadService = fileUploadService;
+            _cache = cache;
         }
 
         private string? FormatThumbnailUrl(string? thumbnail)
@@ -34,30 +42,38 @@ namespace MultiVendorAPI.Services
             }
 
             var request = _httpContextAccessor.HttpContext?.Request;
+            
+            string path = thumbnail.TrimStart('/');
+            if (path.StartsWith("sys/stream/", StringComparison.OrdinalIgnoreCase))
+            {
+                path = path.Substring("sys/stream/".Length);
+            }
+
             if (request == null)
             {
-                return $"/sys/stream/{thumbnail}";
+                return $"/sys/stream/{path}";
             }
 
             var scheme = request.Scheme;
             var host = request.Host;
-            return $"{scheme}://{host}/sys/stream/{thumbnail}";
+            return $"{scheme}://{host}/sys/stream/{path}";
         }
 
         public async Task<List<ProductDto>> GetProductsAsync()
         {
-
-
             var products = await _context.Products
                 .Where(p => p.Status != "inactive" && p.Status != "deleted")
                 .Select(p => new ProductDto
                 {
                     Id = p.Id,
+                    ProductId = p.Id,
                     Name = p.Name,
                     Price = p.Price,
                     DiscountPrice = p.DiscountPrice,
                     Thumbnail = p.Thumbnail,
-                    Images = p.Images,
+                    ThumbnailUrl = p.ThumbnailImageUrl ?? p.Thumbnail,
+                    AverageRating = _context.Reviews.Where(r => r.ProductId == p.Id).Average(r => (double?)r.Rating) ?? 0.0,
+                    ReviewCount = _context.Reviews.Count(r => r.ProductId == p.Id),
                     CategoryId = p.CategoryId,
                     ShortDescription = p.ShortDescription,
                     Unit = p.Unit,
@@ -71,7 +87,8 @@ namespace MultiVendorAPI.Services
             foreach (var prod in products)
             {
                 prod.Thumbnail = FormatThumbnailUrl(prod.Thumbnail);
-                prod.Images = prod.Images?.Select(img => FormatThumbnailUrl(img)!).ToList() ?? new List<string>();
+                prod.ThumbnailUrl = FormatThumbnailUrl(prod.ThumbnailUrl);
+                prod.Images = new List<string>();
             }
 
             return products;
@@ -107,6 +124,7 @@ namespace MultiVendorAPI.Services
             }
 
 
+            var uploadedResults = new List<InframartAPI_New.DTOs.ProductImageUploadResult>();
             var uploadedUrls = new List<string>();
             if (dto.Images != null && dto.Images.Any())
             {
@@ -114,8 +132,9 @@ namespace MultiVendorAPI.Services
                 {
                     foreach (var file in dto.Images)
                     {
-                        var url = await _fileUploadService.UploadProductImageAsync(file);
-                        uploadedUrls.Add(url);
+                        var uploadRes = await _fileUploadService.UploadProductImageAsync(file);
+                        uploadedResults.Add(uploadRes);
+                        uploadedUrls.Add(uploadRes.OriginalUrl);
                     }
                 }
                 catch (Exception ex)
@@ -124,6 +143,7 @@ namespace MultiVendorAPI.Services
                 }
             }
 
+            var primaryResult = uploadedResults.FirstOrDefault();
             var product = new Product
             {
                 VendorId = dto.VendorId,
@@ -136,6 +156,8 @@ namespace MultiVendorAPI.Services
                 DiscountPrice = dto.DiscountPrice,
                 Sku = dto.Sku,
                 Thumbnail = string.IsNullOrEmpty(dto.Thumbnail) && uploadedUrls.Any() ? uploadedUrls.First() : dto.Thumbnail,
+                OriginalImageUrl = primaryResult != null ? primaryResult.OriginalUrl : dto.Thumbnail,
+                ThumbnailImageUrl = primaryResult != null ? primaryResult.ThumbnailUrl : dto.Thumbnail,
                 Images = uploadedUrls,
                 InStock = dto.InStock,
                 Quantity = dto.Quantity,
@@ -150,10 +172,12 @@ namespace MultiVendorAPI.Services
             var productDto = new ProductDto
             {
                 Id = product.Id,
+                ProductId = product.Id,
                 Name = product.Name,
                 Price = product.Price,
                 DiscountPrice = product.DiscountPrice,
                 Thumbnail = FormatThumbnailUrl(product.Thumbnail),
+                ThumbnailUrl = FormatThumbnailUrl(product.ThumbnailImageUrl ?? product.Thumbnail),
                 Images = product.Images.Select(img => FormatThumbnailUrl(img)!).ToList(),
                 CategoryId = product.CategoryId,
                 ShortDescription = product.ShortDescription,
@@ -221,6 +245,8 @@ namespace MultiVendorAPI.Services
                 DiscountPrice = product.DiscountPrice,
                 Sku = product.Sku,
                 Thumbnail = formattedThumbnail,
+                FullImageUrl = FormatThumbnailUrl(product.OriginalImageUrl ?? product.Thumbnail),
+                ThumbnailUrl = FormatThumbnailUrl(product.ThumbnailImageUrl ?? product.Thumbnail),
                 Status = product.Status,
                 InStock = product.InStock,
                 Quantity = product.Quantity,
@@ -314,21 +340,34 @@ namespace MultiVendorAPI.Services
             product.Sku = dto.Sku;
 
             product.Thumbnail = dto.Thumbnail;
+            if (!string.IsNullOrEmpty(dto.Thumbnail))
+            {
+                product.OriginalImageUrl = dto.Thumbnail;
+                product.ThumbnailImageUrl = dto.Thumbnail;
+            }
 
             if (dto.Images != null && dto.Images.Any())
             {
                 try
                 {
+                    var uploadedResults = new List<InframartAPI_New.DTOs.ProductImageUploadResult>();
                     var uploadedUrls = new List<string>();
                     foreach (var file in dto.Images)
                     {
-                        var url = await _fileUploadService.UploadProductImageAsync(file);
-                        uploadedUrls.Add(url);
+                        var uploadRes = await _fileUploadService.UploadProductImageAsync(file);
+                        uploadedResults.Add(uploadRes);
+                        uploadedUrls.Add(uploadRes.OriginalUrl);
                     }
                     product.Images = uploadedUrls;
-                    if (string.IsNullOrEmpty(product.Thumbnail))
+                    var primaryResult = uploadedResults.FirstOrDefault();
+                    if (primaryResult != null)
                     {
-                        product.Thumbnail = uploadedUrls.First();
+                        product.OriginalImageUrl = primaryResult.OriginalUrl;
+                        product.ThumbnailImageUrl = primaryResult.ThumbnailUrl;
+                        if (string.IsNullOrEmpty(product.Thumbnail))
+                        {
+                            product.Thumbnail = primaryResult.OriginalUrl;
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -354,10 +393,13 @@ namespace MultiVendorAPI.Services
                 .SuccessResponse(
                     new ProductDto
                     {
+                        Id = product.Id,
+                        ProductId = product.Id,
                         Name = product.Name,
                         Price = product.Price,
                         DiscountPrice = product.DiscountPrice,
                         Thumbnail = FormatThumbnailUrl(product.Thumbnail),
+                        ThumbnailUrl = FormatThumbnailUrl(product.ThumbnailImageUrl ?? product.Thumbnail),
                         Images = product.Images.Select(img => FormatThumbnailUrl(img)!).ToList(),
                         CategoryId = product.CategoryId,
                         ShortDescription = product.ShortDescription,
@@ -410,17 +452,28 @@ namespace MultiVendorAPI.Services
         }
         public async Task<ServiceResponse<List<string>>> GetCategoriesAsync()
         {
-            var categories = await _context.Categories
-                .Select(c => c.Name)
-                .ToListAsync();
+            if (!_cache.TryGetValue(CategoriesCacheKey, out List<string>? categories))
+            {
+                Console.WriteLine("[Cache Miss] Fetching categories from database.");
+                categories = await _context.Categories
+                    .Select(c => c.Name ?? string.Empty)
+                    .ToListAsync();
 
-#pragma warning disable CS8620 // Argument cannot be used for parameter due to differences in the nullability of reference types.
+                _cache.Set(CategoriesCacheKey, categories, new Microsoft.Extensions.Caching.Memory.MemoryCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24)
+                });
+            }
+            else
+            {
+                Console.WriteLine("[Cache Hit] Served categories from memory cache.");
+            }
+
             return ServiceResponse<List<string>>
                 .SuccessResponse(
-                    categories,
+                    categories!,
                     "Categories retrieved successfully",
                     200);
-#pragma warning restore CS8620 // Argument cannot be used for parameter due to differences in the nullability of reference types.
         }
         public async Task<ServiceResponse<List<ProductDto>>> SearchProductsAsync(string searchTerm)
         {
@@ -428,11 +481,15 @@ namespace MultiVendorAPI.Services
                 .Where(p => p.Name != null && p.Name.Contains(searchTerm) && p.Status != "inactive" && p.Status != "deleted")
                 .Select(p => new ProductDto
                 {
+                    Id = p.Id,
+                    ProductId = p.Id,
                     Name = p.Name,
                     Price = p.Price,
                     DiscountPrice = p.DiscountPrice,
                     Thumbnail = p.Thumbnail,
-                    Images = p.Images,
+                    ThumbnailUrl = p.ThumbnailImageUrl ?? p.Thumbnail,
+                    AverageRating = _context.Reviews.Where(r => r.ProductId == p.Id).Average(r => (double?)r.Rating) ?? 0.0,
+                    ReviewCount = _context.Reviews.Count(r => r.ProductId == p.Id),
                     CategoryId = p.CategoryId,
                     ShortDescription = p.ShortDescription,
                     Unit = p.Unit,
@@ -446,9 +503,9 @@ namespace MultiVendorAPI.Services
             foreach (var prod in products)
             {
                 prod.Thumbnail = FormatThumbnailUrl(prod.Thumbnail);
-                prod.Images = prod.Images?.Select(img => FormatThumbnailUrl(img)!).ToList() ?? new List<string>();
+                prod.ThumbnailUrl = FormatThumbnailUrl(prod.ThumbnailUrl);
+                prod.Images = new List<string>();
             }
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
 
             return ServiceResponse<List<ProductDto>>
                 .SuccessResponse(
@@ -480,11 +537,14 @@ namespace MultiVendorAPI.Services
                 .Select(p => new ProductDto
                 {
                     Id = p.Id,
+                    ProductId = p.Id,
                     Name = p.Name,
                     Price = p.Price,
                     DiscountPrice = p.DiscountPrice,
                     Thumbnail = p.Thumbnail,
-                    Images = p.Images,
+                    ThumbnailUrl = p.ThumbnailImageUrl ?? p.Thumbnail,
+                    AverageRating = _context.Reviews.Where(r => r.ProductId == p.Id).Average(r => (double?)r.Rating) ?? 0.0,
+                    ReviewCount = _context.Reviews.Count(r => r.ProductId == p.Id),
                     CategoryId = p.CategoryId,
                     ShortDescription = p.ShortDescription,
                     Unit = p.Unit,
@@ -498,10 +558,81 @@ namespace MultiVendorAPI.Services
             foreach (var prod in products)
             {
                 prod.Thumbnail = FormatThumbnailUrl(prod.Thumbnail);
-                prod.Images = prod.Images?.Select(img => FormatThumbnailUrl(img)!).ToList() ?? new List<string>();
+                prod.ThumbnailUrl = FormatThumbnailUrl(prod.ThumbnailUrl);
+                prod.Images = new List<string>();
             }
 
             return ServiceResponse<List<ProductDto>>.SuccessResponse(products, "Blocked products retrieved successfully", 200);
+        }
+
+        public async Task<ServiceResponse<Category>> CreateCategoryAsync(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return ServiceResponse<Category>.FailureResponse("Category name cannot be empty", 400);
+            }
+
+            var category = new Category
+            {
+                Name = name,
+                Slug = name.ToLower().Replace(" ", "-"),
+                Status = "active"
+            };
+
+            _context.Categories.Add(category);
+            await _context.SaveChangesAsync();
+
+            // Invalidate cache and reload
+            _cache.Remove(CategoriesCacheKey);
+            Console.WriteLine("[Cache Invalidate] Invalidated category cache due to category creation.");
+            await GetCategoriesAsync();
+
+            return ServiceResponse<Category>.SuccessResponse(category, "Category created successfully", 201);
+        }
+
+        public async Task<ServiceResponse<Category>> UpdateCategoryAsync(long id, string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return ServiceResponse<Category>.FailureResponse("Category name cannot be empty", 400);
+            }
+
+            var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == id);
+            if (category == null)
+            {
+                return ServiceResponse<Category>.FailureResponse("Category not found", 404);
+            }
+
+            category.Name = name;
+            category.Slug = name.ToLower().Replace(" ", "-");
+
+            await _context.SaveChangesAsync();
+
+            // Invalidate cache and reload
+            _cache.Remove(CategoriesCacheKey);
+            Console.WriteLine("[Cache Invalidate] Invalidated category cache due to category update.");
+            await GetCategoriesAsync();
+
+            return ServiceResponse<Category>.SuccessResponse(category, "Category updated successfully", 200);
+        }
+
+        public async Task<ServiceResponse<bool>> DeleteCategoryAsync(long id)
+        {
+            var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == id);
+            if (category == null)
+            {
+                return ServiceResponse<bool>.FailureResponse("Category not found", 404);
+            }
+
+            _context.Categories.Remove(category);
+            await _context.SaveChangesAsync();
+
+            // Invalidate cache and reload
+            _cache.Remove(CategoriesCacheKey);
+            Console.WriteLine("[Cache Invalidate] Invalidated category cache due to category deletion.");
+            await GetCategoriesAsync();
+
+            return ServiceResponse<bool>.SuccessResponse(true, "Category deleted successfully", 200);
         }
     }
 }

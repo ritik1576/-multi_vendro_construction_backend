@@ -102,6 +102,12 @@ namespace InframartAPI_New.Services
                 .Where(p => p.VendorId == vendorId && p.Status != "deleted")
                 .ToListAsync();
 
+            Func<string?, string?> formatUrl = (string? url) => {
+                if (string.IsNullOrEmpty(url)) return url;
+                if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || url.StartsWith("/")) return url;
+                return $"/sys/stream/{url}";
+            };
+
             var data = products.Select(prod => new VendorProductInfoDto
             {
                 ProductId        = prod.Id,
@@ -112,7 +118,8 @@ namespace InframartAPI_New.Services
                 Description      = prod.Description,
                 Price            = prod.Price,
                 DiscountPrice    = prod.DiscountPrice,
-                Thumbnail        = prod.Thumbnail,
+                Thumbnail        = formatUrl(prod.Thumbnail),
+                ThumbnailUrl     = formatUrl(prod.ThumbnailImageUrl ?? prod.Thumbnail),
                 Status           = prod.Status,
                 InStock          = prod.InStock,
                 StockQuantity    = prod.Quantity,

@@ -86,6 +86,8 @@ namespace MultiVendorAPI.Data
             modelBuilder.Entity<Product>().Property(p => p.Quantity).HasColumnName("quantity");
             modelBuilder.Entity<Product>().Property(p => p.CreatedAt).HasColumnName("created_at");
             modelBuilder.Entity<Product>().Property(p => p.UpdatedAt).HasColumnName("updated_at");
+            modelBuilder.Entity<Product>().Property(p => p.OriginalImageUrl).HasColumnName("original_image_url");
+            modelBuilder.Entity<Product>().Property(p => p.ThumbnailImageUrl).HasColumnName("thumbnail_image_url");
             modelBuilder.Entity<Product>()
                 .HasOne(p => p.Vendor)
                 .WithMany()
