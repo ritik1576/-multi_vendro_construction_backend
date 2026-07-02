@@ -1,0 +1,25 @@
+using MultiVendorAPI.DTOs;
+using MultiVendorAPI.Common;
+
+namespace MultiVendorAPI.Services.Interfaces
+{
+    public interface IProductService
+    {
+        Task<List<ProductDto>> GetProductsAsync();
+        Task<ServiceResponse<ProductDto>> CreateProductAsync(CreateProductDto dto);
+        Task<ServiceResponse<GetDetailedProductDto>> GetProductByIdAsync(long id);
+        Task<ServiceResponse<ProductDto>> UpdateProductAsync(
+            long id,
+            UpdateProductDto dto,
+            long? vendorId,
+            string userRole);
+        Task<ServiceResponse<string>> DeleteProductAsync(long id, long? vendorId, string userRole);
+        Task<ServiceResponse<List<string>>> GetCategoriesAsync();
+        Task<ServiceResponse<List<ProductDto>>> SearchProductsAsync(string searchTerm);
+        Task<ServiceResponse<bool>> BlockProductByIdAsync(long id);
+        Task<ServiceResponse<List<ProductDto>>> GetBlockedProductsAsync();
+        Task<ServiceResponse<Category>> CreateCategoryAsync(string name);
+        Task<ServiceResponse<Category>> UpdateCategoryAsync(long id, string name);
+        Task<ServiceResponse<bool>> DeleteCategoryAsync(long id);
+    }
+}

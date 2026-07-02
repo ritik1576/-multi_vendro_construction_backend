@@ -1,11 +1,21 @@
-namespace InframartAPI.Models
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace InframartAPI_New.Models
 {
+    [Table("users")]
     public class User
     {
-        public int Id { get; set; }
-        public string FullName { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-        public string PasswordHash { get; set; } = string.Empty;
-        public bool IsVerified { get; set; } = false;
+        [Key]
+        public long Id { get; set; }
+
+        [Column("full_name")]
+        public string? FullName { get; set; }
+
+        public string? Email { get; set; }
+        public string? Password { get; set; }
+        public string? Phone { get; set; }
+        public string? Role { get; set; }
+        public string? Status { get; set; }
     }
 }

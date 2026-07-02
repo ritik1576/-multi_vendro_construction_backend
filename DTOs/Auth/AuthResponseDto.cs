@@ -1,0 +1,25 @@
+namespace InframartAPI_New.DTOs
+{
+    public class AuthResponseDto
+    {
+        public bool Success { get; set; }
+        public string? Message { get; set; }
+
+        public string? Token { get; set; }
+
+        public long UserId { get; set; }
+        public long VendorId { get; set; }
+
+        public string? Role { get; set; }
+
+        public string? Status { get; set; }
+
+        public string? ShopName { get; set; }
+        public string? FullName { get; set; }
+
+        public bool? RequiresKyc { get; set; }
+        public string? KycStatus { get; set; }
+        public string? VendorStatus { get; set; }
+        public string? RejectionReason { get; set; }
+    }
+}

@@ -1,0 +1,346 @@
+using InframartAPI_New.Models;
+using Microsoft.EntityFrameworkCore;
+using MultiVendorAPI.Models;
+
+namespace MultiVendorAPI.Data
+{
+    public class ApplicationDbContext : DbContext
+    {
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+            : base(options)
+        {
+        }
+
+        public DbSet<Product> Products { get; set; }
+        public DbSet<Category> Categories { get; set; }
+        public DbSet<Cart> Carts { get; set; }
+        public DbSet<CartItem> CartItems { get; set; }
+        public DbSet<Vendor> Vendors { get; set; }
+        public DbSet<Order> Orders { get; set; }
+        public DbSet<Payment> Payments { get; set; }
+
+        public DbSet<OrderItem> OrderItems { get; set; }
+        public DbSet<Address> Addresses { get; set; }
+        public DbSet<ImageFile> ImageFiles { get; set; }
+        public DbSet<Review> Reviews { get; set; }
+        public DbSet<User> Users { get; set; }
+        public DbSet<Coupon> Coupons { get; set; }
+        public DbSet<CouponUsage> CouponUsages { get; set; }
+        public DbSet<VendorKyc> VendorKycs { get; set; }
+        public DbSet<Wallet> Wallets { get; set; }
+        public DbSet<WalletTransaction> WalletTransactions { get; set; }
+        public DbSet<EmailTemplate> EmailTemplates { get; set; }
+        public DbSet<EmailLog> EmailLogs { get; set; }
+        public DbSet<EmailTemplateSetting> EmailTemplateSettings { get; set; }
+        public DbSet<EmailTemplateVariable> EmailTemplateVariables { get; set; }
+
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Product>().ToTable("products");
+            modelBuilder.Entity<Payment>().ToTable("payments");
+
+            modelBuilder.Entity<Vendor>(entity =>
+            {
+                entity.ToTable("Vendors");
+                entity.HasKey(v => v.Id);
+                entity.Property(v => v.Id).HasColumnName("id");
+                entity.Property(v => v.UserId).HasColumnName("user_id");
+                entity.Property(v => v.ShopName).HasColumnName("shop_name");
+                entity.Property(v => v.ShopSlug).HasColumnName("shop_slug");
+                entity.Property(v => v.Description).HasColumnName("description");
+                entity.Property(v => v.Logo).HasColumnName("logo");
+                entity.Property(v => v.Banner).HasColumnName("banner");
+                entity.Property(v => v.GstNumber).HasColumnName("gst_number");
+                entity.Property(v => v.CommissionRate).HasColumnName("commission_rate");
+                entity.Property(v => v.Status).HasColumnName("status");
+                entity.Property(v => v.KycStatus).HasColumnName("kyc_status");
+                entity.Property(v => v.CreatedAt).HasColumnName("created_at");
+                entity.Property(v => v.UpdatedAt).HasColumnName("updated_at");
+            });
+
+            modelBuilder.Entity<Product>().Property(p => p.Id).HasColumnName("id");
+            modelBuilder.Entity<Product>().Property(p => p.VendorId).HasColumnName("vendor_id");
+            modelBuilder.Entity<Product>().Property(p => p.CategoryId).HasColumnName("category_id");
+            modelBuilder.Entity<Product>().Property(p => p.Name).HasColumnName("name");
+            modelBuilder.Entity<Product>().Property(p => p.Slug).HasColumnName("slug");
+            modelBuilder.Entity<Product>().Property(p => p.ShortDescription).HasColumnName("short_description");
+            modelBuilder.Entity<Product>().Property(p => p.Description).HasColumnName("description");
+            modelBuilder.Entity<Product>().Property(p => p.Price).HasColumnName("price");
+            modelBuilder.Entity<Product>().Property(p => p.DiscountPrice).HasColumnName("discount_price");
+            modelBuilder.Entity<Product>().Property(p => p.Sku).HasColumnName("sku");
+            modelBuilder.Entity<Product>().Property(p => p.Thumbnail).HasColumnName("thumbnail");
+            modelBuilder.Entity<Product>().Property(p => p.Images)
+                .HasColumnName("images")
+                .HasConversion(
+                    v => v == null ? null : System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions)null),
+                    v => string.IsNullOrEmpty(v) ? new List<string>() : System.Text.Json.JsonSerializer.Deserialize<List<string>>(v, (System.Text.Json.JsonSerializerOptions)null) ?? new List<string>()
+                )
+                .Metadata.SetValueComparer(new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<List<string>>(
+                    (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == c2,
+                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                    c => c.ToList()
+                ));
+            modelBuilder.Entity<Product>().Property(p => p.Status).HasColumnName("status");
+            modelBuilder.Entity<Product>().Property(p => p.InStock).HasColumnName("in_stock");
+            modelBuilder.Entity<Product>().Property(p => p.Quantity).HasColumnName("quantity");
+            modelBuilder.Entity<Product>().Property(p => p.CreatedAt).HasColumnName("created_at");
+            modelBuilder.Entity<Product>().Property(p => p.UpdatedAt).HasColumnName("updated_at");
+            modelBuilder.Entity<Product>().Property(p => p.OriginalImageUrl).HasColumnName("original_image_url");
+            modelBuilder.Entity<Product>().Property(p => p.ThumbnailImageUrl).HasColumnName("thumbnail_image_url");
+            modelBuilder.Entity<Product>()
+                .HasOne(p => p.Vendor)
+                .WithMany()
+                .HasForeignKey(p => p.VendorId);
+
+            modelBuilder.Entity<Category>().ToTable("categories");
+            modelBuilder.Entity<Category>().Property(c => c.Id).HasColumnName("id");
+            modelBuilder.Entity<Category>().Property(c => c.ParentId).HasColumnName("parent_id");
+            modelBuilder.Entity<Category>().Property(c => c.Name).HasColumnName("name");
+            modelBuilder.Entity<Category>().Property(c => c.Slug).HasColumnName("slug");
+            modelBuilder.Entity<Category>().Property(c => c.Image).HasColumnName("image");
+            modelBuilder.Entity<Category>().Property(c => c.Status).HasColumnName("status");
+            modelBuilder.Entity<Cart>().Property(c => c.UserId).HasColumnName("user_id");
+
+            modelBuilder.Entity<Cart>(entity =>
+            {
+                entity.ToTable("carts");
+                entity.HasKey(c => c.Id);
+                entity.Property(c => c.Id).HasColumnName("id");
+                entity.Property(c => c.UserId).HasColumnName("user_id").HasMaxLength(255).IsRequired();
+                entity.HasIndex(c => c.UserId).IsUnique();
+                entity.HasMany(c => c.CartItems)
+                    .WithOne(ci => ci.Cart)
+                    .HasForeignKey(ci => ci.CartId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<OrderItem>(entity =>
+            {
+                entity.ToTable("order_items");
+                entity.HasKey(o => o.Id);
+                entity.Property(o => o.Id).HasColumnName("id");
+                entity.Property(o => o.OrderId).HasColumnName("order_id");
+                entity.Property(o => o.ProductId).HasColumnName("product_id");
+                entity.Property(o => o.ProductName).HasColumnName("product_name");
+                entity.Property(o => o.Quantity).HasColumnName("quantity");
+                entity.Property(o => o.Price).HasColumnName("price");
+                entity.Property(o => o.TotalPrice).HasColumnName("total_price");
+                entity.Property(o => o.CreatedAt).HasColumnName("created_at");
+            });
+
+            modelBuilder.Entity<Order>().ToTable("orders");
+            modelBuilder.Entity<Cart>().ToTable("carts");
+
+            modelBuilder.Entity<Order>(entity =>
+            {
+                entity.HasKey(o => o.Id);
+                entity.Property(o => o.Id).HasColumnName("id");
+                entity.Property(o => o.UserId).HasColumnName("user_id");
+                entity.Property(o => o.AddressId).HasColumnName("address_id");
+                entity.Property(o => o.CouponId).HasColumnName("coupon_id");
+                entity.Property(o => o.OrderNumber).HasColumnName("order_number");
+                entity.Property(o => o.Subtotal).HasColumnName("subtotal");
+                entity.Property(o => o.DiscountAmount).HasColumnName("discount_amount");
+                entity.Property(o => o.ShippingCharge).HasColumnName("shipping_charge");
+                entity.Property(o => o.TotalAmount).HasColumnName("total_amount");
+                entity.Property(o => o.PaymentStatus).HasColumnName("payment_status");
+                entity.Property(o => o.OrderStatus).HasColumnName("order_status");
+                entity.Property(o => o.PlacedAt).HasColumnName("placed_at");
+                entity.Property(o => o.CreatedAt).HasColumnName("created_at");
+                entity.Property(o => o.SubtotalAmount).HasColumnName("subtotal_amount");
+                entity.Property(o => o.CommissionAmount).HasColumnName("commission_amount");
+                entity.Property(o => o.VendorAmount).HasColumnName("vendor_amount");
+                entity.Property(o => o.FinalAmount).HasColumnName("final_amount");
+                entity.Ignore(o => o.OrderDate);
+                entity.HasMany(o => o.OrderItems)
+                    .WithOne(oi => oi.Order)
+                    .HasForeignKey(oi => oi.OrderId);
+            });
+
+            modelBuilder.Entity<Coupon>(entity =>
+            {
+                entity.ToTable("coupons");
+                entity.HasKey(c => c.Id);
+                entity.Property(c => c.Id).HasColumnName("id");
+                entity.Property(c => c.VendorId).HasColumnName("vendor_id");
+                entity.Property(c => c.Code).HasColumnName("code");
+                entity.Property(c => c.DiscountType).HasColumnName("discount_type");
+                entity.Property(c => c.DiscountValue).HasColumnName("discount_value");
+                entity.Property(c => c.MaxDiscount).HasColumnName("max_discount");
+                entity.Property(c => c.MinimumOrderAmount).HasColumnName("minimum_order_amount");
+                entity.Property(c => c.UsageLimit).HasColumnName("usage_limit");
+                entity.Property(c => c.UsedCount).HasColumnName("used_count");
+                entity.Property(c => c.PerUserLimit).HasColumnName("per_user_limit");
+                entity.Property(c => c.StartDate).HasColumnName("start_date");
+                entity.Property(c => c.EndDate).HasColumnName("end_date");
+                entity.Property(c => c.Status).HasColumnName("status");
+                entity.Property(c => c.CreatedAt).HasColumnName("created_at");
+            });
+
+            modelBuilder.Entity<CouponUsage>(entity =>
+            {
+                entity.ToTable("coupon_usages");
+                entity.HasKey(cu => cu.Id);
+                entity.Property(cu => cu.Id).HasColumnName("id");
+                entity.Property(cu => cu.CouponId).HasColumnName("coupon_id");
+                entity.Property(cu => cu.UserId).HasColumnName("user_id");
+                entity.Property(cu => cu.OrderId).HasColumnName("order_id");
+                entity.Property(cu => cu.UsedAt).HasColumnName("used_at");
+            });
+
+            modelBuilder.Entity<CartItem>(entity =>
+            {
+                entity.ToTable("cart_items");
+                entity.HasKey(ci => ci.Id);
+                entity.Property(ci => ci.Id).HasColumnName("id");
+                entity.Property(ci => ci.CartId).HasColumnName("cart_id");
+                entity.Property(ci => ci.ProductId).HasColumnName("product_id");
+                entity.Property(ci => ci.Quantity).HasColumnName("quantity");
+                entity.Property(ci => ci.Price).HasColumnName("price");
+                entity.HasOne(ci => ci.Product)
+                    .WithMany()
+                    .HasForeignKey(ci => ci.ProductId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasIndex(ci => new { ci.CartId, ci.ProductId }).IsUnique();
+            });
+
+            modelBuilder.Entity<Address>(entity =>
+            {
+                entity.ToTable("addresses");
+                entity.HasKey(a => a.Id);
+                entity.Property(a => a.Id).HasColumnName("id");
+                entity.Property(a => a.UserId).HasColumnName("user_id");
+                entity.Property(a => a.FullName).HasColumnName("full_name");
+                entity.Property(a => a.Phone).HasColumnName("phone");
+                entity.Property(a => a.AddressLine1).HasColumnName("address_line1");
+                entity.Property(a => a.AddressLine2).HasColumnName("address_line2");
+                entity.Property(a => a.City).HasColumnName("city");
+                entity.Property(a => a.State).HasColumnName("state");
+                entity.Property(a => a.Country).HasColumnName("country");
+                entity.Property(a => a.PostalCode).HasColumnName("postal_code");
+                entity.Property(a => a.AddressType).HasColumnName("address_type");
+                entity.Property(a => a.IsDefault).HasColumnName("is_default");
+                entity.Property(a => a.CreatedAt).HasColumnName("created_at");
+            });
+
+            modelBuilder.Entity<Review>(entity =>
+            {
+                entity.ToTable("reviews");
+                entity.HasKey(r => r.Id);
+                entity.Property(r => r.Id).HasColumnName("id");
+                entity.Property(r => r.UserId).HasColumnName("user_id");
+                entity.Property(r => r.ProductId).HasColumnName("product_id");
+                entity.Property(r => r.Rating).HasColumnName("rating");
+                entity.Property(r => r.ReviewText).HasColumnName("review");
+                entity.Property(r => r.CreatedAt).HasColumnName("created_at");
+
+                entity.HasOne(r => r.Product)
+                    .WithMany()
+                    .HasForeignKey(r => r.ProductId);
+
+                entity.HasOne(r => r.User)
+                    .WithMany()
+                    .HasForeignKey(r => r.UserId);
+            });
+
+            modelBuilder.Entity<User>(entity =>
+            {
+                entity.ToTable("users");
+                entity.HasKey(u => u.Id);
+                entity.Property(u => u.Id).HasColumnName("id");
+                entity.Property(u => u.FullName).HasColumnName("full_name");
+                entity.Property(u => u.Email).HasColumnName("email");
+                entity.Property(u => u.Password).HasColumnName("password");
+                entity.Property(u => u.Phone).HasColumnName("phone");
+                entity.Property(u => u.Role).HasColumnName("role");
+                entity.Property(u => u.Status).HasColumnName("status");
+            });
+
+            modelBuilder.Entity<VendorKyc>(entity =>
+            {
+                entity.ToTable("vendor_kyc");
+                entity.HasKey(k => k.Id);
+                entity.Property(k => k.Id).HasColumnName("id");
+                entity.Property(k => k.VendorId).HasColumnName("vendor_id");
+                entity.Property(k => k.BusinessLegalName).HasColumnName("business_legal_name");
+                entity.Property(k => k.BankAccountName).HasColumnName("bank_account_name");
+                entity.Property(k => k.AadhaarDocumentUrl).HasColumnName("aadhaar_document_url");
+                entity.Property(k => k.GstNumber).HasColumnName("gst_number");
+                entity.Property(k => k.PanNumber).HasColumnName("pan_number");
+                entity.Property(k => k.BusinessAddress).HasColumnName("business_address");
+                entity.Property(k => k.BankAccountNumber).HasColumnName("bank_account_number");
+                entity.Property(k => k.IfscCode).HasColumnName("ifsc_code");
+                entity.Property(k => k.GstCertificateUrl).HasColumnName("gst_certificate_url");
+                entity.Property(k => k.PanCardUrl).HasColumnName("pan_card_url");
+                entity.Property(k => k.BankStatementUrl).HasColumnName("bank_statement_url");
+                entity.Property(k => k.Status).HasColumnName("status");
+                entity.Property(k => k.RejectionReason).HasColumnName("rejection_reason");
+                entity.Property(k => k.SubmittedAt).HasColumnName("submitted_at");
+                entity.Property(k => k.VerifiedAt).HasColumnName("verified_at");
+                entity.Property(k => k.VerifiedBy).HasColumnName("verified_by");
+                entity.Property(k => k.CreatedAt).HasColumnName("created_at");
+                entity.Property(k => k.UpdatedAt).HasColumnName("updated_at");
+
+                entity.HasOne<Vendor>()
+                      .WithMany()
+                      .HasForeignKey(k => k.VendorId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<EmailTemplate>(entity =>
+            {
+                entity.ToTable("email_templates");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TemplateKey).HasColumnName("template_key").IsRequired();
+                entity.HasIndex(e => e.TemplateKey).IsUnique();
+                entity.Property(e => e.TemplateName).HasColumnName("template_name").IsRequired();
+                entity.Property(e => e.Subject).HasColumnName("subject").IsRequired();
+                entity.Property(e => e.HtmlContent).HasColumnName("html_content").IsRequired();
+                entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+                entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+                entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+            });
+
+            modelBuilder.Entity<EmailLog>(entity =>
+            {
+                entity.ToTable("email_logs");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id");
+                entity.Property(e => e.TemplateId).HasColumnName("template_id");
+                entity.Property(e => e.RecipientEmail).HasColumnName("recipient_email").IsRequired();
+                entity.Property(e => e.Subject).HasColumnName("subject").IsRequired();
+                entity.Property(e => e.Body).HasColumnName("body").IsRequired();
+                entity.Property(e => e.Status).HasColumnName("status").IsRequired();
+                entity.Property(e => e.ErrorMessage).HasColumnName("error_message");
+                entity.Property(e => e.SentAt).HasColumnName("sent_at");
+                entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+
+                entity.HasOne(e => e.Template)
+                      .WithMany()
+                      .HasForeignKey(e => e.TemplateId)
+                      .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<EmailTemplateSetting>(entity =>
+            {
+                entity.ToTable("email_template_settings");
+                entity.HasKey(s => s.Id);
+                entity.HasIndex(s => s.TemplateKey).IsUnique();
+            });
+
+            modelBuilder.Entity<EmailTemplateVariable>(entity =>
+            {
+                entity.ToTable("email_template_variables");
+                entity.HasKey(v => v.Id);
+                entity.HasOne(v => v.TemplateSetting)
+                      .WithMany(s => s.Variables)
+                      .HasForeignKey(v => v.TemplateSettingId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+        }
+    }
+}
